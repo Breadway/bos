@@ -17,14 +17,14 @@ fn get_monitors() -> Vec<String> {
             let w = m.get("width")?.as_u64()?;
             let h = m.get("height")?.as_u64()?;
             let refresh = m.get("refreshRate")?.as_f64()?;
-            Some(format!("{name}  {w}×{h} @ {refresh:.0}Hz"))
+            Some(format!("{name}  {w}x{h} @ {refresh:.0}Hz"))
         })
         .collect()
 }
 
-fn config_path() -> std::path::PathBuf {
-    let home = std::env::var("HOME").unwrap_or_else(|_| "/root".to_string());
-    std::path::PathBuf::from(home).join(".config/hypr/hyprland.conf")
+fn hypr_path(name: &str) -> std::path::PathBuf {
+    let home = std::env::var("HOME").unwrap_or_else(|_| "/home/user".to_string());
+    std::path::PathBuf::from(home).join(".config/hypr").join(name)
 }
 
 pub fn build() -> GBox {
@@ -36,7 +36,6 @@ pub fn build() -> GBox {
     title.set_xalign(0.0);
     vbox.append(&title);
 
-    // Monitors section
     let monitors_lbl = Label::new(Some("Connected monitors"));
     monitors_lbl.set_xalign(0.0);
     monitors_lbl.set_margin_top(8);
@@ -52,38 +51,35 @@ pub fn build() -> GBox {
         for mon in &monitors {
             let lbl = Label::new(Some(mon));
             lbl.set_xalign(0.0);
-            lbl.add_css_class("monospace");
+            lbl.set_monospace(true);
             vbox.append(&lbl);
         }
     }
 
-    // Open config button
     let open_btn = Button::with_label("Open hyprland.conf in editor");
     open_btn.set_margin_top(16);
     open_btn.set_halign(gtk4::Align::Start);
     {
-        let path = config_path();
+        let conf_path = hypr_path("hyprland.conf");
         open_btn.connect_clicked(move |_| {
             let editor = std::env::var("EDITOR").unwrap_or_else(|_| "foot".to_string());
-            let _ = Command::new(&editor)
-                .arg(path.to_str().unwrap_or(""))
-                .spawn();
+            if let Ok(mut child) = Command::new(&editor).arg(&conf_path).spawn() {
+                std::thread::spawn(move || { let _ = child.wait(); });
+            }
         });
     }
     vbox.append(&open_btn);
 
-    // Open keybinds button
     let keybinds_btn = Button::with_label("Open keybinds.conf in editor");
     keybinds_btn.set_margin_top(8);
     keybinds_btn.set_halign(gtk4::Align::Start);
     {
-        let home = std::env::var("HOME").unwrap_or_else(|_| "/root".to_string());
-        let kb_path = std::path::PathBuf::from(home).join(".config/hypr/keybinds.conf");
+        let kb_path = hypr_path("keybinds.conf");
         keybinds_btn.connect_clicked(move |_| {
             let editor = std::env::var("EDITOR").unwrap_or_else(|_| "foot".to_string());
-            let _ = Command::new(&editor)
-                .arg(kb_path.to_str().unwrap_or(""))
-                .spawn();
+            if let Ok(mut child) = Command::new(&editor).arg(&kb_path).spawn() {
+                std::thread::spawn(move || { let _ = child.wait(); });
+            }
         });
     }
     vbox.append(&keybinds_btn);

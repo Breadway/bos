@@ -9,7 +9,7 @@ sed -i 's/NUMBER_MIN_AGE="[^"]*"/NUMBER_MIN_AGE="1800"/' /etc/snapper/configs/ro
 sed -i 's/NUMBER_LIMIT="[^"]*"/NUMBER_LIMIT="10"/' /etc/snapper/configs/root
 sed -i 's/NUMBER_LIMIT_IMPORTANT="[^"]*"/NUMBER_LIMIT_IMPORTANT="5"/' /etc/snapper/configs/root
 
-# Allow main user to use snapper without sudo
+# Allow main user to list/create/delete snapshots without sudo
 MAIN_USER=$(getent passwd 1000 | cut -d: -f1)
 sed -i "s/ALLOW_USERS=\"\"/ALLOW_USERS=\"$MAIN_USER\"/" /etc/snapper/configs/root
 
@@ -19,18 +19,19 @@ systemctl enable bluetooth
 systemctl enable snapper-cleanup.timer
 systemctl enable grub-btrfs.path
 
-# --- Bakery install ---
+# --- Bakery: install bread ecosystem ---
+# Requires [breadway] repo in /etc/pacman.conf — see iso/pacman.conf
 if command -v bakery &>/dev/null; then
     sudo -u "$MAIN_USER" bakery install bread breadbar breadbox breadcrumbs breadpad bos-settings
 fi
 
-# --- Deploy dotfiles (skip existing files) ---
-DOTFILES_SRC="/etc/skel/.config"
+# --- Deploy dotfiles into user home (skip any file that already exists) ---
+SKEL_SRC="/etc/skel/.config"
 DOTFILES_DEST="/home/$MAIN_USER/.config"
 
-if [[ -d "$DOTFILES_SRC" ]]; then
+if [[ -d "$SKEL_SRC" ]]; then
     mkdir -p "$DOTFILES_DEST"
-    cp -rn "$DOTFILES_SRC/." "$DOTFILES_DEST/"
+    cp -rn "$SKEL_SRC/." "$DOTFILES_DEST/"
     chown -R "$MAIN_USER:$MAIN_USER" "$DOTFILES_DEST"
 fi
 

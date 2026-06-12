@@ -47,10 +47,9 @@ gtk4-layer-shell
 librsvg
 libpulse
 
-# Display
+# Display (wlroots is bundled with Hyprland; don't list separately)
 wayland
 wayland-protocols
-wlroots
 
 # Fonts
 noto-fonts
@@ -63,9 +62,12 @@ foot
 # File manager
 nautilus
 
-# Installer
+# Installer — sourced from [breadway] repo (see pacman.conf)
 calamares
 calamares-qt6
+
+# Bread ecosystem — sourced from [breadway] repo
+bakery
 
 # Utilities
 sudo
