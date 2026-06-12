@@ -1,5 +1,5 @@
 use gtk4::prelude::*;
-use gtk4::{Box as GBox, Label, ListBox, ListBoxRow, Orientation, Separator};
+use gtk4::{Box as GBox, Label, ListBox, ListBoxRow, Orientation};
 
 pub struct SidebarItem {
     pub id: &'static str,
@@ -7,17 +7,17 @@ pub struct SidebarItem {
 }
 
 pub const APPS_ITEMS: &[SidebarItem] = &[
-    SidebarItem { id: "bread", label: "bread" },
-    SidebarItem { id: "breadbar", label: "breadbar" },
-    SidebarItem { id: "breadbox", label: "breadbox" },
+    SidebarItem { id: "bread",       label: "bread"       },
+    SidebarItem { id: "breadbar",    label: "breadbar"    },
+    SidebarItem { id: "breadbox",    label: "breadbox"    },
     SidebarItem { id: "breadcrumbs", label: "breadcrumbs" },
-    SidebarItem { id: "breadpad", label: "breadpad" },
+    SidebarItem { id: "breadpad",    label: "breadpad"    },
 ];
 
 pub const SYSTEM_ITEMS: &[SidebarItem] = &[
     SidebarItem { id: "snapshots", label: "Snapshots" },
-    SidebarItem { id: "packages", label: "Packages" },
-    SidebarItem { id: "hyprland", label: "Hyprland" },
+    SidebarItem { id: "packages",  label: "Packages"  },
+    SidebarItem { id: "hyprland",  label: "Hyprland"  },
 ];
 
 pub fn build() -> (GBox, ListBox) {
@@ -32,9 +32,17 @@ pub fn build() -> (GBox, ListBox) {
     append_section(&list, "Apps", APPS_ITEMS);
     append_section(&list, "System", SYSTEM_ITEMS);
 
-    // Select first item by default
-    if let Some(first) = list.row_at_index(1) {
-        list.select_row(Some(&first));
+    // Select the snapshots row so it matches the default stack page
+    let mut i = 0;
+    loop {
+        match list.row_at_index(i) {
+            None => break,
+            Some(row) if row.widget_name() == "snapshots" => {
+                list.select_row(Some(&row));
+                break;
+            }
+            _ => i += 1,
+        }
     }
 
     vbox.append(&list);
@@ -42,7 +50,6 @@ pub fn build() -> (GBox, ListBox) {
 }
 
 fn append_section(list: &ListBox, title: &str, items: &[SidebarItem]) {
-    // Section header (non-selectable)
     let header_row = ListBoxRow::new();
     header_row.set_selectable(false);
     header_row.set_activatable(false);
@@ -55,7 +62,6 @@ fn append_section(list: &ListBox, title: &str, items: &[SidebarItem]) {
     for item in items {
         let row = ListBoxRow::new();
         row.set_widget_name(item.id);
-
         let lbl = Label::new(Some(item.label));
         lbl.set_xalign(0.0);
         lbl.set_margin_top(2);

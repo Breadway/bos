@@ -3,7 +3,7 @@ use gtk4::{Box as GBox, Button, Label, Orientation, ScrolledWindow, TextView};
 use std::path::PathBuf;
 
 fn css_path() -> PathBuf {
-    let home = std::env::var("HOME").unwrap_or_else(|_| "/root".to_string());
+    let home = std::env::var("HOME").unwrap_or_else(|_| "/home/user".to_string());
     PathBuf::from(home).join(".config/breadbar/style.css")
 }
 
@@ -38,21 +38,39 @@ pub fn build() -> GBox {
     scroll.set_child(Some(&text_view));
     vbox.append(&scroll);
 
+    let btn_row = GBox::new(Orientation::Horizontal, 12);
+    btn_row.set_margin_top(12);
+
     let save_btn = Button::with_label("Save");
-    save_btn.set_margin_top(12);
-    save_btn.set_halign(gtk4::Align::Start);
+    let status_lbl = Label::new(None);
+    status_lbl.add_css_class("dim-label");
+
     {
         let path = path.clone();
+        let status_lbl = status_lbl.clone();
         save_btn.connect_clicked(move |_| {
             let (start, end) = buf.bounds();
             let text = buf.text(&start, &end, false);
             if let Some(parent) = path.parent() {
                 let _ = std::fs::create_dir_all(parent);
             }
-            let _ = std::fs::write(&path, text.as_str());
+            match std::fs::write(&path, text.as_str()) {
+                Ok(()) => {
+                    status_lbl.set_text("Saved");
+                    let lbl = status_lbl.clone();
+                    glib::timeout_add_seconds_local(3, move || {
+                        lbl.set_text("");
+                        glib::ControlFlow::Break
+                    });
+                }
+                Err(e) => status_lbl.set_text(&format!("Error: {e}")),
+            }
         });
     }
-    vbox.append(&save_btn);
+
+    btn_row.append(&save_btn);
+    btn_row.append(&status_lbl);
+    vbox.append(&btn_row);
 
     vbox
 }

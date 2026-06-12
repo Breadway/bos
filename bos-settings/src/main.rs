@@ -1,5 +1,4 @@
 mod config;
-mod state;
 mod theme;
 mod ui;
 

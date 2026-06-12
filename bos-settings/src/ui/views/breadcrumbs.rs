@@ -29,6 +29,8 @@ fn rebuild_list(list: &ListBox, cfg: &Rc<RefCell<BreadcrumbsConfig>>) {
     }
     for (i, profile) in cfg.borrow().profile.iter().enumerate() {
         let row = ListBoxRow::new();
+        row.set_selectable(false);
+
         let hbox = GBox::new(Orientation::Horizontal, 8);
         hbox.set_margin_top(6);
         hbox.set_margin_bottom(6);
@@ -37,12 +39,16 @@ fn rebuild_list(list: &ListBox, cfg: &Rc<RefCell<BreadcrumbsConfig>>) {
 
         let name_entry = Entry::new();
         name_entry.set_text(&profile.name);
-        name_entry.set_width_chars(16);
+        name_entry.set_width_chars(14);
+        name_entry.set_placeholder_text(Some("name"));
 
         let ssids_entry = Entry::new();
         ssids_entry.set_text(&profile.ssids.join(", "));
         ssids_entry.set_hexpand(true);
         ssids_entry.set_placeholder_text(Some("SSID1, SSID2, ..."));
+
+        let remove_btn = Button::with_label("Remove");
+        remove_btn.add_css_class("destructive-action");
 
         {
             let cfg = cfg.clone();
@@ -56,8 +62,7 @@ fn rebuild_list(list: &ListBox, cfg: &Rc<RefCell<BreadcrumbsConfig>>) {
             let cfg = cfg.clone();
             ssids_entry.connect_changed(move |e| {
                 if let Some(p) = cfg.borrow_mut().profile.get_mut(i) {
-                    p.ssids = e
-                        .text()
+                    p.ssids = e.text()
                         .split(',')
                         .map(|s| s.trim().to_string())
                         .filter(|s| !s.is_empty())
@@ -65,9 +70,18 @@ fn rebuild_list(list: &ListBox, cfg: &Rc<RefCell<BreadcrumbsConfig>>) {
                 }
             });
         }
+        {
+            let cfg = cfg.clone();
+            let list = list.clone();
+            remove_btn.connect_clicked(move |_| {
+                cfg.borrow_mut().profile.remove(i);
+                rebuild_list(&list, &cfg);
+            });
+        }
 
         hbox.append(&name_entry);
         hbox.append(&ssids_entry);
+        hbox.append(&remove_btn);
         row.set_child(Some(&hbox));
         list.append(&row);
     }
@@ -93,7 +107,6 @@ pub fn build() -> GBox {
 
     let list = ListBox::new();
     list.set_selection_mode(gtk4::SelectionMode::None);
-
     rebuild_list(&list, &cfg);
 
     let scroll = ScrolledWindow::new();
@@ -118,16 +131,31 @@ pub fn build() -> GBox {
     }
 
     let save_btn = Button::with_label("Save");
+    let status_lbl = Label::new(None);
+    status_lbl.add_css_class("dim-label");
+
     {
         let cfg = cfg.clone();
         let path = path.clone();
+        let status_lbl = status_lbl.clone();
         save_btn.connect_clicked(move |_| {
-            let _ = config::save(&path, &*cfg.borrow());
+            match config::save(&path, &*cfg.borrow()) {
+                Ok(()) => {
+                    status_lbl.set_text("Saved");
+                    let lbl = status_lbl.clone();
+                    glib::timeout_add_seconds_local(3, move || {
+                        lbl.set_text("");
+                        glib::ControlFlow::Break
+                    });
+                }
+                Err(e) => status_lbl.set_text(&format!("Error: {e}")),
+            }
         });
     }
 
     btn_row.append(&add_btn);
     btn_row.append(&save_btn);
+    btn_row.append(&status_lbl);
     vbox.append(&btn_row);
 
     vbox

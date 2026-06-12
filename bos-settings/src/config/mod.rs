@@ -1,5 +1,5 @@
 use std::error::Error;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 pub fn load<T: for<'de> serde::Deserialize<'de>>(path: &Path) -> Result<T, Box<dyn Error>> {
     let text = std::fs::read_to_string(path)?;
@@ -14,11 +14,11 @@ pub fn save<T: serde::Serialize>(path: &Path, val: &T) -> Result<(), Box<dyn Err
     Ok(())
 }
 
-pub fn config_dir() -> std::path::PathBuf {
-    dirs_path()
-}
-
-fn dirs_path() -> std::path::PathBuf {
-    let home = std::env::var("HOME").unwrap_or_else(|_| "/root".to_string());
-    std::path::PathBuf::from(home).join(".config")
+pub fn config_dir() -> PathBuf {
+    let home = std::env::var("HOME").unwrap_or_else(|_| {
+        std::env::var("XDG_CONFIG_HOME")
+            .map(|p| PathBuf::from(p).parent().unwrap_or(Path::new("/")).to_string_lossy().to_string())
+            .unwrap_or_else(|_| "/home/user".to_string())
+    });
+    PathBuf::from(home).join(".config")
 }
