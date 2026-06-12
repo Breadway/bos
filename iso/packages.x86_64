@@ -1,0 +1,84 @@
+# Base system
+base
+base-devel
+linux
+linux-firmware
+linux-headers
+
+# Bootloader + filesystem
+grub
+efibootmgr
+btrfs-progs
+dosfstools
+mtools
+
+# Snapshot infrastructure
+snapper
+snap-pac
+grub-btrfs
+inotify-tools
+
+# Wayland / Hyprland
+hyprland
+xdg-desktop-portal-hyprland
+xdg-utils
+xdg-user-dirs
+polkit
+polkit-gnome
+
+# Audio
+pipewire
+wireplumber
+pipewire-pulse
+pipewire-alsa
+pipewire-jack
+
+# Network
+networkmanager
+network-manager-applet
+iw
+iwd
+bluez
+bluez-utils
+
+# GTK4 runtime
+gtk4
+gtk4-layer-shell
+librsvg
+libpulse
+
+# Display
+wayland
+wayland-protocols
+wlroots
+
+# Fonts
+noto-fonts
+noto-fonts-emoji
+ttf-jetbrains-mono
+
+# Terminal
+foot
+
+# File manager
+nautilus
+
+# Installer
+calamares
+calamares-qt6
+
+# Utilities
+sudo
+git
+curl
+wget
+unzip
+tar
+gzip
+which
+man-db
+man-pages
+less
+
+# Dev tools (for bos-settings standalone install)
+rustup
