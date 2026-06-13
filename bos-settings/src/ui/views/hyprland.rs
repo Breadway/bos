@@ -50,7 +50,7 @@ pub fn build() -> GBox {
         for mon in &monitors {
             let lbl = Label::new(Some(mon));
             lbl.set_xalign(0.0);
-            lbl.set_monospace(true);
+            lbl.add_css_class("monospace");
             vbox.append(&lbl);
         }
     }

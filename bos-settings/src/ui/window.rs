@@ -1,5 +1,5 @@
 use gtk4::prelude::*;
-use gtk4::{Application, ApplicationWindow, Box as GBox, Orientation, Paned, Stack};
+use gtk4::{Application, ApplicationWindow, Orientation, Paned, Stack};
 
 use super::sidebar;
 use super::views;
@@ -12,7 +12,7 @@ pub fn build_ui(app: &Application) {
         .default_height(640)
         .build();
 
-    crate::theme::load(&window.display());
+    crate::theme::load(&WidgetExt::display(&window));
 
     let hpaned = Paned::new(Orientation::Horizontal);
     hpaned.set_position(190);
