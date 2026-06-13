@@ -69,6 +69,11 @@ calamares-qt6
 # Bread ecosystem — sourced from [breadway] repo
 bakery
 
+# Input / screen utilities
+brightnessctl
+grim
+slurp
+
 # Utilities
 sudo
 git

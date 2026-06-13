@@ -3,9 +3,9 @@ use gtk4::{Box as GBox, Button, Label, Orientation, ScrolledWindow, TextView};
 use std::path::PathBuf;
 
 fn css_path() -> PathBuf {
-    let home = std::env::var("HOME").unwrap_or_else(|_| "/home/user".to_string());
-    PathBuf::from(home).join(".config/breadbar/style.css")
+    crate::config::config_dir().join("breadbar/style.css")
 }
+
 
 pub fn build() -> GBox {
     let path = css_path();
