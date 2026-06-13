@@ -9,5 +9,11 @@ if [[ "$(tty)" == "/dev/tty1" ]] && [[ -z "$WAYLAND_DISPLAY" ]]; then
     # Software cursors: hardware-cursor planes are often unusable in VMs and
     # show as invisible/garbled; this is the reliable choice for a live medium.
     export WLR_NO_HARDWARE_CURSORS=1
-    exec Hyprland
+    # Run the compositor, capturing its output so a failed live boot is
+    # diagnosable (Hyprland also keeps its own log under $XDG_RUNTIME_DIR/hypr/).
+    # On exit, drop to an interactive shell with the error in view instead of
+    # letting the getty autologin respawn-loop hide it behind a blank cursor.
+    Hyprland &>/var/log/hyprland-live.log
+    echo "Hyprland exited (rc=$?). Log: /var/log/hyprland-live.log"
+    exec bash -i
 fi
