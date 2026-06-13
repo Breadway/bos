@@ -12,6 +12,12 @@ btrfs-progs
 dosfstools
 mtools
 # Live-ISO boot (archiso bootmodes: bios.syslinux + uefi.systemd-boot)
+# mkinitcpio-archiso provides the initramfs hooks that find and mount
+# airootfs.sfs and switch root into it — without it the live ISO drops
+# to emergency mode on boot.
+mkinitcpio
+mkinitcpio-archiso
+mkinitcpio-nfs-utils
 syslinux
 memtest86+
 memtest86+-efi
