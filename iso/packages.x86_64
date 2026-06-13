@@ -62,7 +62,7 @@ foot
 # File manager
 nautilus
 
-# Installer — sourced from [breadway] repo (see pacman.conf)
+# Installer — from the official extra repo
 calamares
 calamares-qt6
 
