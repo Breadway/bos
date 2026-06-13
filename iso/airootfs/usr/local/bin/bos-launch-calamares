@@ -1,0 +1,7 @@
+#!/bin/sh
+# Launch Calamares as root on the live user's Wayland session.
+# Calamares performs partitioning/bootloader work and needs root; the live user
+# has passwordless sudo (see /etc/sudoers.d/99-bos-live). We preserve the Wayland
+# environment so the root process renders on the user's compositor.
+export QT_QPA_PLATFORM=wayland
+exec sudo --preserve-env=WAYLAND_DISPLAY,XDG_RUNTIME_DIR,QT_QPA_PLATFORM calamares
