@@ -45,8 +45,10 @@ cat >/home/liveuser/.bash_profile <<'EOF'
 if [[ "$(tty)" == /dev/tty1 ]] && [[ -z "$WAYLAND_DISPLAY" ]]; then
     export WLR_RENDERER_ALLOW_SOFTWARE=1
     export WLR_NO_HARDWARE_CURSORS=1
-    Hyprland &>/var/log/hyprland-live.log
-    echo "Hyprland exited (rc=$?). Log: /var/log/hyprland-live.log"
+    # Log to a user-writable path (/var/log is root-only; redirecting there
+    # would fail and silently keep the compositor from ever launching).
+    Hyprland &>/tmp/hyprland-live.log
+    echo "Hyprland exited (rc=$?). Log: /tmp/hyprland-live.log"
     exec bash -i
 fi
 EOF
