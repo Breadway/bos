@@ -1,0 +1,3 @@
+[workspace]
+members = ["bos-settings"]
+resolver = "2"
