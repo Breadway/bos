@@ -1,4 +1,3 @@
-use gtk4::prelude::*;
 use gtk4::CssProvider;
 
 const CSS: &str = r#"
