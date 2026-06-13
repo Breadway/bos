@@ -1,0 +1,12 @@
+name = "bos-settings"
+description = "System settings app for Bread OS"
+binaries = ["bos-settings"]
+system_deps = ["gtk4", "glib2"]
+optional_system_deps = ["snapper"]
+bread_deps = []
+
+[config]
+dir = "~/.config"
+
+[install]
+post_install = []
