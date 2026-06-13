@@ -1,0 +1,8 @@
+log_level = "info"
+
+[adapters]
+keyboard = true
+mouse = true
+touchpad = true
+bluetooth = true
+gamepad = true
