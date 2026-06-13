@@ -35,3 +35,6 @@ secrets/
 logs/
 *.pid
 *.sock
+
+# Claude Code local agent state
+.claude/
