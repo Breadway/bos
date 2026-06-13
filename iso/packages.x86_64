@@ -11,6 +11,11 @@ efibootmgr
 btrfs-progs
 dosfstools
 mtools
+# Live-ISO boot (archiso bootmodes: bios.syslinux + uefi.systemd-boot)
+syslinux
+memtest86+
+memtest86+-efi
+edk2-shell
 
 # Snapshot infrastructure
 snapper
