@@ -8,7 +8,7 @@ use std::io::{BufRead, BufReader};
 use std::process::{Command, Stdio};
 
 fn read_installed() -> HashMap<String, String> {
-    let home = std::env::var("HOME").unwrap_or_else(|_| "/home/user".to_string());
+    let home = std::env::var("HOME").unwrap_or_else(|_| "/root".to_string());
     let path = std::path::Path::new(&home)
         .join(".local/state/bakery/installed.json");
 
@@ -132,7 +132,7 @@ pub fn build() -> GBox {
                     Ok(mut child) => {
                         std::thread::spawn(move || { let _ = child.wait(); });
                     }
-                    Err(e) => eprintln!("bakery update failed: {e}"),
+                    Err(_) => {}  // bakery not found; button is a no-op
                 }
             });
 

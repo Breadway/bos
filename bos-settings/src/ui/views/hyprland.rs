@@ -23,8 +23,7 @@ fn get_monitors() -> Vec<String> {
 }
 
 fn hypr_path(name: &str) -> std::path::PathBuf {
-    let home = std::env::var("HOME").unwrap_or_else(|_| "/home/user".to_string());
-    std::path::PathBuf::from(home).join(".config/hypr").join(name)
+    crate::config::config_dir().join("hypr").join(name)
 }
 
 pub fn build() -> GBox {
