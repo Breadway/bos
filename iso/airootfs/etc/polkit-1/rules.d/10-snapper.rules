@@ -1,0 +1,11 @@
+// Allow members of the wheel group to perform snapper rollback via pkexec
+// without a password prompt. Other snapper operations (list/create/delete)
+// are controlled by ALLOW_USERS in /etc/snapper/configs/root.
+polkit.addRule(function(action, subject) {
+    if (action.id == "io.opensuse.Snapper.Rollback" &&
+        subject.local &&
+        subject.active &&
+        subject.isInGroup("wheel")) {
+        return polkit.Result.YES;
+    }
+});
