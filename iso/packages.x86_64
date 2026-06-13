@@ -67,9 +67,9 @@ foot
 # File manager
 nautilus
 
-# Installer — from the official extra repo
+# Installer — Calamares is AUR-only; built in-house and served from [breadway]
+# (calamares 3.4.x is already Qt6; there is no separate calamares-qt6 package)
 calamares
-calamares-qt6
 
 # Bread ecosystem — sourced from [breadway] repo
 bakery
