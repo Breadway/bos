@@ -1,0 +1,54 @@
+#!/bin/bash
+# Create the unprivileged BOS live user and its Hyprland session.
+#
+# Hyprland refuses to run as root (superuser-privileges check), so the live
+# session must run as a normal user. Calamares — which does need root — is
+# launched onto the user's Wayland socket via passwordless sudo (see
+# bos-launch-calamares). Runs once at boot, before the tty1 autologin getty.
+set -e
+
+if ! id liveuser &>/dev/null; then
+    useradd -m -s /bin/bash liveuser
+    for g in wheel video input audio storage power; do
+        getent group "$g" >/dev/null 2>&1 && gpasswd -a liveuser "$g" >/dev/null || true
+    done
+    passwd -d liveuser >/dev/null
+fi
+
+install -d -m 0700 -o liveuser -g liveuser /home/liveuser/.config/hypr
+
+# Minimal live compositor config: auto-launch the installer.
+cat >/home/liveuser/.config/hypr/hyprland.conf <<'EOF'
+monitor=,preferred,auto,1
+
+exec-once = bos-launch-calamares
+
+general {
+    border_size = 2
+    col.active_border = rgba(88c0d0ff)
+    col.inactive_border = rgba(4c566aff)
+}
+decoration { rounding = 4 }
+input {
+    kb_layout = us
+    follow_mouse = 1
+}
+misc {
+    disable_hyprland_logo = true
+    disable_splash_rendering = true
+}
+EOF
+
+# Start Hyprland on tty1 login; capture output and fall back to a shell so a
+# failed compositor start is visible rather than a blank looping cursor.
+cat >/home/liveuser/.bash_profile <<'EOF'
+if [[ "$(tty)" == /dev/tty1 ]] && [[ -z "$WAYLAND_DISPLAY" ]]; then
+    export WLR_RENDERER_ALLOW_SOFTWARE=1
+    export WLR_NO_HARDWARE_CURSORS=1
+    Hyprland &>/var/log/hyprland-live.log
+    echo "Hyprland exited (rc=$?). Log: /var/log/hyprland-live.log"
+    exec bash -i
+fi
+EOF
+
+chown -R liveuser:liveuser /home/liveuser

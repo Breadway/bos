@@ -1,0 +1,14 @@
+[Unit]
+Description=Set up the BOS live user and session
+# Only on the live medium — the installed system has no archisobasedir cmdline.
+ConditionKernelCommandLine=archisobasedir
+Before=getty@tty1.service
+After=systemd-tmpfiles-setup.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/bin/bos-live-setup
+
+[Install]
+WantedBy=multi-user.target
