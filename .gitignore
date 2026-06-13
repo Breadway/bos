@@ -1,0 +1,37 @@
+# Rust build artifacts
+/target/
+**/*.pdb
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.direnv/
+
+# OS artifacts
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Environment / secrets
+.env
+.env.local
+*.env.*
+secrets/
+*.pem
+*.key
+*.p12
+
+# archiso build artifacts (these are large and reproducible)
+/iso-build/
+/iso-out/
+*.iso
+*.img
+
+# Runtime / logs
+*.log
+logs/
+*.pid
+*.sock

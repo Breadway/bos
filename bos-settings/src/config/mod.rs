@@ -15,10 +15,13 @@ pub fn save<T: serde::Serialize>(path: &Path, val: &T) -> Result<(), Box<dyn Err
 }
 
 pub fn config_dir() -> PathBuf {
-    let home = std::env::var("HOME").unwrap_or_else(|_| {
-        std::env::var("XDG_CONFIG_HOME")
-            .map(|p| PathBuf::from(p).parent().unwrap_or(Path::new("/")).to_string_lossy().to_string())
-            .unwrap_or_else(|_| "/home/user".to_string())
-    });
+    // Honour XDG_CONFIG_HOME if set; otherwise fall back to $HOME/.config.
+    if let Ok(xdg) = std::env::var("XDG_CONFIG_HOME") {
+        let p = PathBuf::from(xdg);
+        if p.is_absolute() {
+            return p;
+        }
+    }
+    let home = std::env::var("HOME").unwrap_or_else(|_| "/root".to_string());
     PathBuf::from(home).join(".config")
 }
