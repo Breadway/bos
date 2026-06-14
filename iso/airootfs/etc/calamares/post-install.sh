@@ -35,7 +35,26 @@ fallback_options="-S autodetect"
 PRESET
 mkinitcpio -P || echo "WARN: mkinitcpio regeneration failed"
 
-# Refresh GRUB so it references the rebuilt initramfs (and the new fallback).
+# ---------------------------------------------------------------------------
+# Install GRUB ourselves. Calamares' bootloader module runs before the kernel
+# and initramfs exist (archiso keeps them out of the squashfs; shellprocess
+# @kernel only lays vmlinuz down just beforehand), so its grub-install/config
+# leaves the ESP empty. Redo it here, now that /boot is fully populated.
+#
+# Two passes: the standard NVRAM entry, plus a --removable copy to
+# EFI/BOOT/BOOTX64.EFI so firmware that lost/never wrote an NVRAM entry (the
+# "no boot device / screen just refreshes" failure) still finds a bootloader.
+# ---------------------------------------------------------------------------
+if command -v grub-install &>/dev/null; then
+    grub-install --target=x86_64-efi --efi-directory=/boot/efi \
+        --bootloader-id=BOS --recheck \
+        || echo "WARN: grub-install (nvram) failed"
+    grub-install --target=x86_64-efi --efi-directory=/boot/efi \
+        --removable --recheck \
+        || echo "WARN: grub-install (removable) failed"
+fi
+
+# Refresh GRUB so it references the kernel + rebuilt initramfs.
 if command -v grub-mkconfig &>/dev/null; then
     grub-mkconfig -o /boot/grub/grub.cfg || echo "WARN: grub-mkconfig failed"
 fi
