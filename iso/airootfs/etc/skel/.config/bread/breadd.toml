@@ -1,8 +1,21 @@
+# breadd daemon configuration.
+# Every section is optional and every adapter defaults to enabled; this file
+# just makes the defaults explicit. See the bread docs for the full schema.
+
+[daemon]
 log_level = "info"
 
-[adapters]
-keyboard = true
-mouse = true
-touchpad = true
-bluetooth = true
-gamepad = true
+[adapters.hyprland]
+enabled = true
+
+[adapters.udev]
+enabled = true
+
+[adapters.power]
+enabled = true
+
+[adapters.network]
+enabled = true
+
+[adapters.bluetooth]
+enabled = true
