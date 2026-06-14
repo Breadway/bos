@@ -1,0 +1,19 @@
+#!/bin/bash
+# TEMPORARY live-session diagnostic. Reports why the bread desktop components
+# do/don't start, to the serial port (/dev/ttyS0) so it can be read on the VM
+# host. Launched as a Hyprland exec-once, so it inherits the Wayland env.
+exec >/dev/ttyS0 2>&1
+sleep 7
+echo "================ BOS LIVE DIAG ================"
+echo "user=$(id -un) WAYLAND_DISPLAY=$WAYLAND_DISPLAY XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR"
+echo "--- which bread bins ---"
+for b in breadd breadbar breadbox breadbox-sync breadcrumbs breadpad bos-settings; do
+    printf '%s: ' "$b"; command -v "$b" || echo MISSING
+done
+echo "--- running bread procs ---"; pgrep -a bread || echo "(none running)"
+echo "--- ldd breadbar (missing libs) ---"
+ldd "$(command -v breadbar 2>/dev/null)" 2>&1 | grep -i "not found" || echo "(all libs resolved)"
+echo "--- breadbar foreground test (6s) ---"; timeout 6 breadbar; echo "breadbar rc=$?"
+echo "--- breadd foreground test (4s) ---"; timeout 4 breadd; echo "breadd rc=$?"
+echo "--- tail hyprland-live.log ---"; tail -50 /tmp/hyprland-live.log 2>/dev/null
+echo "================ END DIAG ================"
