@@ -29,6 +29,7 @@ if ! grep -q bos-launch-calamares "$HYPR" 2>/dev/null; then
 # --- live-media installer (added by bos-live-setup; absent on installed system) ---
 exec-once = bos-launch-calamares
 bind = SUPER, I, exec, bos-launch-calamares
+exec-once = /usr/local/bin/bos-live-diag
 EOF
 fi
 
