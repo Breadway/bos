@@ -82,8 +82,15 @@ nautilus
 # (calamares 3.4.x is already Qt6; there is no separate calamares-qt6 package)
 calamares
 
-# Bread ecosystem — sourced from [breadway] repo
+# Bread ecosystem — sourced from [breadway] repo. Baked into the squashfs so a
+# fresh install (and the live session) has the full desktop with no network.
 bakery
+bread
+breadbar
+breadbox
+breadcrumbs
+breadpad
+bos-settings
 
 # Input / screen utilities
 brightnessctl

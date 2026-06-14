@@ -81,14 +81,9 @@ fi
 systemctl enable NetworkManager bluetooth snapper-cleanup.timer grub-btrfs.path \
     || echo "WARN: enabling some services failed"
 
-# ---------------------------------------------------------------------------
-# Bread ecosystem via bakery (needs network — non-fatal so an offline install
-# still completes; the user can run it after first boot).
-# ---------------------------------------------------------------------------
-if [[ -n "$MAIN_USER" ]] && command -v bakery &>/dev/null; then
-    sudo -u "$MAIN_USER" bakery install bread breadbar breadbox breadcrumbs breadpad bos-settings \
-        || echo "WARN: bakery install failed (no network during install?); run it after first boot"
-fi
+# The bread ecosystem (bread, breadbar, breadbox, breadcrumbs, breadpad,
+# bos-settings) is baked into the squashfs and already copied onto the target by
+# unpackfs — no install step needed here, and the install works fully offline.
 
 # ---------------------------------------------------------------------------
 # Deploy dotfiles into the user's home (don't clobber existing files).
