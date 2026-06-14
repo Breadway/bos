@@ -29,7 +29,6 @@ if ! grep -q bos-launch-calamares "$HYPR" 2>/dev/null; then
 # --- live-media installer (added by bos-live-setup; absent on installed system) ---
 exec-once = bos-launch-calamares
 bind = SUPER, I, exec, bos-launch-calamares
-exec-once = /usr/local/bin/bos-live-diag
 EOF
 fi
 
@@ -41,8 +40,8 @@ if [[ "$(tty)" == /dev/tty1 ]] && [[ -z "$WAYLAND_DISPLAY" ]]; then
     export WLR_NO_HARDWARE_CURSORS=1
     # Log to a user-writable path (/var/log is root-only; redirecting there
     # would fail and silently keep the compositor from ever launching).
-    Hyprland 2>&1 | sudo tee /tmp/hyprland-live.log /dev/ttyS0 >/dev/null
-    echo "Hyprland exited. Log: /tmp/hyprland-live.log" | sudo tee /dev/ttyS0
+    Hyprland &>/tmp/hyprland-live.log
+    echo "Hyprland exited (rc=$?). Log: /tmp/hyprland-live.log"
     exec bash -i
 fi
 EOF
