@@ -11,6 +11,9 @@ efibootmgr
 btrfs-progs
 dosfstools
 mtools
+# squashfs-tools: provides unsquashfs, which Calamares' unpackfs module uses
+# to extract airootfs.sfs onto the target during install.
+squashfs-tools
 # Live-ISO boot (archiso bootmodes: bios.syslinux + uefi.systemd-boot)
 # mkinitcpio-archiso provides the initramfs hooks that find and mount
 # airootfs.sfs and switch root into it — without it the live ISO drops
