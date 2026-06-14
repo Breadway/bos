@@ -1,0 +1,24 @@
+#!/bin/bash
+# Copy the live kernel into the freshly-unpacked target /boot.
+#
+# archiso keeps vmlinuz/initramfs in the ISO boot dir (arch/boot/x86_64/), NOT
+# in the squashfs, so the rootfs that unpackfs lays down has an empty /boot.
+# Without a kernel, the chroot's `mkinitcpio -P` and `grub-mkconfig` produce
+# nothing and the installed system is unbootable.
+#
+# Runs in the LIVE environment (Calamares shellprocess, dontChroot) so it can
+# read /run/archiso/bootmnt; the target root mount point is passed as $1.
+set -uo pipefail
+
+ROOT="${1:?target root required}"
+SRC="/run/archiso/bootmnt/arch/boot/x86_64"
+
+install -d -m 0755 "$ROOT/boot"
+cp -f "$SRC/vmlinuz-linux" "$ROOT/boot/vmlinuz-linux"
+
+# Microcode, if the live medium carries it (grub-mkconfig picks it up).
+for u in amd-ucode.img intel-ucode.img; do
+    [ -f "$SRC/$u" ] && cp -f "$SRC/$u" "$ROOT/boot/$u"
+done
+
+echo "Copied live kernel into $ROOT/boot"
