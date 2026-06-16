@@ -1,0 +1,12 @@
+# greetd drives login on the INSTALLED system. It is shipped DISABLED in the
+# squashfs and enabled by post-install.sh; the live ISO instead autologins
+# liveuser on tty1 (see getty@tty1 drop-in) so the installer comes straight up.
+#
+# tuigreet shows a minimal greeter, then launches the BOS Hyprland session via
+# bos-session (which fixes up PATH for the bakery bread apps).
+[terminal]
+vt = 1
+
+[default_session]
+command = "tuigreet --remember --time --cmd /usr/local/bin/bos-session"
+user = "greeter"
