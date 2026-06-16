@@ -188,6 +188,9 @@ hl.bind("XF86AudioPlay",         hl.dsp.exec_cmd("playerctl play-pause"),       
 -- ---------------------------------------------------------------------------
 hl.on("hyprland.start", function()
     local startup = {
+        -- Generate the shared bread GUI stylesheet first, so breadbar/breadbox/
+        -- bos-settings load it on start (they also live-reload if it changes).
+        "bread-theme generate",
         -- Global dark theme: GTK4/libadwaita + GTK3 theme + icon + cursor.
         "gsettings set org.gnome.desktop.interface color-scheme prefer-dark",
         "gsettings set org.gnome.desktop.interface gtk-theme Adwaita-dark",
