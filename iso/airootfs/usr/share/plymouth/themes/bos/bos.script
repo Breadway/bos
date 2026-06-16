@@ -1,10 +1,10 @@
 # BOS Plymouth boot splash (script module).
-# Bread-brown background, centred white BOS logo, a spinning accent ring, and a
-# status line at the bottom. Colours match the bread palette.
+# Black background, centred white BOS logo, a spinning accent ring, and a
+# status line at the bottom. Colours match the bread palette (black base + warm accent).
 
-# --- background (#230b00) ---
-Window.SetBackgroundTopColor(0.137, 0.043, 0.0);
-Window.SetBackgroundBottomColor(0.137, 0.043, 0.0);
+# --- background (#0c0c0c) ---
+Window.SetBackgroundTopColor(0.047, 0.047, 0.047);
+Window.SetBackgroundBottomColor(0.047, 0.047, 0.047);
 
 screen_w = Window.GetWidth();
 screen_h = Window.GetHeight();
