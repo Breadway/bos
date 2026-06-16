@@ -3,8 +3,9 @@
 #
 # archiso keeps vmlinuz/initramfs in the ISO boot dir (arch/boot/x86_64/), NOT
 # in the squashfs, so the rootfs that unpackfs lays down has an empty /boot.
-# Without a kernel, the chroot's `mkinitcpio -P` and `grub-mkconfig` produce
-# nothing and the installed system is unbootable.
+# The kernel must be present before Calamares' `initcpio` module runs mkinitcpio
+# (the stock linux.preset points ALL_kver at /boot/vmlinuz-linux) and before the
+# `bootloader` module runs grub — otherwise the installed system is unbootable.
 #
 # Runs in the LIVE environment (Calamares shellprocess, dontChroot) so it can
 # read /run/archiso/bootmnt; the target root mount point is passed as $1.
@@ -21,4 +22,25 @@ for u in amd-ucode.img intel-ucode.img; do
     [ -f "$SRC/$u" ] && cp -f "$SRC/$u" "$ROOT/boot/$u"
 done
 
-echo "Copied live kernel into $ROOT/boot"
+# Replace the archiso initramfs setup that unpackfs copied from the live medium.
+# On archiso the linux preset is PRESETS=('archiso') using archiso.conf (the live
+# HOOKS). Calamares' `initcpio` runs `mkinitcpio -P`, which would build that
+# archiso preset and either bake the live-boot hooks into the install or fail
+# once archiso.conf is gone. Drop the drop-in and write a stock default+fallback
+# preset so `initcpio` produces a normal, bootable initramfs from the config that
+# the `initcpiocfg` module generates at /etc/mkinitcpio.conf.
+rm -f "$ROOT/etc/mkinitcpio.conf.d/archiso.conf"
+install -d -m 0755 "$ROOT/etc/mkinitcpio.d"
+cat >"$ROOT/etc/mkinitcpio.d/linux.preset" <<'PRESET'
+# mkinitcpio preset file for the 'linux' package
+ALL_config="/etc/mkinitcpio.conf"
+ALL_kver="/boot/vmlinuz-linux"
+
+PRESETS=('default' 'fallback')
+
+default_image="/boot/initramfs-linux.img"
+fallback_image="/boot/initramfs-linux-fallback.img"
+fallback_options="-S autodetect"
+PRESET
+
+echo "Copied live kernel into $ROOT/boot; reset mkinitcpio to a stock preset"

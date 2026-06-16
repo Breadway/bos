@@ -1,0 +1,8 @@
+[Plymouth Theme]
+Name=BOS
+Description=Bread Operating System boot splash — logo, spinner, status
+ModuleName=script
+
+[script]
+ImageDir=/usr/share/plymouth/themes/bos
+ScriptFile=/usr/share/plymouth/themes/bos/bos.script

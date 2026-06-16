@@ -1,0 +1,28 @@
+{
+    "wallpaper": "/usr/share/backgrounds/bos/bread-background.png",
+    "alpha": "100",
+
+    "special": {
+        "background": "#0c0c0c",
+        "foreground": "#e8e8e8",
+        "cursor": "#eab672"
+    },
+    "colors": {
+        "color0": "#1a1a1a",
+        "color1": "#b98749",
+        "color2": "#cd9450",
+        "color3": "#e3a85c",
+        "color4": "#eab672",
+        "color5": "#f6c477",
+        "color6": "#eabe82",
+        "color7": "#d8d8d8",
+        "color8": "#3a3a3a",
+        "color9": "#b98749",
+        "color10": "#cd9450",
+        "color11": "#e3a85c",
+        "color12": "#eab672",
+        "color13": "#f6c477",
+        "color14": "#eabe82",
+        "color15": "#f5f5f5"
+    }
+}

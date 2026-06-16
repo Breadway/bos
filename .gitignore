@@ -38,3 +38,6 @@ logs/
 
 # Claude Code local agent state
 .claude/
+
+# Wallpaper source drop (baked copy lives in airootfs/usr/share/backgrounds)
+/Bread Background.png
