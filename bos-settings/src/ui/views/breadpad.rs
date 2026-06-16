@@ -1,28 +1,16 @@
-use gtk4::prelude::*;
-use gtk4::{Box as GBox, Button, Entry, Label, Orientation, Switch};
-use serde::{Deserialize, Serialize};
+//! breadpad.toml — the breadpad notes/reminders config.
+//! Schema mirrors breadpad-shared/src/config.rs (settings, model + model.ollama,
+//! reminders, calendar). Edited non-destructively (the calendar password and
+//! model paths are preserved across saves).
+
 use std::cell::RefCell;
 use std::rc::Rc;
 
+use gtk4::prelude::*;
+use gtk4::Box as GBox;
+
 use crate::config;
-
-#[derive(Deserialize, Serialize, Clone)]
-pub struct BreadpadConfig {
-    #[serde(default)]
-    pub model: String,
-    #[serde(default = "default_true")]
-    pub reminders: bool,
-    #[serde(default = "default_true")]
-    pub calendar: bool,
-}
-
-fn default_true() -> bool { true }
-
-impl Default for BreadpadConfig {
-    fn default() -> Self {
-        Self { model: String::new(), reminders: true, calendar: true }
-    }
-}
+use crate::ui::widgets as w;
 
 fn config_path() -> std::path::PathBuf {
     config::config_dir().join("breadpad/breadpad.toml")
@@ -30,93 +18,129 @@ fn config_path() -> std::path::PathBuf {
 
 pub fn build() -> GBox {
     let path = config_path();
-    let cfg: BreadpadConfig = config::load(&path).unwrap_or_default();
-    let cfg = Rc::new(RefCell::new(cfg));
+    let doc = Rc::new(RefCell::new(config::load_doc(&path)));
 
-    let vbox = GBox::new(Orientation::Vertical, 12);
-    vbox.add_css_class("view-content");
+    let (outer, c) = w::view_scaffold("breadpad");
 
-    let title = Label::new(Some("breadpad"));
-    title.add_css_class("title");
-    title.set_xalign(0.0);
-    vbox.append(&title);
+    c.append(&w::section("Capture"));
+    c.append(&w::dropdown_row(
+        "Default note type",
+        &doc,
+        &["settings", "default_type"],
+        &["note", "reminder", "task"],
+        "note",
+    ));
+    c.append(&w::switch_row(
+        "Tag with active workspace",
+        &doc,
+        &["settings", "workspace_tag"],
+        true,
+    ));
+    c.append(&w::csv_row(
+        "Snooze options",
+        &doc,
+        &["settings", "snooze_options"],
+        "15m, 1h, tomorrow_morning",
+    ));
+    c.append(&w::spin_row(
+        "Archive after (days)",
+        &doc,
+        &["settings", "archive_after_days"],
+        0.0,
+        3650.0,
+        1.0,
+        30,
+    ));
 
-    // Model entry
-    let row = GBox::new(Orientation::Horizontal, 16);
-    let lbl = Label::new(Some("Model"));
-    lbl.set_hexpand(true);
-    lbl.set_xalign(0.0);
-    let model_entry = Entry::new();
-    model_entry.set_text(&cfg.borrow().model);
-    model_entry.set_placeholder_text(Some("e.g. claude-sonnet-4-6"));
-    {
-        let cfg = cfg.clone();
-        model_entry.connect_changed(move |e| {
-            cfg.borrow_mut().model = e.text().to_string();
-        });
-    }
-    row.append(&lbl);
-    row.append(&model_entry);
-    vbox.append(&row);
+    c.append(&w::section("Classifier model"));
+    c.append(&w::entry_row(
+        "ONNX model path",
+        &doc,
+        &["model", "path"],
+        "~/.local/share/breadpad/model/classifier.onnx",
+        "",
+    ));
+    c.append(&w::entry_row(
+        "Tokenizer path",
+        &doc,
+        &["model", "tokenizer"],
+        "~/.local/share/breadpad/model/tokenizer.json",
+        "",
+    ));
 
-    // Reminders
-    let row = GBox::new(Orientation::Horizontal, 16);
-    let lbl = Label::new(Some("Reminders"));
-    lbl.set_hexpand(true);
-    lbl.set_xalign(0.0);
-    let sw = Switch::new();
-    sw.set_active(cfg.borrow().reminders);
-    {
-        let cfg = cfg.clone();
-        sw.connect_active_notify(move |s| { cfg.borrow_mut().reminders = s.is_active(); });
-    }
-    row.append(&lbl);
-    row.append(&sw);
-    vbox.append(&row);
+    c.append(&w::section("Ollama (LLM classifier)"));
+    c.append(&w::switch_row(
+        "Use Ollama",
+        &doc,
+        &["model", "ollama", "enabled"],
+        true,
+    ));
+    c.append(&w::entry_row(
+        "Endpoint",
+        &doc,
+        &["model", "ollama", "endpoint"],
+        "http://localhost:11434",
+        "",
+    ));
+    c.append(&w::entry_row(
+        "Model",
+        &doc,
+        &["model", "ollama", "model"],
+        "e.g. fastflowlm",
+        "",
+    ));
+    c.append(&w::spin_f64_row(
+        "Confidence threshold",
+        &doc,
+        &["model", "ollama", "confidence_threshold"],
+        0.0,
+        1.0,
+        0.05,
+        2,
+        0.6,
+    ));
 
-    // Calendar
-    let row = GBox::new(Orientation::Horizontal, 16);
-    let lbl = Label::new(Some("Calendar integration"));
-    lbl.set_hexpand(true);
-    lbl.set_xalign(0.0);
-    let sw = Switch::new();
-    sw.set_active(cfg.borrow().calendar);
-    {
-        let cfg = cfg.clone();
-        sw.connect_active_notify(move |s| { cfg.borrow_mut().calendar = s.is_active(); });
-    }
-    row.append(&lbl);
-    row.append(&sw);
-    vbox.append(&row);
+    c.append(&w::section("Reminders"));
+    c.append(&w::entry_row(
+        "Default morning time",
+        &doc,
+        &["reminders", "default_morning"],
+        "7:00",
+        "",
+    ));
+    c.append(&w::spin_row(
+        "Missed grace (minutes)",
+        &doc,
+        &["reminders", "missed_grace_minutes"],
+        0.0,
+        1440.0,
+        5.0,
+        60,
+    ));
 
-    let btn_row = GBox::new(Orientation::Horizontal, 12);
-    btn_row.set_margin_top(16);
+    c.append(&w::section("Calendar (CalDAV)"));
+    c.append(&w::switch_row(
+        "Sync to calendar",
+        &doc,
+        &["calendar", "enabled"],
+        false,
+    ));
+    c.append(&w::entry_row(
+        "CalDAV URL",
+        &doc,
+        &["calendar", "url"],
+        "https://host/remote.php/dav/calendars/...",
+        "",
+    ));
+    c.append(&w::entry_row(
+        "Username",
+        &doc,
+        &["calendar", "username"],
+        "",
+        "",
+    ));
+    c.append(&w::password_row("Password", &doc, &["calendar", "password"]));
 
-    let save_btn = Button::with_label("Save");
-    let status_lbl = Label::new(None);
-    status_lbl.add_css_class("dim-label");
-
-    {
-        let cfg = cfg.clone();
-        let status_lbl = status_lbl.clone();
-        save_btn.connect_clicked(move |_| {
-            match config::save(&path, &*cfg.borrow()) {
-                Ok(()) => {
-                    status_lbl.set_text("Saved");
-                    let lbl = status_lbl.clone();
-                    glib::timeout_add_seconds_local(3, move || {
-                        lbl.set_text("");
-                        glib::ControlFlow::Break
-                    });
-                }
-                Err(e) => status_lbl.set_text(&format!("Error: {e}")),
-            }
-        });
-    }
-
-    btn_row.append(&save_btn);
-    btn_row.append(&status_lbl);
-    vbox.append(&btn_row);
-
-    vbox
+    outer.append(&w::save_button(&doc, path));
+    outer
 }
