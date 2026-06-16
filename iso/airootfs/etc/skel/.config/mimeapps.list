@@ -1,0 +1,51 @@
+# Default applications for common file types. Without this, freshly installed
+# BOS has no handler registered for images/video/text/etc., so opening a file
+# from nautilus does nothing. Maps to the apps shipped in packages.x86_64.
+[Default Applications]
+# Images -> Loupe
+image/png=org.gnome.Loupe.desktop
+image/jpeg=org.gnome.Loupe.desktop
+image/gif=org.gnome.Loupe.desktop
+image/webp=org.gnome.Loupe.desktop
+image/bmp=org.gnome.Loupe.desktop
+image/tiff=org.gnome.Loupe.desktop
+image/svg+xml=org.gnome.Loupe.desktop
+
+# Audio/Video -> VLC
+audio/mpeg=vlc.desktop
+audio/flac=vlc.desktop
+audio/ogg=vlc.desktop
+audio/x-wav=vlc.desktop
+audio/aac=vlc.desktop
+video/mp4=vlc.desktop
+video/x-matroska=vlc.desktop
+video/webm=vlc.desktop
+video/quicktime=vlc.desktop
+video/x-msvideo=vlc.desktop
+
+# Plain text / source -> GNOME Text Editor
+text/plain=org.gnome.TextEditor.desktop
+text/markdown=org.gnome.TextEditor.desktop
+application/x-shellscript=org.gnome.TextEditor.desktop
+application/json=org.gnome.TextEditor.desktop
+application/toml=org.gnome.TextEditor.desktop
+text/x-readme=org.gnome.TextEditor.desktop
+
+# Documents / web -> Zen (PDF + HTML)
+application/pdf=zen.desktop
+text/html=zen.desktop
+x-scheme-handler/http=zen.desktop
+x-scheme-handler/https=zen.desktop
+
+# Archives -> File Roller
+application/zip=org.gnome.FileRoller.desktop
+application/x-tar=org.gnome.FileRoller.desktop
+application/gzip=org.gnome.FileRoller.desktop
+application/x-7z-compressed=org.gnome.FileRoller.desktop
+application/x-rar=org.gnome.FileRoller.desktop
+application/vnd.rar=org.gnome.FileRoller.desktop
+application/x-xz=org.gnome.FileRoller.desktop
+application/x-bzip2=org.gnome.FileRoller.desktop
+
+# Directories -> Nautilus
+inode/directory=org.gnome.Nautilus.desktop
