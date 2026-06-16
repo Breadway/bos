@@ -1,0 +1,24 @@
+
+   Welcome to BOS — the Bread Operating System
+   ══════════════════════════════════════════════════════════
+
+   You're running a complete Hyprland desktop with the bread
+   ecosystem preinstalled. A few things to get you started:
+
+   • SUPER + /        show the keybind cheatsheet (any time)
+   • SUPER + ,        open BOS Settings — configure bread, the
+                      bar, launcher, Wi-Fi profiles, notes,
+                      snapshots and package updates, all in one
+                      place (no config files needed)
+   • SUPER + Space    the app launcher (breadbox)
+   • SUPER + Return   a terminal
+
+   The bar at the top (breadbar) shows workspaces, the clock,
+   system stats, and your tray. Notifications appear top-right.
+
+   Your system is snapshotted on every package change — if an
+   update breaks something, roll back from BOS Settings or pick
+   a snapshot from the GRUB menu at boot.
+
+   ──────────────────────────────────────────────────────────
+   Press q to close. This message won't show again.
