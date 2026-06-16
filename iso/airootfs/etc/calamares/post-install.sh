@@ -1,7 +1,11 @@
 #!/bin/bash
-# Runs inside the installed-system chroot (Calamares shellprocess, after the
-# bootloader step). Best-effort: a single failure must not abort the rest, so
-# we deliberately do NOT use `set -e`.
+# BOS-specific finalization, run inside the installed-system chroot (Calamares
+# shellprocess), AFTER the native initcpio module has built the initramfs. The
+# kernel (shellprocess@kernel) and initramfs (initcpio) are in place by now, so
+# this script installs GRUB and does the rest of setup. Calamares' own
+# `bootloader`/`grubcfg` modules are NOT used — in this archiso layout they leave
+# the ESP empty and abort; the explicit grub-install below is verified to boot.
+# Best-effort: do NOT use `set -e`; a single failure here must not abort the rest.
 set -uo pipefail
 
 MAIN_USER="$(getent passwd 1000 | cut -d: -f1 || true)"
@@ -20,30 +24,42 @@ userdel -r liveuser 2>/dev/null || true
 passwd -l root || true
 
 # ---------------------------------------------------------------------------
-# Rebuild the initramfs for a real install — the live image ships the archiso
-# hooks, which would send the installed system into the live-boot path.
+# Boot splash (Plymouth) — BOS logo + spinner instead of kernel text. Done
+# BEFORE grub so grub.cfg picks up the new cmdline and the rebuilt initramfs.
+# All best-effort: if anything here fails the system still boots (just without
+# the splash) — the initramfs the initcpio module already built stays valid.
 # ---------------------------------------------------------------------------
-rm -f /etc/mkinitcpio.conf.d/archiso.conf
-cat >/etc/mkinitcpio.d/linux.preset <<'PRESET'
-# mkinitcpio preset file for the 'linux' package
-ALL_config="/etc/mkinitcpio.conf"
-ALL_kver="/boot/vmlinuz-linux"
-PRESETS=('default' 'fallback')
-default_image="/boot/initramfs-linux.img"
-fallback_image="/boot/initramfs-linux-fallback.img"
-fallback_options="-S autodetect"
-PRESET
-mkinitcpio -P || echo "WARN: mkinitcpio regeneration failed"
+if command -v plymouth-set-default-theme &>/dev/null; then
+    # Ensure the plymouth hook is in HOOKS (plymouthcfg/initcpiocfg usually add it;
+    # this is the belt). Handle both the udev and systemd initramfs styles.
+    if ! grep -q 'plymouth' /etc/mkinitcpio.conf 2>/dev/null; then
+        if grep -qE '^HOOKS=.*\bsystemd\b' /etc/mkinitcpio.conf; then
+            sed -i 's/^\(HOOKS=.*\bsystemd\b\)/\1 sd-plymouth/' /etc/mkinitcpio.conf \
+                || echo "WARN: adding sd-plymouth hook failed"
+        else
+            sed -i 's/^\(HOOKS=.*\budev\b\)/\1 plymouth/' /etc/mkinitcpio.conf \
+                || echo "WARN: adding plymouth hook failed"
+        fi
+    fi
+    # Clean boot: splash activates plymouth; hiding systemd status removes the
+    # "[ OK ] Started ..." text (what looked like kernel output) even if the
+    # splash itself doesn't grab the display (e.g. in some VMs).
+    if ! grep -q 'splash' /etc/default/grub 2>/dev/null; then
+        sed -i 's/^\(GRUB_CMDLINE_LINUX_DEFAULT="\)/\1splash quiet vt.global_cursor_default=0 systemd.show_status=false rd.systemd.show_status=false rd.udev.log_level=3 /' \
+            /etc/default/grub || echo "WARN: adding splash cmdline failed"
+    fi
+    # Set the BOS theme and rebuild the initramfs (-R) with the plymouth hook.
+    plymouth-set-default-theme -R bos || echo "WARN: plymouth-set-default-theme failed"
+fi
 
 # ---------------------------------------------------------------------------
-# Install GRUB ourselves. Calamares' bootloader module runs before the kernel
-# and initramfs exist (archiso keeps them out of the squashfs; shellprocess
-# @kernel only lays vmlinuz down just beforehand), so its grub-install/config
-# leaves the ESP empty. Redo it here, now that /boot is fully populated.
-#
-# Two passes: the standard NVRAM entry, plus a --removable copy to
-# EFI/BOOT/BOOTX64.EFI so firmware that lost/never wrote an NVRAM entry (the
-# "no boot device / screen just refreshes" failure) still finds a bootloader.
+# Install GRUB (UEFI). /boot now has the kernel + initramfs, and the mount
+# module has bind-mounted /proc /sys /dev /run + efivars into this chroot, so
+# both grub-install passes and grub-mkconfig succeed.
+#   1. NVRAM entry (EFI/BOS/grubx64.efi + a firmware boot entry)
+#   2. --removable copy to EFI/BOOT/BOOTX64.EFI, so firmware that ignores/loses
+#      the NVRAM entry (the "no boot device / PXE fallback" failure) still finds
+#      a bootloader.
 # ---------------------------------------------------------------------------
 if command -v grub-install &>/dev/null; then
     grub-install --target=x86_64-efi --efi-directory=/boot/efi \
@@ -53,8 +69,6 @@ if command -v grub-install &>/dev/null; then
         --removable --recheck \
         || echo "WARN: grub-install (removable) failed"
 fi
-
-# Refresh GRUB so it references the kernel + rebuilt initramfs.
 if command -v grub-mkconfig &>/dev/null; then
     grub-mkconfig -o /boot/grub/grub.cfg || echo "WARN: grub-mkconfig failed"
 fi
@@ -76,22 +90,39 @@ if command -v snapper &>/dev/null; then
 fi
 
 # ---------------------------------------------------------------------------
-# System services.
+# System services. Enable each one INDEPENDENTLY: `systemctl enable a b c`
+# resolves every unit first and enables NONE if any one can't be loaded, so a
+# single wrong/absent unit name would silently leave NetworkManager (etc.)
+# disabled. The loop isolates failures to the offending unit.
+#   greetd       — graphical login (shipped disabled; live uses tty autologin)
+#   grub-btrfsd  — regenerates GRUB snapshot entries (the unit is grub-btrfsd.service,
+#                  NOT grub-btrfs.path, which no longer exists)
 # ---------------------------------------------------------------------------
-systemctl enable NetworkManager bluetooth snapper-cleanup.timer grub-btrfs.path \
-    || echo "WARN: enabling some services failed"
+for unit in NetworkManager.service bluetooth.service systemd-timesyncd.service \
+            tlp.service greetd.service snapper-cleanup.timer grub-btrfsd.service \
+            fstrim.timer; do
+    systemctl enable "$unit" || echo "WARN: failed to enable $unit"
+done
+systemctl set-default graphical.target || echo "WARN: set-default graphical failed"
 
-# The bread ecosystem (bread, breadbar, breadbox, breadcrumbs, breadpad,
-# bos-settings) is baked into the squashfs and already copied onto the target by
-# unpackfs — no install step needed here, and the install works fully offline.
+# The bread ecosystem (bakery + bread, breadbar, breadbox, breadcrumbs, breadpad)
+# is bakery-managed, not pacman: the binaries and bakery manifest live in
+# /etc/skel/.local (baked in at ISO build time) and are copied into the user's
+# home below, so the install works fully offline with no DNS for bakery/GitHub.
+# bos-settings is the only pacman bread package and was installed by unpackfs.
 
 # ---------------------------------------------------------------------------
-# Deploy dotfiles into the user's home (don't clobber existing files).
+# Deploy dotfiles + the bakery bread ecosystem into the user's home (Calamares
+# already seeds from /etc/skel, but copy explicitly too so a fresh install is
+# self-contained even if the users module skips skel). Don't clobber existing.
 # ---------------------------------------------------------------------------
-if [[ -n "$MAIN_USER" && -d /etc/skel/.config ]]; then
-    mkdir -p "/home/$MAIN_USER/.config"
-    cp -rn /etc/skel/.config/. "/home/$MAIN_USER/.config/" || true
-    chown -R "$MAIN_USER:$MAIN_USER" "/home/$MAIN_USER/.config" || true
+if [[ -n "$MAIN_USER" && -d /etc/skel ]]; then
+    for d in .config .local .cache; do
+        [[ -d "/etc/skel/$d" ]] || continue
+        mkdir -p "/home/$MAIN_USER/$d"
+        cp -rn "/etc/skel/$d/." "/home/$MAIN_USER/$d/" || true
+        chown -R "$MAIN_USER:$MAIN_USER" "/home/$MAIN_USER/$d" || true
+    done
     sudo -u "$MAIN_USER" xdg-user-dirs-update || true
 fi
 
