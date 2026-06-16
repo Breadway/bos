@@ -207,6 +207,10 @@ reflector
 # Papirus-Dark: cohesive icon set used as the BOS default (set via gsettings in
 # hyprland.lua autostart and in skel gtk-3.0/settings.ini).
 papirus-icon-theme
+# Bibata-Modern-Ice: BOS default cursor. AUR-only upstream, republished to the
+# [breadway] repo (see packaging/bibata + .forgejo/workflows/bibata.yml). Set via
+# XCURSOR_THEME env in hyprland.lua and gtk settings.ini / gsettings.
+bibata-cursor-theme-bin
 
 # Qt dark theme — makes Qt5/Qt6 apps (VLC, pavucontrol, etc.) respect the dark
 # palette. qt5ct/qt6ct are configured via skel to use Fusion style in dark mode;
