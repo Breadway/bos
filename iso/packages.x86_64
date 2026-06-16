@@ -95,6 +95,12 @@ libpulse
 # GTK3 dark theme (Adwaita-dark); without this package the gtk-theme-name in
 # skel settings.ini silently falls back to the light theme for GTK3 apps.
 gnome-themes-extra
+# Schema + backend behind `gsettings set org.gnome.desktop.interface
+# color-scheme prefer-dark` (set in hyprland.lua autostart). Without these the
+# gsettings call fails silently and libadwaita apps (nautilus, gnome-text-editor)
+# render in LIGHT mode regardless of the GTK theme.
+gsettings-desktop-schemas
+dconf
 # Credential/keyring storage — browsers, SSH agents, and most apps persist
 # passwords here; without it every session loses saved logins. seahorse is the
 # GUI to view/manage the stored secrets and keys.
