@@ -100,10 +100,32 @@ fi
 # ---------------------------------------------------------------------------
 for unit in NetworkManager.service bluetooth.service systemd-timesyncd.service \
             tlp.service greetd.service snapper-cleanup.timer grub-btrfsd.service \
-            fstrim.timer cups.socket; do
+            fstrim.timer cups.socket avahi-daemon.service ufw.service \
+            fwupd-refresh.timer reflector.timer; do
     systemctl enable "$unit" || echo "WARN: failed to enable $unit"
 done
 systemctl set-default graphical.target || echo "WARN: set-default graphical failed"
+
+# ---------------------------------------------------------------------------
+# mDNS resolution (nss-mdns): insert mdns_minimal into the hosts: line so the
+# resolver answers *.local (network printers, other hosts) via avahi. Idempotent.
+# ---------------------------------------------------------------------------
+if [[ -f /etc/nsswitch.conf ]] && ! grep -q 'mdns_minimal' /etc/nsswitch.conf; then
+    sed -i 's/^\(hosts:[[:space:]]*\)/\1mdns_minimal [NOTFOUND=return] /' \
+        /etc/nsswitch.conf || echo "WARN: wiring nss-mdns failed"
+fi
+
+# ---------------------------------------------------------------------------
+# Firewall: deny inbound by default, allow outbound, and permit inbound mDNS so
+# avahi printer/service discovery keeps working. Best-effort — rule application
+# happens at boot; here we only persist the policy + enable the unit.
+# ---------------------------------------------------------------------------
+if command -v ufw &>/dev/null; then
+    ufw default deny incoming  || echo "WARN: ufw default deny incoming failed"
+    ufw default allow outgoing || echo "WARN: ufw default allow outgoing failed"
+    ufw allow 5353/udp         || echo "WARN: ufw allow mDNS failed"
+    ufw --force enable         || echo "WARN: ufw enable failed"
+fi
 
 # The bread ecosystem (bakery + bread, breadbar, breadbox, breadcrumbs, breadpad)
 # is bakery-managed, not pacman: the binaries and bakery manifest live in

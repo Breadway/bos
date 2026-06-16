@@ -75,6 +75,11 @@ pipewire-jack
 networkmanager
 network-manager-applet
 iw
+# mDNS service/name resolution — lets CUPS auto-discover network printers and
+# resolves .local hostnames (avahi-daemon enabled + nss-mdns wired in
+# post-install.sh).
+avahi
+nss-mdns
 # Wi-Fi backend for NetworkManager (its default; no extra config needed).
 wpa_supplicant
 bluez
@@ -107,6 +112,11 @@ noto-fonts-emoji
 ttf-jetbrains-mono
 # Nerd font variant — icons in terminal tools (eza --icons, fastfetch, yazi)
 ttf-jetbrains-mono-nerd
+# Metric-compatible (Arial/Times/Courier) so Office/web docs lay out correctly,
+# broad Unicode fallback, and the Font Awesome icon glyph set.
+ttf-liberation
+ttf-dejavu
+ttf-font-awesome
 
 # Terminal
 kitty
@@ -235,6 +245,14 @@ system-config-printer
 # Flatpak — sandboxed third-party app distribution (Flathub). The user adds a
 # remote post-install (needs network); the runtime is shipped ready.
 flatpak
+
+# Firewall — ufw, enabled deny-incoming in post-install.sh (mDNS allowed so
+# printer discovery still works).
+ufw
+# Firmware updates via LVFS (works with gnome-software / fwupdmgr).
+fwupd
+# Compressed RAM swap — see /etc/systemd/zram-generator.conf.
+zram-generator
 
 # Icon and cursor themes
 # Papirus-Dark: cohesive icon set used as the BOS default (set via gsettings in
