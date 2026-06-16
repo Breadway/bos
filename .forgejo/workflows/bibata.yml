@@ -1,0 +1,37 @@
+name: Build and publish bibata-cursor-theme
+
+# Bibata is AUR-only (not in Arch's official repos), so BOS maintains an
+# in-house PKGBUILD and publishes the built package to the [breadway] repo.
+# It's the prebuilt -bin variant, so no build deps beyond base-devel.
+on:
+  push:
+    paths:
+      - 'packaging/bibata/**'
+  workflow_dispatch:
+
+jobs:
+  bibata:
+    runs-on: [self-hosted, hestia]
+    container:
+      image: archlinux:latest
+    steps:
+      - name: Build and publish
+        env:
+          PUBLISH_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
+        run: |
+          set -euo pipefail
+          pacman -Syu --noconfirm base-devel git
+          useradd -m builder
+          git config --global --add safe.directory '*'
+          # Clone the branch that triggered this run (not the default branch),
+          # so the package can be built/published from a feature branch.
+          git clone --depth 1 --branch "${GITHUB_REF_NAME}" \
+            "https://git.breadway.dev/${GITHUB_REPOSITORY}.git" /home/builder/src
+          chown -R builder:builder /home/builder/src
+          su builder -c "cd /home/builder/src/packaging/bibata && makepkg -f --noconfirm --nocheck"
+          PKG=$(find /home/builder/src/packaging/bibata -name '*.pkg.tar.zst' | head -1)
+          curl -fsS -X PUT \
+            -H "Authorization: token ${PUBLISH_TOKEN}" \
+            -H "Content-Type: application/octet-stream" \
+            --data-binary "@${PKG}" \
+            "https://git.breadway.dev/api/packages/Breadway/arch/os"
