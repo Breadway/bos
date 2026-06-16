@@ -19,16 +19,16 @@ if ! id liveuser &>/dev/null; then
 fi
 
 # Layer the installer onto the live desktop: auto-launch it, and bind Super+I to
-# relaunch it after it's been closed. Appended to (not replacing) the skel
-# Hyprland config so the full desktop stays intact.
-HYPR=/home/liveuser/.config/hypr/hyprland.conf
+# relaunch it after it's been closed. Appended (in Lua) to the skel hyprland.lua
+# native config so the full desktop stays intact.
+HYPR=/home/liveuser/.config/hypr/hyprland.lua
 install -d -m 0755 -o liveuser -g liveuser /home/liveuser/.config/hypr
 if ! grep -q bos-launch-calamares "$HYPR" 2>/dev/null; then
     cat >>"$HYPR" <<'EOF'
 
-# --- live-media installer (added by bos-live-setup; absent on installed system) ---
-exec-once = bos-launch-calamares
-bind = SUPER, I, exec, bos-launch-calamares
+-- --- live-media installer (added by bos-live-setup; absent on installed system) ---
+hl.bind("SUPER + I", hl.dsp.exec_cmd("bos-launch-calamares"))
+hl.on("hyprland.start", function() hl.dispatch(hl.dsp.exec_cmd("bos-launch-calamares")) end)
 EOF
 fi
 

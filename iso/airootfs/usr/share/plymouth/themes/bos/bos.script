@@ -1,0 +1,49 @@
+# BOS Plymouth boot splash (script module).
+# Bread-brown background, centred white BOS logo, a spinning accent ring, and a
+# status line at the bottom. Colours match the bread palette.
+
+# --- background (#230b00) ---
+Window.SetBackgroundTopColor(0.137, 0.043, 0.0);
+Window.SetBackgroundBottomColor(0.137, 0.043, 0.0);
+
+screen_w = Window.GetWidth();
+screen_h = Window.GetHeight();
+
+# --- logo (centred, slightly above the middle) ---
+logo.image  = Image("logo.png");
+logo.sprite = Sprite(logo.image);
+logo.x = screen_w / 2 - logo.image.GetWidth() / 2;
+logo.y = screen_h / 2 - logo.image.GetHeight() / 2 - 40;
+logo.sprite.SetX(logo.x);
+logo.sprite.SetY(logo.y);
+logo.sprite.SetZ(1);
+
+# --- spinner (rotating accent ring, below the logo) ---
+spinner.image  = Image("spinner.png");
+spinner.sprite = Sprite();
+spinner.cx = screen_w / 2;
+spinner.cy = logo.y + logo.image.GetHeight() + 60;
+spinner.angle = 0;
+
+fun refresh_callback() {
+    spinner.angle += 0.10;
+    if (spinner.angle > 6.28318) spinner.angle -= 6.28318;
+    rotated = spinner.image.Rotate(spinner.angle);
+    spinner.sprite.SetImage(rotated);
+    spinner.sprite.SetX(spinner.cx - rotated.GetWidth() / 2);
+    spinner.sprite.SetY(spinner.cy - rotated.GetHeight() / 2);
+    spinner.sprite.SetZ(2);
+}
+Plymouth.SetRefreshFunction(refresh_callback);
+
+# --- status line (cream text, near the bottom) ---
+status.sprite = Sprite();
+fun show_status(text) {
+    status.image = Image.Text(text, 0.945, 0.863, 0.741);
+    status.sprite.SetImage(status.image);
+    status.sprite.SetX(screen_w / 2 - status.image.GetWidth() / 2);
+    status.sprite.SetY(screen_h * 0.84);
+    status.sprite.SetZ(2);
+}
+Plymouth.SetMessageFunction(show_status);
+Plymouth.SetUpdateStatusFunction(show_status);

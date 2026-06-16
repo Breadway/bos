@@ -4,6 +4,21 @@ base-devel
 linux
 linux-firmware
 linux-headers
+# CPU microcode — applied early by GRUB on the installed system (picked up by
+# the bootloader module). amd-ucode for the dev laptop's Ryzen; intel-ucode for
+# Intel targets. bos-copy-kernel also stages these into the live target /boot.
+amd-ucode
+intel-ucode
+
+# Power management (vendor-neutral; works on Intel and AMD). tlp auto-tunes power
+# by AC/battery and CPU driver; hypridle/hyprlock handle idle dim/off/lock/suspend
+# and the lock screen; upower exposes battery state. NOT power-profiles-daemon —
+# it conflicts with tlp.
+tlp
+tlp-rdw
+upower
+hypridle
+hyprlock
 
 # Bootloader + filesystem
 grub
@@ -37,6 +52,10 @@ inotify-tools
 # Wayland / Hyprland
 hyprland
 xdg-desktop-portal-hyprland
+# Login manager for the installed system (Wayland-native; enabled by
+# post-install.sh, launches the Hyprland session via tuigreet → bos-session).
+greetd
+greetd-tuigreet
 xdg-utils
 xdg-user-dirs
 polkit
@@ -53,7 +72,8 @@ pipewire-jack
 networkmanager
 network-manager-applet
 iw
-iwd
+# Wi-Fi backend for NetworkManager (its default; no extra config needed).
+wpa_supplicant
 bluez
 bluez-utils
 
@@ -73,29 +93,47 @@ noto-fonts-emoji
 ttf-jetbrains-mono
 
 # Terminal
-foot
+kitty
 
 # File manager
 nautilus
+# Web browser (served from the [Breadway] repo; AUR zen-browser-bin republished
+# there so the ISO build can pull it via pacman). mailcap satisfies zen's
+# mime-types dependency explicitly.
+zen-browser-bin
+mailcap
 
 # Installer — Calamares is AUR-only; built in-house and served from [breadway]
 # (calamares 3.4.x is already Qt6; there is no separate calamares-qt6 package)
 calamares
 
-# Bread ecosystem — sourced from [breadway] repo. Baked into the squashfs so a
-# fresh install (and the live session) has the full desktop with no network.
-bakery
-bread
-breadbar
-breadbox
-breadcrumbs
-breadpad
+# Bread ecosystem.
+#
+# The bread apps themselves (bakery, bread, breadbar, breadbox, breadcrumbs,
+# breadpad) are NOT pacman packages here — they are bakery-managed binaries
+# baked into /etc/skel/.local/bin at build time (see build-local.sh), so every
+# user gets the exact versions from this laptop's bakery install with no
+# network/DNS needed at install or runtime. Their runtime system deps are pulled
+# in elsewhere in this list (gtk4, gtk4-layer-shell, iw, libpulse, librsvg,
+# networkmanager, openssl, zlib, systemd-libs) — keep those even though no bread
+# package depends on them.
+#
+# bos-settings is a BOS-specific pacman package (not part of the bakery index),
+# so it stays here, served from the [breadway] repo.
 bos-settings
 
 # Input / screen utilities
 brightnessctl
 grim
 slurp
+# Clipboard (Wayland copy/paste; also clipboard screenshots) and media keys.
+wl-clipboard
+playerctl
+# Wallpaper daemon + pywal (drives the bread* colour palette from the wallpaper).
+awww
+python-pywal
+# Boot splash (BOS logo + spinner instead of kernel text).
+plymouth
 
 # Utilities
 sudo
@@ -109,6 +147,33 @@ which
 man-db
 man-pages
 less
+
+# Base CLI tools every install should have.
+# Editors
+nano
+micro
+vim
+# Shell UX
+bash-completion
+# System / hardware inspection
+htop
+usbutils
+pciutils
+dmidecode
+lsof
+tree
+fastfetch
+# Removable-media filesystems (USB sticks, external drives)
+ntfs-3g
+exfatprogs
+# Archives
+7zip
+zip
+unrar
+# Remote access (ssh client; sshd ships disabled)
+openssh
+# Mirror management (refresh /etc/pacman.d/mirrorlist for the user's location)
+reflector
 
 # Dev tools (for bos-settings standalone install)
 rustup

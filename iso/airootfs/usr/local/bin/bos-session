@@ -1,0 +1,15 @@
+#!/bin/bash
+# BOS graphical session launcher, run by greetd on the INSTALLED system after
+# the user authenticates (see /etc/greetd/config.toml).
+#
+# greetd does not start a login shell, so /etc/profile.d is never sourced — which
+# means ~/.local/bin (where bakery installs the bread ecosystem: breadd, breadbar,
+# breadbox-sync, …) would be missing from PATH and the Hyprland `exec-once`
+# launches would fail. Source the login profile here so PATH is correct, set the
+# Wayland session hints, then hand off to Hyprland.
+source /etc/profile 2>/dev/null
+
+export XDG_SESSION_TYPE=wayland
+export XDG_CURRENT_DESKTOP=Hyprland
+
+exec Hyprland

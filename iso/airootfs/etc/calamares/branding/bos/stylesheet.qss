@@ -1,0 +1,23 @@
+/* BOS Calamares styling.
+ *
+ * The branding `style:` sidebar keys were being overridden, leaving the
+ * step tabs invisible. This forces them: bread-palette sidebar with clearly
+ * legible step labels. (A full installer retheme is tracked separately.)
+ */
+
+/* Left sidebar / progress steps */
+#sidebarApp {
+    background-color: #230b00;
+}
+
+#sidebarApp QLabel {
+    color: #f1dcbd;
+    font-size: 11pt;
+    padding: 3px 0;
+}
+
+/* Logo at the top of the sidebar — keep aspect ratio, don't stretch */
+#logoApp {
+    qproperty-alignment: AlignCenter;
+    margin: 14px 8px;
+}
