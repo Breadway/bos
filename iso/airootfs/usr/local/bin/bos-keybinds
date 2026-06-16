@@ -1,0 +1,4 @@
+#!/bin/bash
+# Show the BOS keybind cheatsheet in a floating terminal (bound to SUPER+/).
+# The bos-keybinds window class is floated/centred by a Hyprland window rule.
+exec kitty --class bos-keybinds --title "BOS Keybinds" -- less -R /usr/share/bos/keybinds.txt

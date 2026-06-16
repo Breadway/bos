@@ -1,0 +1,50 @@
+
+   ██████   ██████  ███████      keyboard shortcuts
+   ██   ██ ██    ██ ██           SUPER is the Windows/Cmd key
+   ██████  ██    ██ ███████
+   ══════════════════════════════════════════════════════════
+
+   APPS & WINDOWS
+     SUPER + Return            terminal (kitty)
+     SUPER + Space             app launcher (breadbox)
+     SUPER + E                 files (nautilus)
+     SUPER + B                 browser (zen)
+     SUPER + U                 notes / reminders (breadpad)
+     SUPER + M                 package manager (breadman)
+     SUPER + ,                 BOS Settings
+     SUPER + /                 this keybind cheatsheet
+     SUPER + L                 lock screen
+     SUPER + Backspace         close window
+     SUPER + F                 fullscreen
+     SUPER + V                 toggle floating
+     SUPER + Shift + V         clipboard history
+     SUPER + T                 toggle split direction
+     SUPER + Tab               last window
+     SUPER + N                 exit Hyprland (log out)
+
+   SCREENSHOTS
+     SUPER + Shift + S         select region  -> file
+     SUPER + Shift + C         select region  -> clipboard
+     SUPER + Shift + P         whole screen   -> file
+
+   FOCUS & MOVE
+     SUPER + arrows            move focus
+     SUPER + Shift + h/j/k/l   move window
+     SUPER + Shift + arrows    resize window
+
+   WORKSPACES
+     SUPER + 1..0              switch to workspace 1..10
+     SUPER + Shift + 1..0      move window to workspace
+     SUPER + [ / ]             previous / next workspace
+     SUPER + Shift + [ / ]     move window prev / next workspace
+     SUPER + scroll            cycle workspaces
+
+   MOUSE
+     SUPER + left-drag         move window
+     SUPER + right-drag        resize window
+
+   MEDIA & HARDWARE KEYS
+     volume / brightness / play-pause / next / prev   (work on lock screen)
+
+   ──────────────────────────────────────────────────────────
+   Press q to close.  Configure everything in BOS Settings (SUPER + ,).

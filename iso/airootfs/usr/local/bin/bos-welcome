@@ -1,0 +1,15 @@
+#!/bin/bash
+# First-run welcome. Shows a short getting-started message once, then drops a
+# marker so it never shows again. Launched from the Hyprland autostart; the
+# bos-welcome window class is floated/centred by a Hyprland window rule.
+set -u
+
+# Never run in the live/installer session — only on an installed system.
+[[ "$(id -un)" == "liveuser" ]] && exit 0
+
+marker="${XDG_CONFIG_HOME:-$HOME/.config}/bos/.welcomed"
+[[ -f "$marker" ]] && exit 0
+mkdir -p "$(dirname "$marker")"
+touch "$marker"
+
+exec kitty --class bos-welcome --title "Welcome to BOS" -- less -R /usr/share/bos/welcome.txt
