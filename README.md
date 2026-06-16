@@ -118,6 +118,86 @@ cargo build --release -p bos-settings
 cargo test -p bos-settings        # includes config round-trip tests
 ```
 
+## The bread ecosystem at a glance
+
+| Tool | Role | Launch |
+|------|------|--------|
+| `bread` / `breadd` | Reactive automation daemon — normalises hardware/compositor signals into events dispatched to Lua modules | runs at login |
+| `breadbar` | Top status bar (workspaces, clock, stats, tray) **and** the notification daemon | runs at login |
+| `breadbox` | Application launcher | `SUPER+Space` |
+| `breadpad` | Notes & reminders (AI-classified, optional CalDAV sync) | `SUPER+U` |
+| `breadman` | Package-manager UI | `SUPER+M` |
+| `breadcrumbs` | Wi-Fi profile state machine (location-aware) | CLI / BOS Settings |
+| `bakery` | CLI package manager for the ecosystem | `bakery` |
+| `bos-settings` | Unified GTK4 control panel for all of the above + snapshots + updates | `SUPER+,` |
+
+## Keyboard shortcuts
+
+`SUPER` is the Windows/Cmd key. Press **`SUPER+/`** at any time for this
+cheatsheet in-session; first boot shows a short welcome (once).
+
+| Keys | Action |
+|------|--------|
+| `SUPER+Return` | Terminal (kitty) |
+| `SUPER+Space` | App launcher (breadbox) |
+| `SUPER+E` / `SUPER+B` | Files (nautilus) / Browser (zen) |
+| `SUPER+U` / `SUPER+M` | breadpad / breadman |
+| `SUPER+,` / `SUPER+/` | BOS Settings / keybind cheatsheet |
+| `SUPER+L` / `SUPER+N` | Lock / log out |
+| `SUPER+Backspace` | Close window |
+| `SUPER+F` / `SUPER+V` / `SUPER+T` | Fullscreen / float / toggle split |
+| `SUPER+Shift+V` | Clipboard history |
+| `SUPER+Tab` | Last window |
+| `SUPER+Shift+S/C/P` | Screenshot region→file / region→clipboard / screen→file |
+| `SUPER+arrows` | Move focus |
+| `SUPER+Shift+h/j/k/l` | Move window |
+| `SUPER+Shift+arrows` | Resize window |
+| `SUPER+1..0` | Switch to workspace 1–10 |
+| `SUPER+Shift+1..0` | Move window to workspace |
+| `SUPER+[ / ]` | Previous / next workspace |
+| `SUPER+left/right-drag` | Move / resize window with the mouse |
+
+## Known limitations
+
+- **GPUs**: ships the generic Mesa stack — AMD and Intel work out of the box.
+  The **NVIDIA proprietary driver is not included**; NVIDIA users must install
+  `nvidia`/`nvidia-utils` and set the usual Hyprland env vars after install.
+- **Virtual machines**: Hyprland needs GPU acceleration to be smooth. Use
+  `virtio-vga-gl` + `-display gtk,gl=on` (virgl); plain software rendering is
+  noticeably laggy.
+- **Wayland-first**: X11-only apps run through XWayland; a few may misbehave.
+- **Secure Boot**: not configured. Boot with Secure Boot disabled, or enroll
+  your own keys. The installer writes both an NVRAM entry and the removable
+  `EFI/BOOT/BOOTX64.EFI` fallback.
+- **Snapshots assume btrfs**: the snapper/grub-btrfs tooling expects the default
+  btrfs subvolume layout the installer creates.
+
+## Recovery
+
+**An update broke something (system still boots):** open BOS Settings →
+Snapshots and roll back, or pick a pre-update snapshot from the **GRUB
+“snapshots” submenu** at boot, then run `snapper rollback` from the booted
+snapshot.
+
+**The system won't boot (broken GRUB / lost EFI entry):**
+
+1. Boot the BOS ISO and open a terminal (`SUPER+Return`).
+2. Mount the installed root and EFI, then chroot:
+   ```sh
+   mount -o subvol=@ /dev/sdXN /mnt
+   mount /dev/sdXP /mnt/boot/efi      # the EFI partition
+   arch-chroot /mnt
+   ```
+3. Reinstall the bootloader (the same sequence the installer uses):
+   ```sh
+   grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=BOS --recheck
+   grub-install --target=x86_64-efi --efi-directory=/boot/efi --removable --recheck
+   grub-mkconfig -o /boot/grub/grub.cfg
+   ```
+
+**Firmware shows “no boot device”:** select `EFI/BOOT/BOOTX64.EFI` from the
+firmware boot menu — the installer always writes that removable fallback.
+
 ## Boot architecture notes
 
 archiso keeps the kernel and initramfs outside the squashfs, so the installer
