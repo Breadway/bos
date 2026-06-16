@@ -100,7 +100,7 @@ fi
 # ---------------------------------------------------------------------------
 for unit in NetworkManager.service bluetooth.service systemd-timesyncd.service \
             tlp.service greetd.service snapper-cleanup.timer grub-btrfsd.service \
-            fstrim.timer; do
+            fstrim.timer cups.socket; do
     systemctl enable "$unit" || echo "WARN: failed to enable $unit"
 done
 systemctl set-default graphical.target || echo "WARN: set-default graphical failed"
