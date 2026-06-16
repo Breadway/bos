@@ -62,7 +62,6 @@ hl.config({
 -- ---------------------------------------------------------------------------
 hl.env("XCURSOR_SIZE", "24")
 hl.env("HYPRCURSOR_SIZE", "24")
-hl.env("XCURSOR_THEME", "Bibata-Modern-Ice")
 hl.env("MOZ_ENABLE_WAYLAND", "1")
 hl.env("QT_QPA_PLATFORM", "wayland;xcb")
 hl.env("QT_QPA_PLATFORMTHEME", "qt5ct")
@@ -156,7 +155,6 @@ hl.on("hyprland.start", function()
         "gsettings set org.gnome.desktop.interface color-scheme prefer-dark",
         "gsettings set org.gnome.desktop.interface gtk-theme Adwaita-dark",
         "gsettings set org.gnome.desktop.interface icon-theme Papirus-Dark",
-        "gsettings set org.gnome.desktop.interface cursor-theme Bibata-Modern-Ice",
         "gsettings set org.gnome.desktop.interface cursor-size 24",
         -- Clipboard history daemon (feeds SUPER+V history picker via wl-paste).
         "wl-paste --type text --watch cliphist store",
