@@ -113,10 +113,11 @@ ttf-jetbrains-mono
 # Nerd font variant — icons in terminal tools (eza --icons, fastfetch, yazi)
 ttf-jetbrains-mono-nerd
 # Metric-compatible (Arial/Times/Courier) so Office/web docs lay out correctly,
-# broad Unicode fallback, and the Font Awesome icon glyph set.
+# broad Unicode fallback, and the Font Awesome icon glyph set (otf-, the desktop
+# variant — ttf-font-awesome resolves to the web-only woff2 build).
 ttf-liberation
 ttf-dejavu
-ttf-font-awesome
+otf-font-awesome
 
 # Terminal
 kitty
