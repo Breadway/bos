@@ -86,6 +86,12 @@ for _, animation in ipairs(animations) do
 end
 
 -- ---------------------------------------------------------------------------
+-- Window rules — float + centre the onboarding popups (kitty --class …).
+-- ---------------------------------------------------------------------------
+hl.window_rule({ name = "bos-keybinds", match = { class = "^(bos-keybinds)$" }, float = true, size = { 760, 720 } })
+hl.window_rule({ name = "bos-welcome",  match = { class = "^(bos-welcome)$" },  float = true, size = { 700, 560 } })
+
+-- ---------------------------------------------------------------------------
 -- Environment (vendor-neutral; no GPU-specific vars so it works on Intel/AMD).
 -- ---------------------------------------------------------------------------
 hl.env("XCURSOR_SIZE", "24")
@@ -113,6 +119,8 @@ hl.bind(mod .. " + E",         hl.dsp.exec_cmd("nautilus"))
 hl.bind(mod .. " + B",         hl.dsp.exec_cmd("zen-browser"))
 hl.bind(mod .. " + U",         hl.dsp.exec_cmd("breadpad"))
 hl.bind(mod .. " + M",         hl.dsp.exec_cmd("breadman"))
+hl.bind(mod .. " + comma",     hl.dsp.exec_cmd("bos-settings"))
+hl.bind(mod .. " + slash",     hl.dsp.exec_cmd("bos-keybinds"))
 hl.bind(mod .. " + L",         hl.dsp.exec_cmd("loginctl lock-session"))
 hl.bind(mod .. " + F",         hl.dsp.window.fullscreen({ action = "toggle" }))
 hl.bind(mod .. " + V",         hl.dsp.window.float({ action = "toggle" }))
@@ -196,6 +204,8 @@ hl.on("hyprland.start", function()
         "breadbar",
         "breadbox-sync",
         "hypridle",
+        -- first-boot onboarding (self-gates after the first run)
+        "bos-welcome",
     }
     for _, cmd in ipairs(startup) do
         hl.dispatch(hl.dsp.exec_cmd(cmd))
