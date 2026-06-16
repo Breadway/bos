@@ -52,6 +52,9 @@ inotify-tools
 # Wayland / Hyprland
 hyprland
 xdg-desktop-portal-hyprland
+# GTK portal backend — file-chooser/screenshot portals for Flatpak, Electron,
+# and Firefox-based apps (Zen). Without it those apps get no file dialog.
+xdg-desktop-portal-gtk
 # Login manager for the installed system (Wayland-native; enabled by
 # post-install.sh, launches the Hyprland session via tuigreet → bos-session).
 greetd
@@ -76,6 +79,8 @@ iw
 wpa_supplicant
 bluez
 bluez-utils
+# blueman: GUI Bluetooth manager (pair/connect devices; breadbar shows status only).
+blueman
 
 # GTK4 runtime
 gtk4
@@ -86,8 +91,10 @@ libpulse
 # skel settings.ini silently falls back to the light theme for GTK3 apps.
 gnome-themes-extra
 # Credential/keyring storage — browsers, SSH agents, and most apps persist
-# passwords here; without it every session loses saved logins.
+# passwords here; without it every session loses saved logins. seahorse is the
+# GUI to view/manage the stored secrets and keys.
 gnome-keyring
+seahorse
 
 # Display (wlroots is bundled with Hyprland; don't list separately)
 wayland
@@ -110,6 +117,17 @@ nautilus
 # media). gvfs-mtp adds Android/MTP device support (phones, tablets via USB).
 gvfs
 gvfs-mtp
+# file-roller: archive manager — gives nautilus right-click Extract/Compress.
+file-roller
+
+# GUI applications a general desktop is expected to have out of the box.
+# gnome-text-editor: graphical editor (terminal editors aside); gnome-calculator:
+# calculator; loupe: Wayland-native image viewer (default for image files).
+gnome-text-editor
+gnome-calculator
+loupe
+# Media player — BOS ships gstreamer codecs but otherwise has no player app.
+vlc
 # Web browser (served from the [Breadway] repo; AUR zen-browser-bin republished
 # there so the ISO build can pull it via pacman). mailcap satisfies zen's
 # mime-types dependency explicitly.
@@ -178,11 +196,15 @@ zsh
 nano
 micro
 vim
+neovim
 # Shell QoL — modern replacements shipped with skel aliases set up
 eza
 bat
 fzf
 zoxide
+# Fast search — pairs with fzf/zsh and underpins a good neovim experience
+ripgrep
+fd
 # System / hardware inspection
 htop
 usbutils
@@ -203,6 +225,17 @@ openssh
 # Mirror management (refresh /etc/pacman.d/mirrorlist for the user's location)
 reflector
 
+# Printing — CUPS daemon + GUI printer setup. cups-pk-helper lets the GUI add
+# printers via polkit without a root shell. cups.socket is enabled in
+# post-install.sh so printing works on the installed system.
+cups
+cups-pk-helper
+system-config-printer
+
+# Flatpak — sandboxed third-party app distribution (Flathub). The user adds a
+# remote post-install (needs network); the runtime is shipped ready.
+flatpak
+
 # Icon and cursor themes
 # Papirus-Dark: cohesive icon set used as the BOS default (set via gsettings in
 # hyprland.lua autostart and in skel gtk-3.0/settings.ini).
@@ -217,6 +250,10 @@ bibata-cursor-theme-bin
 # QT_QPA_PLATFORMTHEME=qt5ct is set in hyprland.lua env.
 qt5ct
 qt6ct
+# Native Wayland platform plugins for Qt — QT_QPA_PLATFORM=wayland (set in
+# hyprland.lua) needs these or Qt apps fall back to (blurry) XWayland.
+qt5-wayland
+qt6-wayland
 
 # Dev tools (for bos-settings standalone install)
 rustup
