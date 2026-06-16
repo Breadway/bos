@@ -62,8 +62,10 @@ hl.config({
 -- ---------------------------------------------------------------------------
 hl.env("XCURSOR_SIZE", "24")
 hl.env("HYPRCURSOR_SIZE", "24")
+hl.env("XCURSOR_THEME", "Bibata-Modern-Ice")
 hl.env("MOZ_ENABLE_WAYLAND", "1")
 hl.env("QT_QPA_PLATFORM", "wayland;xcb")
+hl.env("QT_QPA_PLATFORMTHEME", "qt5ct")
 hl.env("QT_WAYLAND_DISABLE_WINDOWDECORATION", "1")
 hl.env("SDL_VIDEODRIVER", "wayland")
 hl.env("ELECTRON_OZONE_PLATFORM_HINT", "auto")
@@ -86,6 +88,7 @@ hl.bind(mod .. " + M",         hl.dsp.exec_cmd("breadman"))
 hl.bind(mod .. " + L",         hl.dsp.exec_cmd("loginctl lock-session"))
 hl.bind(mod .. " + F",         hl.dsp.window.fullscreen({ action = "toggle" }))
 hl.bind(mod .. " + V",         hl.dsp.window.float({ action = "toggle" }))
+hl.bind(mod .. " + SHIFT + V", hl.dsp.exec_cmd([[bash -c 'cliphist list | fzf --reverse --prompt="Clipboard > " | cliphist decode | wl-copy']]))
 hl.bind(mod .. " + T",         hl.dsp.layout("togglesplit"))
 hl.bind(mod .. " + Tab",       hl.dsp.focus({ urgent_or_last = true }))
 hl.bind(mod .. " + N",         hl.dsp.exit())
@@ -149,10 +152,14 @@ hl.bind("XF86AudioPlay",         hl.dsp.exec_cmd("playerctl play-pause"),       
 -- ---------------------------------------------------------------------------
 hl.on("hyprland.start", function()
     local startup = {
-        -- Prefer dark for GTK4/libadwaita apps (GTK3 uses settings.ini); without
-        -- this nautilus/breadbox render in light mode.
+        -- Global dark theme: GTK4/libadwaita + GTK3 theme + icon + cursor.
         "gsettings set org.gnome.desktop.interface color-scheme prefer-dark",
         "gsettings set org.gnome.desktop.interface gtk-theme Adwaita-dark",
+        "gsettings set org.gnome.desktop.interface icon-theme Papirus-Dark",
+        "gsettings set org.gnome.desktop.interface cursor-theme Bibata-Modern-Ice",
+        "gsettings set org.gnome.desktop.interface cursor-size 24",
+        -- Clipboard history daemon (feeds SUPER+V history picker via wl-paste).
+        "wl-paste --type text --watch cliphist store",
         "/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1",
         "awww-daemon",
         -- set the default wallpaper once the daemon is up (retry until ready)
