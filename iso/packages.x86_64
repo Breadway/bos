@@ -82,6 +82,12 @@ gtk4
 gtk4-layer-shell
 librsvg
 libpulse
+# GTK3 dark theme (Adwaita-dark); without this package the gtk-theme-name in
+# skel settings.ini silently falls back to the light theme for GTK3 apps.
+gnome-themes-extra
+# Credential/keyring storage — browsers, SSH agents, and most apps persist
+# passwords here; without it every session loses saved logins.
+gnome-keyring
 
 # Display (wlroots is bundled with Hyprland; don't list separately)
 wayland
@@ -89,14 +95,21 @@ wayland-protocols
 
 # Fonts
 noto-fonts
+noto-fonts-cjk
 noto-fonts-emoji
 ttf-jetbrains-mono
+# Nerd font variant — icons in terminal tools (eza --icons, fastfetch, yazi)
+ttf-jetbrains-mono-nerd
 
 # Terminal
 kitty
 
 # File manager
 nautilus
+# gvfs: virtual filesystem layer for nautilus (trash, network places, removable
+# media). gvfs-mtp adds Android/MTP device support (phones, tablets via USB).
+gvfs
+gvfs-mtp
 # Web browser (served from the [Breadway] repo; AUR zen-browser-bin republished
 # there so the ISO build can pull it via pacman). mailcap satisfies zen's
 # mime-types dependency explicitly.
@@ -129,11 +142,21 @@ slurp
 # Clipboard (Wayland copy/paste; also clipboard screenshots) and media keys.
 wl-clipboard
 playerctl
+# Clipboard history daemon (stores wl-clipboard events; breadbox bind replays them).
+cliphist
 # Wallpaper daemon + pywal (drives the bread* colour palette from the wallpaper).
 awww
 python-pywal
 # Boot splash (BOS logo + spinner instead of kernel text).
 plymouth
+
+# Media codecs — GStreamer plugins for video thumbnails in nautilus, browser
+# media, and general playback. bad/ugly add patent-encumbered formats (H.264 etc).
+gst-plugins-good
+gst-plugins-bad
+gst-plugins-ugly
+# GUI audio mixer — useful when output device needs manual switching.
+pavucontrol
 
 # Utilities
 sudo
@@ -149,12 +172,17 @@ man-pages
 less
 
 # Base CLI tools every install should have.
+# Shell
+zsh
 # Editors
 nano
 micro
 vim
-# Shell UX
-bash-completion
+# Shell QoL — modern replacements shipped with skel aliases set up
+eza
+bat
+fzf
+zoxide
 # System / hardware inspection
 htop
 usbutils
@@ -174,6 +202,20 @@ unrar
 openssh
 # Mirror management (refresh /etc/pacman.d/mirrorlist for the user's location)
 reflector
+
+# Icon and cursor themes
+# Papirus-Dark: cohesive icon set used as the BOS default (set via gsettings in
+# hyprland.lua autostart and in skel gtk-3.0/settings.ini).
+papirus-icon-theme
+# Bibata-Modern-Ice: clean dark cursor theme set via XCURSOR_THEME env in
+# hyprland.lua and in skel gtk-3.0/settings.ini.
+bibata-cursor-theme
+
+# Qt dark theme — makes Qt5/Qt6 apps (VLC, pavucontrol, etc.) respect the dark
+# palette. qt5ct/qt6ct are configured via skel to use Fusion style in dark mode;
+# QT_QPA_PLATFORMTHEME=qt5ct is set in hyprland.lua env.
+qt5ct
+qt6ct
 
 # Dev tools (for bos-settings standalone install)
 rustup
