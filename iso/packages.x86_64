@@ -207,9 +207,6 @@ reflector
 # Papirus-Dark: cohesive icon set used as the BOS default (set via gsettings in
 # hyprland.lua autostart and in skel gtk-3.0/settings.ini).
 papirus-icon-theme
-# Bibata-Modern-Ice: clean dark cursor theme set via XCURSOR_THEME env in
-# hyprland.lua and in skel gtk-3.0/settings.ini.
-bibata-cursor-theme
 
 # Qt dark theme — makes Qt5/Qt6 apps (VLC, pavucontrol, etc.) respect the dark
 # palette. qt5ct/qt6ct are configured via skel to use Fusion style in dark mode;
