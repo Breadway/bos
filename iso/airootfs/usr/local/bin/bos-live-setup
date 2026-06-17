@@ -11,7 +11,7 @@ set -e
 # (breadd + breadbar + breadbox + keybinds) — proper live-media functionality,
 # not an installer kiosk.
 if ! id liveuser &>/dev/null; then
-    useradd -m -s /bin/bash liveuser
+    useradd -m -s /usr/bin/zsh liveuser
     for g in wheel video input audio storage power; do
         getent group "$g" >/dev/null 2>&1 && gpasswd -a liveuser "$g" >/dev/null || true
     done
