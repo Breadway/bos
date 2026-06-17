@@ -1,0 +1,32 @@
+#!/bin/bash
+# bos-update — update all of BOS in one go.
+#
+# BOS packages come from two channels, so a full update touches both:
+#   1. pacman   — Arch base/desktop + the [breadway] repo (bos-settings, etc.).
+#                 Every transaction is snapshotted by snap-pac, so you can roll
+#                 back from the GRUB "snapshots" submenu or BOS Settings.
+#   2. bakery   — the bread ecosystem apps in ~/.local/bin (bread, breadbar,
+#                 breadbox, breadcrumbs, breadpad, breadman, bread-theme).
+#
+# Best-effort: a failure in one channel doesn't abort the other.
+set -uo pipefail
+
+bold() { printf '\033[1m%s\033[0m\n' "$1"; }
+
+bold "==> System packages (pacman -Syu)"
+if command -v pacman >/dev/null; then
+    sudo pacman -Syu || echo "WARN: pacman update failed"
+else
+    echo "pacman not found; skipping"
+fi
+
+echo
+bold "==> Bread ecosystem (bakery update --all)"
+if command -v bakery >/dev/null; then
+    bakery update --all || echo "WARN: bakery update failed"
+else
+    echo "bakery not found; skipping"
+fi
+
+echo
+bold "==> BOS is up to date."
