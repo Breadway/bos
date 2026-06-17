@@ -28,7 +28,7 @@ checksum = "b4388bee8683e3d04af747c73422af53102d2bd24d9eadb6cbc100baef4b43f8"
 
 [[package]]
 name = "bos-settings"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "async-channel",
  "bread-theme",
@@ -43,7 +43,7 @@ dependencies = [
 [[package]]
 name = "bread-theme"
 version = "0.2.3"
-source = "git+https://github.com/Breadway/bread-ecosystem?tag=v0.2.6#0c8c5c00e435fedff4f81e36d603424c153519a9"
+source = "git+https://github.com/Breadway/bread-ecosystem?tag=v0.2.8#77417d552130281ff787e07d52541eb25e9d533b"
 dependencies = [
  "dirs",
  "gtk4",
