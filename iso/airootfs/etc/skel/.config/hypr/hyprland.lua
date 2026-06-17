@@ -90,6 +90,7 @@ end
 -- ---------------------------------------------------------------------------
 hl.window_rule({ name = "bos-keybinds", match = { class = "^(bos-keybinds)$" }, float = true, size = { 760, 720 } })
 hl.window_rule({ name = "bos-welcome",  match = { class = "^(bos-welcome)$" },  float = true, size = { 700, 560 } })
+hl.window_rule({ name = "bos-netsetup", match = { class = "^(bos-netsetup)$" }, float = true, size = { 700, 560 } })
 
 -- ---------------------------------------------------------------------------
 -- Environment (vendor-neutral; no GPU-specific vars so it works on Intel/AMD).
