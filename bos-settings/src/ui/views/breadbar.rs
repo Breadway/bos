@@ -6,7 +6,6 @@ fn css_path() -> PathBuf {
     crate::config::config_dir().join("breadbar/style.css")
 }
 
-
 pub fn build() -> GBox {
     let path = css_path();
     let existing_css = std::fs::read_to_string(&path).unwrap_or_default();
