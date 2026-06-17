@@ -27,6 +27,7 @@ secrets/
 # archiso build artifacts (these are large and reproducible)
 /iso-build/
 /iso-out/
+/out/
 *.iso
 *.img
 

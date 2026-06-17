@@ -50,9 +50,10 @@ fn stream_command(args: &[&str], log_buf: gtk4::TextBuffer) {
             }
         };
 
-        // Merge stderr into the channel too
-        let stdout = child.stdout.take().unwrap();
-        let stderr = child.stderr.take().unwrap();
+        // Merge stderr into the channel too.
+        // Both are Some because we spawned with Stdio::piped() above.
+        let stdout = child.stdout.take().expect("stdout piped");
+        let stderr = child.stderr.take().expect("stderr piped");
 
         let tx2 = sender.clone();
         std::thread::spawn(move || {
