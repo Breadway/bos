@@ -14,7 +14,10 @@
 set -euo pipefail
 
 REPO="$(cd "$(dirname "$0")" && pwd)"
-WORK=/tmp/bos-work
+# WORK defaults to /tmp, but on hermes /tmp is a 16 GB tmpfs — a full xz build
+# (uncompressed rootfs + squashfs + work copies) can exhaust it mid-build. Allow
+# pointing it at the NVMe instead: WORK=/home/.../bos-work sudo ./build-local.sh
+WORK="${WORK:-/tmp/bos-work}"
 OUT="${OUT:-$REPO/out}"
 
 # Build against a throwaway copy of the profile so the working tree stays clean
