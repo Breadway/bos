@@ -203,7 +203,12 @@ hl.on("hyprland.start", function()
         "awww-daemon",
         -- set the default wallpaper once the daemon is up (retry until ready)
         [[bash -c 'until awww img /usr/share/backgrounds/bos/bread-background.png 2>/dev/null; do sleep 0.3; done']],
-        "breadd",
+        -- breadd runs as a systemd user service (~/.config/systemd/user/breadd.service,
+        -- enabled in skel). It autostarts at login but before Hyprland exists, so
+        -- push the compositor's Wayland env into the user manager and restart breadd
+        -- to pick it up — that's how it gets HYPRLAND_INSTANCE_SIGNATURE to talk to Hyprland.
+        "dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP HYPRLAND_INSTANCE_SIGNATURE",
+        "systemctl --user restart breadd",
         "breadbar",
         "breadbox-sync",
         "hypridle",
