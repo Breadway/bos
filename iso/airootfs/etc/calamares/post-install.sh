@@ -24,6 +24,19 @@ userdel -r liveuser 2>/dev/null || true
 passwd -l root || true
 
 # ---------------------------------------------------------------------------
+# Pacman keyring. The live medium's /etc/pacman.d/gnupg doesn't reliably carry
+# over to the target (unpackfs may skip it / perms differ), leaving the installed
+# system unable to verify package signatures — the first `pacman -Syu` then dies
+# with "keyring is not writable / required key missing". Initialise it here so a
+# fresh install can update out of the box. archlinux-keyring is already present;
+# [breadway] is SigLevel=Never so it needs no key.
+# ---------------------------------------------------------------------------
+if command -v pacman-key &>/dev/null; then
+    pacman-key --init || echo "WARN: pacman-key --init failed"
+    pacman-key --populate archlinux || echo "WARN: pacman-key --populate failed"
+fi
+
+# ---------------------------------------------------------------------------
 # Boot splash (Plymouth) — BOS logo + spinner instead of kernel text. Done
 # BEFORE grub so grub.cfg picks up the new cmdline and the rebuilt initramfs.
 # All best-effort: if anything here fails the system still boots (just without
