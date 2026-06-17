@@ -10,6 +10,25 @@ set -u
 marker="${XDG_CONFIG_HOME:-$HOME/.config}/bos/.welcomed"
 [[ -f "$marker" ]] && exit 0
 mkdir -p "$(dirname "$marker")"
+
+# First-run network check. A fresh install usually boots with no connection
+# (Wi-Fi isn't configured during install), and the first `bos-update`/pacman run
+# then fails with confusing DNS/"could not resolve host" errors. If
+# NetworkManager reports we're not fully online, open nmtui so the user can join
+# a network before anything else. Best-effort: missing nmcli/nmtui/kitty, or the
+# user quitting nmtui, must never block the welcome below.
+if command -v nmcli &>/dev/null; then
+    conn="$(nmcli networking connectivity check 2>/dev/null)"
+    if [[ "$conn" != "full" ]]; then
+        notify-send -u normal "BOS" "No internet yet — opening network setup so updates work." 2>/dev/null || true
+        if command -v nmtui &>/dev/null; then
+            kitty --class bos-netsetup --title "Connect to a network" -- nmtui connect 2>/dev/null || true
+        fi
+    fi
+fi
+
+# Mark welcomed only now, so an interrupted/aborted network step still re-prompts
+# next login rather than being suppressed forever.
 touch "$marker"
 
 exec kitty --class bos-welcome --title "Welcome to BOS" -- less -R /usr/share/bos/welcome.txt

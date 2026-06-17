@@ -139,10 +139,13 @@ file-roller
 
 # GUI applications a general desktop is expected to have out of the box.
 # gnome-text-editor: graphical editor (terminal editors aside); gnome-calculator:
-# calculator; loupe: Wayland-native image viewer (default for image files).
+# calculator; loupe: Wayland-native image viewer (default for image files);
+# zathura(+pdf-mupdf): lightweight Wayland PDF viewer (BOS had no PDF reader).
 gnome-text-editor
 gnome-calculator
 loupe
+zathura
+zathura-pdf-mupdf
 # Media player — BOS ships gstreamer codecs but otherwise has no player app.
 vlc
 # Web browser (served from the [Breadway] repo; AUR zen-browser-bin republished
@@ -190,6 +193,12 @@ plymouth
 gst-plugins-good
 gst-plugins-bad
 gst-plugins-ugly
+# Hardware video acceleration (VA-API) — lets the AMD/Intel GPU decode H.264/HEVC/
+# VP9 in mpv, VLC, and browsers instead of the CPU (cooler, longer battery on
+# video). The open Mesa VA-API backend (radeonsi_drv_video.so etc.) now ships in
+# the `mesa` package itself (pulled in already), so only libva (deps) + the
+# `vainfo` verification tool need listing here.
+libva-utils
 # GUI audio mixer — useful when output device needs manual switching.
 pavucontrol
 

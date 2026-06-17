@@ -37,23 +37,33 @@ if command -v pacman-key &>/dev/null; then
 fi
 
 # ---------------------------------------------------------------------------
-# Boot splash (Plymouth) — BOS logo + spinner instead of kernel text. Done
-# BEFORE grub so grub.cfg picks up the new cmdline and the rebuilt initramfs.
-# All best-effort: if anything here fails the system still boots (just without
-# the splash) — the initramfs the initcpio module already built stays valid.
+# Initramfs HOOKS: microcode + plymouth. Edit HOOKS first, rebuild once below.
+#   microcode — embeds the (autodetect-pruned) CPU microcode into the initramfs
+#     so it loads at early boot. The live ISO embeds ucode the same way, so the
+#     ISO /boot carries no separate ucode image and bos-copy-kernel stages none
+#     onto the target — the installed initramfs must therefore carry it itself.
+#     Must sit AFTER `autodetect` so it's pruned to the running CPU's microcode.
+#   plymouth — the BOS boot splash. Only the udev `plymouth` hook exists (there
+#     is NO `sd-plymouth`), so always insert it after `udev`.
+# All best-effort: a failure here still leaves a bootable initramfs.
+# ---------------------------------------------------------------------------
+if [[ -f /etc/mkinitcpio.conf ]]; then
+    if ! grep -qE '^HOOKS=.*\bmicrocode\b' /etc/mkinitcpio.conf; then
+        sed -i 's/^\(HOOKS=.*\bautodetect\b\)/\1 microcode/' /etc/mkinitcpio.conf \
+            || echo "WARN: adding microcode hook failed"
+    fi
+    if command -v plymouth-set-default-theme &>/dev/null \
+       && ! grep -qE '^HOOKS=.*\bplymouth\b' /etc/mkinitcpio.conf; then
+        sed -i 's/^\(HOOKS=.*\budev\b\)/\1 plymouth/' /etc/mkinitcpio.conf \
+            || echo "WARN: adding plymouth hook failed"
+    fi
+fi
+
+# ---------------------------------------------------------------------------
+# Boot splash (Plymouth) — BOS logo + spinner instead of kernel text. Set the
+# theme + cmdline BEFORE grub so grub.cfg picks up the new cmdline.
 # ---------------------------------------------------------------------------
 if command -v plymouth-set-default-theme &>/dev/null; then
-    # Ensure the plymouth hook is in HOOKS (plymouthcfg/initcpiocfg usually add it;
-    # this is the belt). Handle both the udev and systemd initramfs styles.
-    if ! grep -q 'plymouth' /etc/mkinitcpio.conf 2>/dev/null; then
-        if grep -qE '^HOOKS=.*\bsystemd\b' /etc/mkinitcpio.conf; then
-            sed -i 's/^\(HOOKS=.*\bsystemd\b\)/\1 sd-plymouth/' /etc/mkinitcpio.conf \
-                || echo "WARN: adding sd-plymouth hook failed"
-        else
-            sed -i 's/^\(HOOKS=.*\budev\b\)/\1 plymouth/' /etc/mkinitcpio.conf \
-                || echo "WARN: adding plymouth hook failed"
-        fi
-    fi
     # Clean boot: splash activates plymouth; hiding systemd status removes the
     # "[ OK ] Started ..." text (what looked like kernel output) even if the
     # splash itself doesn't grab the display (e.g. in some VMs).
@@ -61,9 +71,12 @@ if command -v plymouth-set-default-theme &>/dev/null; then
         sed -i 's/^\(GRUB_CMDLINE_LINUX_DEFAULT="\)/\1splash quiet vt.global_cursor_default=0 systemd.show_status=false rd.systemd.show_status=false rd.udev.log_level=3 /' \
             /etc/default/grub || echo "WARN: adding splash cmdline failed"
     fi
-    # Set the BOS theme and rebuild the initramfs (-R) with the plymouth hook.
-    plymouth-set-default-theme -R bos || echo "WARN: plymouth-set-default-theme failed"
+    plymouth-set-default-theme bos || echo "WARN: plymouth-set-default-theme failed"
 fi
+
+# Rebuild every preset (default + fallback that bos-copy-kernel wrote) so the
+# microcode + plymouth HOOKS above are actually baked into the initramfs.
+mkinitcpio -P || echo "WARN: mkinitcpio -P failed"
 
 # ---------------------------------------------------------------------------
 # Install GRUB (UEFI). /boot now has the kernel + initramfs, and the mount
