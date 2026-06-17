@@ -1,4 +1,15 @@
-# BOS default zsh config — quality-of-life defaults, easy to extend.
+# BOS default zsh config — Powerlevel10k prompt + plugins + pywal palette.
+#
+# Mirrors the BOS dev shell, but sources plugins from the distro packages
+# (/usr/share/zsh/...) instead of oh-my-zsh, so there's no framework to manage.
+# Customise the prompt with `p10k configure` (rewrites ~/.p10k.zsh).
+
+# Enable Powerlevel10k instant prompt. Should stay close to the top of ~/.zshrc.
+# Initialization code that may require console input (password prompts, [y/n]
+# confirmations, etc.) must go above this block; everything else may go below.
+if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
+  source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
+fi
 
 # History
 HISTFILE=~/.zsh_history
@@ -11,10 +22,21 @@ autoload -Uz compinit && compinit
 zstyle ':completion:*' menu select
 zstyle ':completion:*' matcher-list 'm:{a-z}={A-Z}'
 
-# Key bindings (emacs style + common extras)
+# Emacs-style key bindings
 bindkey -e
-bindkey '^[[A' history-search-backward
-bindkey '^[[B' history-search-forward
+
+# Prompt — Powerlevel10k (republished to [breadway] as zsh-theme-powerlevel10k).
+source /usr/share/zsh-theme-powerlevel10k/powerlevel10k.zsh-theme
+
+# Plugins (order matters: syntax-highlighting must be sourced LAST).
+ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE='fg=60'
+source /usr/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh 2>/dev/null
+source /usr/share/zsh/plugins/zsh-history-substring-search/zsh-history-substring-search.zsh 2>/dev/null
+source /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh 2>/dev/null
+
+# history-substring-search: ↑/↓ search history by the typed prefix.
+bindkey '^[[A' history-substring-search-up
+bindkey '^[[B' history-substring-search-down
 
 # fzf — fuzzy history search on Ctrl+R, fuzzy file find on Ctrl+T
 if command -v fzf &>/dev/null; then
@@ -54,12 +76,18 @@ alias free='free -h'
 alias grep='grep --color=auto'
 alias ip='ip --color=auto'
 
-# bakery / bread
-alias update='bakery update'
+# Updates — bos-update runs both channels (pacman + bakery). pacman aliased to
+# sudo so `pacman -Syu` etc. just work.
+alias update='bos-update'
+alias pacman='sudo pacman'
 
-# Prompt — simple and fast (no starship dep)
-autoload -Uz vcs_info
-precmd() { vcs_info }
-zstyle ':vcs_info:git:*' formats ' (%b)'
-setopt PROMPT_SUBST
-PROMPT='%F{cyan}%~%f%F{yellow}${vcs_info_msg_0_}%f %(?.%F{green}.%F{red})❯%f '
+# ~/.local/bin holds the bread* binaries baked in at build time.
+export PATH="$HOME/.local/bin:$PATH"
+
+# Powerlevel10k prompt configuration.
+[[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
+
+# Import pywal colour palette (drives the terminal colours from the wallpaper).
+if [ -f "$HOME/.cache/wal/sequences" ]; then
+    cat "$HOME/.cache/wal/sequences"
+fi

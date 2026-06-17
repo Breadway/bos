@@ -23,4 +23,5 @@ file_permissions=(
     ["/usr/local/bin/bos-session"]="0:0:755"
     ["/usr/local/bin/bos-keybinds"]="0:0:755"
     ["/usr/local/bin/bos-welcome"]="0:0:755"
+    ["/usr/local/bin/bos-update"]="0:0:755"
 )
