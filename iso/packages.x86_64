@@ -207,8 +207,15 @@ man-pages
 less
 
 # Base CLI tools every install should have.
-# Shell
+# Shell — zsh with the same prompt + plugins as the dev laptop. Powerlevel10k is
+# AUR-only, so it's republished to [breadway] (see packaging/powerlevel10k). The
+# three plugins come from the official repos; skel/.zshrc sources them in order
+# (autosuggestions → history-substring-search → syntax-highlighting LAST).
 zsh
+zsh-theme-powerlevel10k
+zsh-autosuggestions
+zsh-history-substring-search
+zsh-syntax-highlighting
 # Editors
 nano
 micro
