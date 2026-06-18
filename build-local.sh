@@ -25,10 +25,15 @@ OUT="${OUT:-$REPO/out}"
 STAGE=/tmp/bos-iso-stage
 rm -rf "$STAGE" && cp -a "$REPO/iso" "$STAGE"
 
-# The public git.breadway.dev URL is flaky/unreachable from hermes; Forgejo is
-# directly reachable over Tailscale (hestia 100.66.238.26:3002). Only rewrites
-# the staged copy, never the committed pacman.conf.
-sed -i 's#https://git.breadway.dev/api/packages/Breadway/arch/os#http://100.66.238.26:3002/api/packages/Breadway/arch/os#' "$STAGE/pacman.conf"
+# Rewrite the [breadway] pacman repo URL to the fastest reachable address.
+#   CI_BUILD=1  — container runs on hestia with --network=host; localhost:3002 is direct
+#   default     — building on hermes; git.breadway.dev is flaky from there, use Tailscale
+# Only ever rewrites the staged copy, never the committed pacman.conf.
+if [ "${CI_BUILD:-0}" = "1" ]; then
+  sed -i 's#https://git.breadway.dev/api/packages/Breadway/arch/os#http://localhost:3002/api/packages/Breadway/arch/os#' "$STAGE/pacman.conf"
+else
+  sed -i 's#https://git.breadway.dev/api/packages/Breadway/arch/os#http://100.66.238.26:3002/api/packages/Breadway/arch/os#' "$STAGE/pacman.conf"
+fi
 
 if [ "${FAST_BUILD:-0}" = "1" ]; then
   echo "=== FAST_BUILD: squashfs -> zstd level 6 ==="
