@@ -44,7 +44,7 @@ grep airootfs_image_tool_options "$STAGE/profiledef.sh"
 # created from skel (the live user and the installed user) then gets the same
 # versions `bakery list` reports here, fully offline. Copied at build time so the
 # binaries never bloat the git repo and always track the current bakery state.
-BREAD_BINS=(bakery bread breadd breadman breadbar breadbox breadbox-sync breadcrumbs breadpad bread-theme)
+BREAD_BINS=(bakery bread breadd breadman breadbar breadbox breadbox-sync breadcrumbs breadpad breadpaper bread-theme)
 LAPTOP_HOME="${LAPTOP_HOME:-$(getent passwd "${SUDO_USER:-$USER}" | cut -d: -f6)}"
 BAKERY_BIN="$LAPTOP_HOME/.local/bin"
 BAKERY_STATE="$LAPTOP_HOME/.local/state/bakery"
