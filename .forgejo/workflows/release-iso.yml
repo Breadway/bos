@@ -194,13 +194,12 @@ jobs:
           VERSION="${{ steps.vars.outputs.version }}"
           FORGEJO_URL="https://git.breadway.dev/${GITHUB_REPOSITORY}/releases/tag/${TAG}"
 
+          printf '**Download ISO:** %s\n\nGitHub releases cannot host files >2 GB; the `bos-%s-x86_64.iso` (~2.5 GB) is on Forgejo.\n\nSee the [README](https://github.com/Breadway/bos#testing-in-a-vm) for VM testing instructions.' \
+            "${FORGEJO_URL}" "${VERSION}" > /tmp/gh-release-notes.md
+
           gh release create "${TAG}" \
             --repo "Breadway/bos" \
             --title "BOS ${TAG}" \
             --prerelease \
-            --notes "**Download ISO:** ${FORGEJO_URL}
-
-GitHub releases cannot host files larger than 2 GB; the \`bos-${VERSION}-x86_64.iso\` (≈2.5 GB) is attached to the Forgejo release linked above.
-
-See the [README](https://github.com/Breadway/bos#testing-in-a-vm) for VM testing instructions and [known limitations](https://github.com/Breadway/bos#known-limitations)." \
+            --notes-file /tmp/gh-release-notes.md \
           2>/dev/null || echo "GitHub release already exists — skipping"
