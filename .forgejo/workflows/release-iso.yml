@@ -61,8 +61,9 @@ jobs:
           curl -fsSL "https://dl.breadway.dev/index.json" \
             -o /build-home/.cache/bakery/index.json
 
-          # Download each binary from its pinned GitHub release URL and
-          # generate the installed.json that bakery expects in ~/.local/state.
+          # Download each binary from dl.breadway.dev (canonical source; github_url
+          # is not always published for dev/patch releases) and generate the
+          # installed.json that bakery expects in ~/.local/state.
           python3 << 'PYEOF'
           import json, urllib.request, os
 
@@ -77,8 +78,9 @@ jobs:
               for b in pkg['binaries']:
                   dest_name = b['name'].removesuffix('-x86_64')
                   dest = os.path.join(BIN_DIR, dest_name)
-                  print(f'  {dest_name}  <-  {b["github_url"]}', flush=True)
-                  urllib.request.urlretrieve(b['github_url'], dest)
+                  url = b['dl_url']
+                  print(f'  {dest_name}  <-  {url}', flush=True)
+                  urllib.request.urlretrieve(url, dest)
                   os.chmod(dest, 0o755)
                   bins.append(dest_name)
 
