@@ -156,7 +156,7 @@ jobs:
               -d "{
                 \"tag_name\": \"${TAG}\",
                 \"name\": \"BOS ${TAG}\",
-                \"prerelease\": true,
+                \"prerelease\": false,
                 \"body\": \"ISO image attached below.\\n\\nSee the [README](https://github.com/Breadway/bos#testing-in-a-vm) for VM testing instructions.\"
               }")
             RELEASE_ID=$(echo "${RELEASE}" | python3 -c "import json,sys; print(json.load(sys.stdin)['id'])")
@@ -202,6 +202,6 @@ jobs:
           gh release create "${TAG}" \
             --repo "Breadway/bos" \
             --title "BOS ${TAG}" \
-            --prerelease \
+            \
             --notes-file /tmp/gh-release-notes.md \
           2>/dev/null || echo "GitHub release already exists — skipping"
