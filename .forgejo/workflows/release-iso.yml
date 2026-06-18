@@ -1,0 +1,206 @@
+name: Build and release ISO
+
+# Builds the BOS ISO on the hestia self-hosted runner (native Arch container),
+# downloads all bakery ecosystem binaries from their GitHub releases, compiles
+# bread-theme from source, and uploads the resulting ISO to a Forgejo pre-release.
+# A matching GitHub release is created that points to Forgejo for the download
+# (GitHub releases cannot host files larger than 2 GB).
+#
+# Required secrets:
+#   RELEASE_TOKEN  — Forgejo API token with write:repository scope
+#   MIRROR_TOKEN   — GitHub personal access token with repo scope (already used by mirror.yml)
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Git tag to build (e.g. v0.4.0)'
+        required: true
+
+jobs:
+  release-iso:
+    runs-on: [self-hosted, hestia]
+    container:
+      image: archlinux:latest
+      # --privileged: mkarchiso needs CAP_SYS_ADMIN for loop mounts + mknod
+      # --network=host: gives localhost:3002 access to Forgejo (avoids the
+      #   public git.breadway.dev → Aegis → Tailscale round-trip for pacman)
+      options: --privileged --network=host
+
+    steps:
+      - name: Install build dependencies
+        run: |
+          pacman -Syu --noconfirm archiso curl python git rust
+
+      - name: Determine tag and version
+        id: vars
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="${{ github.event.inputs.tag }}"
+          else
+            TAG="${{ github.ref_name }}"
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Clone repository at tag
+        run: |
+          git clone --branch "${{ steps.vars.outputs.tag }}" --depth 1 \
+            "https://git.breadway.dev/${GITHUB_REPOSITORY}.git" /bos
+
+      - name: Download bakery ecosystem binaries
+        run: |
+          set -euo pipefail
+          mkdir -p /build-home/.local/bin \
+                   /build-home/.local/state/bakery \
+                   /build-home/.cache/bakery
+
+          # Fetch the canonical bakery index
+          curl -fsSL "https://dl.breadway.dev/index.json" \
+            -o /build-home/.cache/bakery/index.json
+
+          # Download each binary from its pinned GitHub release URL and
+          # generate the installed.json that bakery expects in ~/.local/state.
+          python3 << 'PYEOF'
+          import json, urllib.request, os
+
+          with open('/build-home/.cache/bakery/index.json') as f:
+              idx = json.load(f)
+
+          BIN_DIR = '/build-home/.local/bin'
+          installed = {}
+
+          for pkg_name, pkg in idx['packages'].items():
+              bins = []
+              for b in pkg['binaries']:
+                  dest_name = b['name'].removesuffix('-x86_64')
+                  dest = os.path.join(BIN_DIR, dest_name)
+                  print(f'  {dest_name}  <-  {b["github_url"]}', flush=True)
+                  urllib.request.urlretrieve(b['github_url'], dest)
+                  os.chmod(dest, 0o755)
+                  bins.append(dest_name)
+
+              # installed.json services field is a flat list of unit-name strings
+              services = [
+                  (s['unit'] if isinstance(s, dict) else s)
+                  for s in pkg.get('services', [])
+              ]
+              installed[pkg_name] = {
+                  'name': pkg_name,
+                  'version': pkg['version'],
+                  'binaries': bins,
+                  'services': services,
+                  'installed_at': '2024-01-01T00:00:00+00:00',
+              }
+
+          with open('/build-home/.local/state/bakery/installed.json', 'w') as f:
+              json.dump({'packages': installed}, f, indent=2)
+          print('installed.json written', flush=True)
+          PYEOF
+
+      - name: Build bread-theme from source
+        run: |
+          set -euo pipefail
+          # bread-theme is not in the bakery index; build it at the tag pinned
+          # in bos-settings/Cargo.toml so the CLI matches the library version.
+          THEME_TAG=$(grep 'bread-theme.*tag' /bos/bos-settings/Cargo.toml \
+                      | grep -oP '"v[^"]+"' | tr -d '"')
+          echo "Building bread-theme @ $THEME_TAG"
+          git clone --branch "$THEME_TAG" --depth 1 \
+            https://github.com/Breadway/bread-ecosystem /bread-ecosystem
+          cd /bread-ecosystem
+          cargo build --release -p bread-theme
+          install -m 755 target/release/bread-theme /build-home/.local/bin/bread-theme
+          echo "bread-theme built OK"
+
+      - name: Build ISO
+        run: |
+          set -euo pipefail
+          mkdir -p /bos-work /bos-out
+          cd /bos
+          LAPTOP_HOME=/build-home \
+          WORK=/bos-work \
+          OUT=/bos-out \
+          CI_BUILD=1 \
+          bash build-local.sh
+          ls -lh /bos-out/*.iso
+
+      - name: Create Forgejo release and upload ISO
+        env:
+          FORGEJO_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+        run: |
+          set -euo pipefail
+          TAG="${{ steps.vars.outputs.tag }}"
+          VERSION="${{ steps.vars.outputs.version }}"
+          ISO=$(ls /bos-out/*.iso | head -1)
+          ISO_NAME="bos-${VERSION}-x86_64.iso"
+
+          # Use an existing release for this tag if one exists (e.g. created
+          # manually or by a prior re-run), otherwise create a fresh one.
+          EXISTING=$(curl -sf \
+            -H "Authorization: token ${FORGEJO_TOKEN}" \
+            "http://localhost:3002/api/v1/repos/${GITHUB_REPOSITORY}/releases/tags/${TAG}" \
+            2>/dev/null || true)
+          RELEASE_ID=$(echo "${EXISTING}" | python3 -c \
+            "import json,sys; d=json.load(sys.stdin); print(d.get('id',''))" 2>/dev/null || true)
+
+          if [ -z "${RELEASE_ID}" ]; then
+            RELEASE=$(curl -fsS -X POST \
+              -H "Authorization: token ${FORGEJO_TOKEN}" \
+              -H "Content-Type: application/json" \
+              "http://localhost:3002/api/v1/repos/${GITHUB_REPOSITORY}/releases" \
+              -d "{
+                \"tag_name\": \"${TAG}\",
+                \"name\": \"BOS ${TAG}\",
+                \"prerelease\": true,
+                \"body\": \"ISO image attached below.\\n\\nSee the [README](https://github.com/Breadway/bos#testing-in-a-vm) for VM testing instructions.\"
+              }")
+            RELEASE_ID=$(echo "${RELEASE}" | python3 -c "import json,sys; print(json.load(sys.stdin)['id'])")
+          fi
+          echo "Using release ID: ${RELEASE_ID}"
+
+          # Remove any existing asset with the same name before uploading
+          ASSET_ID=$(curl -sf \
+            -H "Authorization: token ${FORGEJO_TOKEN}" \
+            "http://localhost:3002/api/v1/repos/${GITHUB_REPOSITORY}/releases/${RELEASE_ID}/assets" \
+            | python3 -c "
+          import json,sys
+          assets=json.load(sys.stdin)
+          match=[a['id'] for a in assets if a['name']=='${ISO_NAME}']
+          print(match[0] if match else '')
+          " 2>/dev/null || true)
+
+          if [ -n "${ASSET_ID}" ]; then
+            curl -fsS -X DELETE \
+              -H "Authorization: token ${FORGEJO_TOKEN}" \
+              "http://localhost:3002/api/v1/repos/${GITHUB_REPOSITORY}/releases/${RELEASE_ID}/assets/${ASSET_ID}"
+            echo "Removed existing ${ISO_NAME} asset"
+          fi
+
+          curl -fsS -X POST \
+            -H "Authorization: token ${FORGEJO_TOKEN}" \
+            -F "attachment=@${ISO};filename=${ISO_NAME}" \
+            "http://localhost:3002/api/v1/repos/${GITHUB_REPOSITORY}/releases/${RELEASE_ID}/assets"
+          echo "Uploaded: ${ISO_NAME}"
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.MIRROR_TOKEN }}
+        run: |
+          set -euo pipefail
+          TAG="${{ steps.vars.outputs.tag }}"
+          VERSION="${{ steps.vars.outputs.version }}"
+          FORGEJO_URL="https://git.breadway.dev/${GITHUB_REPOSITORY}/releases/tag/${TAG}"
+
+          gh release create "${TAG}" \
+            --repo "Breadway/bos" \
+            --title "BOS ${TAG}" \
+            --prerelease \
+            --notes "**Download ISO:** ${FORGEJO_URL}
+
+GitHub releases cannot host files larger than 2 GB; the \`bos-${VERSION}-x86_64.iso\` (≈2.5 GB) is attached to the Forgejo release linked above.
+
+See the [README](https://github.com/Breadway/bos#testing-in-a-vm) for VM testing instructions and [known limitations](https://github.com/Breadway/bos#known-limitations)." \
+          2>/dev/null || echo "GitHub release already exists — skipping"
