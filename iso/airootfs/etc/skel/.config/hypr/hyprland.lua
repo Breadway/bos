@@ -212,12 +212,18 @@ hl.on("hyprland.start", function()
         -- rather than an exec-once here.
         "/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1",
         "awww-daemon",
-        -- Set the default wallpaper once the daemon is up (retry until
-        -- ready) via `breadpaper set`, not raw `awww img` — breadpaper also
-        -- generates the pywal palette and reloads bread-theme, and records
-        -- the path so `breadpaper get` (and its bos-settings panel) show
-        -- the real default instead of "No wallpaper set" on a fresh install.
-        [[bash -c 'until breadpaper set /usr/share/backgrounds/bos/bread-background.png 2>/dev/null; do sleep 0.3; done']],
+        -- Set the default wallpaper once the daemon is up (retry until ready).
+        -- Raw `awww img`, NOT `breadpaper set` — breadpaper set also runs real
+        -- pywal against the image, which would clobber the curated black-base
+        -- colors.json baked into skel (.cache/wal/colors.json: #0c0c0c bg,
+        -- bread-toned browns reserved for accent slots only) with colors
+        -- actually extracted from bread-background.png — which is an all-beige
+        -- photo, so every bread-theme app (breadbar included) turns brown.
+        -- `breadpaper get` still works on a fresh install without ever running
+        -- pywal: .cache/wal/wal (pywal's own "last image" marker, which is all
+        -- breadpaper reads) is baked into skel too, right beside colors.json.
+        -- pywal only runs for real once the user picks a wallpaper themselves.
+        [[bash -c 'until awww img /usr/share/backgrounds/bos/bread-background.png 2>/dev/null; do sleep 0.3; done']],
         -- breadd runs as a systemd user service (~/.config/systemd/user/breadd.service,
         -- enabled in skel). It autostarts at login but before Hyprland exists, so
         -- push the compositor's Wayland env into the user manager and restart breadd
