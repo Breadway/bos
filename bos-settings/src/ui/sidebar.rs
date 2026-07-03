@@ -12,6 +12,7 @@ pub const APPS_ITEMS: &[SidebarItem] = &[
     SidebarItem { id: "breadbox",    label: "breadbox"    },
     SidebarItem { id: "breadcrumbs", label: "breadcrumbs" },
     SidebarItem { id: "breadpad",    label: "breadpad"    },
+    SidebarItem { id: "breadsearch", label: "breadsearch" },
 ];
 
 pub const SYSTEM_ITEMS: &[SidebarItem] = &[

@@ -1,7 +1,9 @@
 //! breadbox config.toml — launcher contexts.
-//! Schema mirrors breadbox-shared (`[[contexts]]` with `name` + `priority`, an
-//! ordered list of app/category hints). The contexts array is rewritten on
-//! save; any other top-level keys/comments in the file are preserved.
+//! Schema mirrors breadbox-shared (`#[serde(rename = "context")]` — the TOML
+//! key is `[[context]]`, singular, despite the Rust field being `contexts`),
+//! with `name` + `priority`, an ordered list of app/category hints. The
+//! context array is rewritten on save; any other top-level keys/comments in
+//! the file are preserved.
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -25,7 +27,7 @@ fn config_path() -> std::path::PathBuf {
 }
 
 fn read_contexts(doc: &DocumentMut) -> Vec<Context> {
-    let Some(aot) = doc.get("contexts").and_then(Item::as_array_of_tables) else {
+    let Some(aot) = doc.get("context").and_then(Item::as_array_of_tables) else {
         return Vec::new();
     };
     aot.iter()
@@ -53,7 +55,7 @@ fn write_contexts(doc: &mut DocumentMut, ctxs: &[Context]) {
         t.insert("priority", value(arr));
         aot.push(t);
     }
-    doc.as_table_mut().insert("contexts", Item::ArrayOfTables(aot));
+    doc.as_table_mut().insert("context", Item::ArrayOfTables(aot));
 }
 
 fn rebuild_list(list: &ListBox, model: &Rc<RefCell<Vec<Context>>>) {
