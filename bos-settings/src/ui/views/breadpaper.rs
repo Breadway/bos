@@ -32,18 +32,21 @@ fn current_wallpaper() -> Option<PathBuf> {
 fn refresh_preview(preview: &Image, path_lbl: &Label) {
     match current_wallpaper() {
         Some(path) => {
-            path_lbl.set_text(&path.display().to_string());
+            let filename = path.file_name().map(|f| f.to_string_lossy().to_string());
+            path_lbl.set_text(filename.as_deref().unwrap_or("(unknown filename)"));
+            path_lbl.set_tooltip_text(Some(&path.display().to_string()));
             preview.set_from_file(Some(&path));
         }
         None => {
             path_lbl.set_text("No wallpaper set");
+            path_lbl.set_tooltip_text(None);
             preview.set_icon_name(Some("image-missing"));
         }
     }
 }
 
 pub fn build() -> GBox {
-    let (outer, c) = w::view_scaffold("breadpaper");
+    let (outer, c) = w::view_scaffold("Wallpaper");
 
     c.append(&w::hint(
         "Sets the desktop wallpaper, generates a matching pywal palette, and \
@@ -51,23 +54,30 @@ pub fn build() -> GBox {
          the whole desktop's accent colors.",
     ));
 
+    let preview_card = GBox::new(Orientation::Vertical, 8);
+    preview_card.add_css_class("card");
+    preview_card.set_halign(gtk4::Align::Center);
+    preview_card.set_margin_top(8);
+    preview_card.set_margin_bottom(8);
+
     let preview = Image::new();
     preview.set_pixel_size(320);
-    preview.set_margin_top(8);
-    preview.set_margin_bottom(8);
-    c.append(&preview);
+    preview_card.append(&preview);
 
     let path_lbl = Label::new(None);
     path_lbl.set_wrap(true);
     path_lbl.add_css_class("dim-label");
-    c.append(&path_lbl);
+    preview_card.append(&path_lbl);
+    c.append(&preview_card);
 
     refresh_preview(&preview, &path_lbl);
 
     let btn_row = GBox::new(Orientation::Horizontal, 8);
     btn_row.set_margin_top(8);
+    btn_row.set_halign(gtk4::Align::Center);
 
     let choose_btn = Button::with_label("Choose image...");
+    choose_btn.add_css_class("suggested-action");
     let status = Label::new(None);
     status.add_css_class("dim-label");
 

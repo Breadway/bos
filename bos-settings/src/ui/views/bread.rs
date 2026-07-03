@@ -19,7 +19,9 @@ pub fn build() -> GBox {
     let path = config_path();
     let doc = Rc::new(RefCell::new(config::load_doc(&path)));
 
-    let (outer, c) = w::view_scaffold("bread");
+    let (outer, c) = w::view_scaffold("Daemon");
+
+    c.append(&w::service_control("breadd.service"));
 
     c.append(&w::section("Daemon"));
     c.append(&w::dropdown_row(

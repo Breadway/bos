@@ -15,7 +15,7 @@ pub fn build_ui(app: &Application) {
     crate::theme::load(&WidgetExt::display(&window));
 
     let hpaned = Paned::new(Orientation::Horizontal);
-    hpaned.set_position(190);
+    hpaned.set_position(210);
     hpaned.set_shrink_start_child(false);
     hpaned.set_resize_start_child(false);
 
@@ -25,20 +25,25 @@ pub fn build_ui(app: &Application) {
     stack.set_hexpand(true);
     stack.set_vexpand(true);
 
+    stack.add_named(&views::about::build(), Some("about"));
+    stack.add_named(&views::network::build(), Some("network"));
+    stack.add_named(&views::sound::build(), Some("sound"));
+    stack.add_named(&views::datetime::build(), Some("datetime"));
     stack.add_named(&views::snapshots::build(), Some("snapshots"));
     stack.add_named(&views::packages::build(), Some("packages"));
     stack.add_named(&views::bread::build(), Some("bread"));
     stack.add_named(&views::breadbar::build(), Some("breadbar"));
     stack.add_named(&views::breadbox::build(), Some("breadbox"));
+    stack.add_named(&views::breadclip::build(), Some("breadclip"));
     stack.add_named(&views::breadcrumbs::build(), Some("breadcrumbs"));
     stack.add_named(&views::breadpad::build(), Some("breadpad"));
     stack.add_named(&views::breadpaper::build(), Some("breadpaper"));
     stack.add_named(&views::breadsearch::build(), Some("breadsearch"));
     stack.add_named(&views::hyprland::build(), Some("hyprland"));
 
-    // Default to the bread panel — Snapshots was previously first, an odd
-    // first impression for a settings app named after the bread ecosystem.
-    stack.set_visible_child_name("bread");
+    // Default to About — a settings app's most GNOME-Settings-like landing
+    // page: identifies the machine, no config editor thrown at you first.
+    stack.set_visible_child_name("about");
 
     {
         let stack = stack.clone();

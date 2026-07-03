@@ -1,8 +1,10 @@
 use gtk4::prelude::*;
-use gtk4::{Box as GBox, Button, Label, Orientation};
+use gtk4::{Box as GBox, Button};
 use std::process::Command;
 
-fn get_monitors() -> Vec<String> {
+use crate::ui::widgets as w;
+
+fn get_monitors() -> Vec<(String, String)> {
     let Ok(output) = Command::new("hyprctl").args(["monitors", "-j"]).output() else {
         return Vec::new();
     };
@@ -17,7 +19,7 @@ fn get_monitors() -> Vec<String> {
             let w = m.get("width")?.as_u64()?;
             let h = m.get("height")?.as_u64()?;
             let refresh = m.get("refreshRate")?.as_f64()?;
-            Some(format!("{name}  {w}x{h} @ {refresh:.0}Hz"))
+            Some((name.to_string(), format!("{w}x{h} @ {refresh:.0}Hz")))
         })
         .collect()
 }
@@ -38,58 +40,46 @@ fn open_in_terminal(path: &std::path::Path) {
 }
 
 pub fn build() -> GBox {
-    let vbox = GBox::new(Orientation::Vertical, 12);
-    vbox.add_css_class("view-content");
+    let (outer, content) = w::view_scaffold("Display");
 
-    let title = Label::new(Some("Hyprland"));
-    title.add_css_class("title");
-    title.set_xalign(0.0);
-    vbox.append(&title);
-
-    let monitors_lbl = Label::new(Some("Connected monitors"));
-    monitors_lbl.set_xalign(0.0);
-    monitors_lbl.set_margin_top(8);
-    monitors_lbl.set_margin_bottom(4);
-    vbox.append(&monitors_lbl);
-
+    content.append(&w::section("Connected monitors"));
     let monitors = get_monitors();
     if monitors.is_empty() {
-        let lbl = Label::new(Some("No monitors detected (is Hyprland running?)"));
-        lbl.set_xalign(0.0);
-        vbox.append(&lbl);
+        content.append(&w::hint("No monitors detected (is Hyprland running?)"));
     } else {
-        for mon in &monitors {
-            let lbl = Label::new(Some(mon));
-            lbl.set_xalign(0.0);
-            lbl.add_css_class("monospace");
-            vbox.append(&lbl);
+        for (name, mode) in &monitors {
+            content.append(&w::info_row(name, mode));
         }
     }
+
+    content.append(&w::section("Configuration"));
+    content.append(&w::hint(
+        "Monitor layout, keyboard/input, and workspace rules are configured \
+         directly in hyprland.lua — there's no live editor for them here yet.",
+    ));
 
     // BOS's Hyprland config is Lua-native (hyprland.lua), not the classic
     // hyprland.conf/keybinds.conf pair — those names only ever matched a
     // stale, unshipped dotfiles/ directory, so this button opened (or
     // silently created) the wrong file entirely.
     let open_btn = Button::with_label("Open hyprland.lua in editor");
-    open_btn.set_margin_top(16);
     open_btn.set_halign(gtk4::Align::Start);
     {
         let conf_path = hypr_path("hyprland.lua");
         open_btn.connect_clicked(move |_| open_in_terminal(&conf_path));
     }
-    vbox.append(&open_btn);
+    content.append(&open_btn);
 
     // Keybinds are defined inline in hyprland.lua (no separate file); point
     // this at the shipped cheat sheet instead of a keybinds.conf that has
     // never existed on BOS.
     let keybinds_btn = Button::with_label("View keybinds cheat sheet");
-    keybinds_btn.set_margin_top(8);
     keybinds_btn.set_halign(gtk4::Align::Start);
     {
         let kb_path = std::path::PathBuf::from("/usr/share/bos/keybinds.txt");
         keybinds_btn.connect_clicked(move |_| open_in_terminal(&kb_path));
     }
-    vbox.append(&keybinds_btn);
+    content.append(&keybinds_btn);
 
-    vbox
+    outer
 }

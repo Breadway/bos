@@ -2,6 +2,8 @@ use gtk4::prelude::*;
 use gtk4::{Box as GBox, Button, Label, Orientation, ScrolledWindow, TextView};
 use std::path::PathBuf;
 
+use crate::ui::widgets as w;
+
 fn css_path() -> PathBuf {
     crate::config::config_dir().join("breadbar/style.css")
 }
@@ -10,37 +12,42 @@ pub fn build() -> GBox {
     let path = css_path();
     let existing_css = std::fs::read_to_string(&path).unwrap_or_default();
 
-    let vbox = GBox::new(Orientation::Vertical, 12);
-    vbox.add_css_class("view-content");
-
-    let title = Label::new(Some("breadbar"));
-    title.add_css_class("title");
-    title.set_xalign(0.0);
-    vbox.append(&title);
-
-    let subtitle = Label::new(Some(
-        "CSS overrides for breadbar. Leave empty to use the default bread theme.",
+    let (outer, content) = w::view_scaffold("Bar");
+    content.append(&w::hint(
+        "CSS overrides for breadbar. Leave empty to use the default bread theme. \
+         Reloads live on save — no need to restart the bar.",
     ));
-    subtitle.set_xalign(0.0);
-    subtitle.set_margin_bottom(8);
-    subtitle.set_wrap(true);
-    vbox.append(&subtitle);
 
     let buf = gtk4::TextBuffer::new(None);
     buf.set_text(&existing_css);
 
     let text_view = TextView::with_buffer(&buf);
     text_view.set_monospace(true);
+    text_view.set_top_margin(12);
+    text_view.set_bottom_margin(12);
+    text_view.set_left_margin(12);
+    text_view.set_right_margin(12);
+
+    // A borderless full-bleed textview reads as a rendering bug, not an
+    // editor — give it the same card framing every other panel's content
+    // gets, and cap its height so it doesn't compete with the button row
+    // for the one screen's worth of space.
+    let editor_card = GBox::new(Orientation::Vertical, 0);
+    editor_card.add_css_class("card");
+    editor_card.set_vexpand(true);
 
     let scroll = ScrolledWindow::new();
     scroll.set_vexpand(true);
+    scroll.set_min_content_height(360);
     scroll.set_child(Some(&text_view));
-    vbox.append(&scroll);
+    editor_card.append(&scroll);
+    content.append(&editor_card);
 
     let btn_row = GBox::new(Orientation::Horizontal, 12);
     btn_row.set_margin_top(12);
 
     let save_btn = Button::with_label("Save");
+    save_btn.add_css_class("suggested-action");
     let status_lbl = Label::new(None);
     status_lbl.add_css_class("dim-label");
 
@@ -55,7 +62,18 @@ pub fn build() -> GBox {
             }
             match std::fs::write(&path, text.as_str()) {
                 Ok(()) => {
-                    status_lbl.set_text("Saved");
+                    // breadbar has no systemd unit (it's launched directly by
+                    // hyprland.lua's exec-once) — SIGHUP is its own documented
+                    // live-reload mechanism (see this file's own header
+                    // comment: "reload live: kill -HUP $(pidof breadbar)").
+                    // -x pkill exits non-zero if breadbar isn't running,
+                    // which is fine — the file's still saved either way.
+                    let reloaded = std::process::Command::new("pkill")
+                        .args(["-HUP", "-x", "breadbar"])
+                        .status()
+                        .map(|s| s.success())
+                        .unwrap_or(false);
+                    status_lbl.set_text(if reloaded { "Saved & reloaded" } else { "Saved" });
                     let lbl = status_lbl.clone();
                     glib::timeout_add_seconds_local(3, move || {
                         lbl.set_text("");
@@ -69,7 +87,7 @@ pub fn build() -> GBox {
 
     btn_row.append(&save_btn);
     btn_row.append(&status_lbl);
-    vbox.append(&btn_row);
+    outer.append(&btn_row);
 
-    vbox
+    outer
 }

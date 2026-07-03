@@ -4,6 +4,8 @@ use gtk4::{
 };
 use std::process::Command;
 
+use crate::ui::widgets as w;
+
 #[derive(Clone)]
 struct SnapshotRow {
     number: String,
@@ -50,7 +52,9 @@ fn list_snapshots() -> Vec<SnapshotRow> {
         .collect()
 }
 
-fn populate_list(list: &ListBox) {
+/// Returns whether the list ended up empty, so callers can disable the
+/// selection-dependent buttons instead of leaving them clickable no-ops.
+fn populate_list(list: &ListBox) -> bool {
     while let Some(child) = list.first_child() {
         list.remove(&child);
     }
@@ -58,13 +62,14 @@ fn populate_list(list: &ListBox) {
     if snapshots.is_empty() {
         let row = ListBoxRow::new();
         row.set_selectable(false);
-        let lbl = Label::new(Some("No snapshots found (snapper may not be configured yet)"));
-        lbl.set_margin_top(8);
-        lbl.set_margin_bottom(8);
-        lbl.set_margin_start(8);
-        row.set_child(Some(&lbl));
+        row.set_child(Some(&w::empty_state(
+            "document-open-recent-symbolic",
+            "No snapshots yet",
+            "Snapshots are created automatically on every pacman transaction \
+             (snapper may not be configured yet).",
+        )));
         list.append(&row);
-        return;
+        return true;
     }
     for snap in &snapshots {
         let row = ListBoxRow::new();
@@ -94,33 +99,24 @@ fn populate_list(list: &ListBox) {
         row.set_child(Some(&hbox));
         list.append(&row);
     }
+    false
 }
 
 pub fn build() -> GBox {
-    let vbox = GBox::new(Orientation::Vertical, 0);
-    vbox.add_css_class("view-content");
-
-    let title = Label::new(Some("Snapshots"));
-    title.add_css_class("title");
-    title.set_xalign(0.0);
-    vbox.append(&title);
-
-    let subtitle = Label::new(Some(
+    let (outer, content) = w::view_scaffold("Snapshots");
+    content.append(&w::hint(
         "System snapshots created by snap-pac on each pacman transaction. \
          Boot into one from the GRUB menu to recover; delete old ones here.",
     ));
-    subtitle.set_xalign(0.0);
-    subtitle.set_margin_bottom(16);
-    vbox.append(&subtitle);
 
     let list = ListBox::new();
     list.set_selection_mode(gtk4::SelectionMode::Single);
-    populate_list(&list);
+    let empty = populate_list(&list);
 
     let scroll = ScrolledWindow::new();
     scroll.set_vexpand(true);
     scroll.set_child(Some(&list));
-    vbox.append(&scroll);
+    content.append(&scroll);
 
     let btn_row = GBox::new(Orientation::Horizontal, 8);
     btn_row.set_margin_top(12);
@@ -129,11 +125,17 @@ pub fn build() -> GBox {
     let rollback_btn = Button::with_label("Boot into selected...");
     let delete_btn = Button::with_label("Delete selected");
     delete_btn.add_css_class("destructive-action");
+    rollback_btn.set_sensitive(!empty);
+    delete_btn.set_sensitive(!empty);
 
     {
         let list = list.clone();
+        let rollback_btn = rollback_btn.clone();
+        let delete_btn = delete_btn.clone();
         refresh_btn.connect_clicked(move |_| {
-            populate_list(&list);
+            let empty = populate_list(&list);
+            rollback_btn.set_sensitive(!empty);
+            delete_btn.set_sensitive(!empty);
         });
     }
 
@@ -178,11 +180,14 @@ pub fn build() -> GBox {
 
     {
         let list = list.clone();
+        let rollback_btn = rollback_btn.clone();
         delete_btn.connect_clicked(move |btn| {
             let Some(row) = list.selected_row() else { return };
             let number = row.widget_name().to_string();
             if number.is_empty() { return }
 
+            let rollback_btn = rollback_btn.clone();
+            let delete_btn = btn.clone();
             let window = btn
                 .root()
                 .and_then(|r| r.downcast::<gtk4::Window>().ok());
@@ -197,6 +202,8 @@ pub fn build() -> GBox {
 
             let window2 = window.clone();
             let list2 = list.clone();
+            let rollback_btn2 = rollback_btn.clone();
+            let delete_btn2 = delete_btn.clone();
             dialog.choose(window.as_ref(), gtk4::gio::Cancellable::NONE, move |result| {
                 if result != Ok(1) { return }
 
@@ -218,10 +225,14 @@ pub fn build() -> GBox {
 
                 let list = list2.clone();
                 let window = window2.clone();
+                let rollback_btn = rollback_btn2.clone();
+                let delete_btn = delete_btn2.clone();
                 glib::spawn_future_local(async move {
                     let ok = rx.recv().await.unwrap_or(false);
                     if ok {
-                        populate_list(&list);
+                        let empty = populate_list(&list);
+                        rollback_btn.set_sensitive(!empty);
+                        delete_btn.set_sensitive(!empty);
                     } else {
                         let err = AlertDialog::builder()
                             .message("Delete failed")
@@ -239,7 +250,7 @@ pub fn build() -> GBox {
     btn_row.append(&refresh_btn);
     btn_row.append(&rollback_btn);
     btn_row.append(&delete_btn);
-    vbox.append(&btn_row);
+    outer.append(&btn_row);
 
-    vbox
+    outer
 }
