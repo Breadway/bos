@@ -1,10 +1,15 @@
+pub mod about;
 pub mod bread;
 pub mod breadbar;
 pub mod breadbox;
+pub mod breadclip;
 pub mod breadcrumbs;
 pub mod breadpad;
 pub mod breadpaper;
 pub mod breadsearch;
+pub mod datetime;
 pub mod hyprland;
+pub mod network;
 pub mod packages;
 pub mod snapshots;
+pub mod sound;

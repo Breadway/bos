@@ -1,13 +1,11 @@
-use async_channel;
 use gtk4::prelude::*;
 use gtk4::{
     Box as GBox, Button, Label, ListBox, ListBoxRow, Orientation, ScrolledWindow, TextView,
 };
 use std::collections::HashMap;
-use std::io::{BufRead, BufReader};
-use std::process::{Command, Stdio};
 
 use crate::ui::widgets as w;
+use crate::ui::widgets::{stream_command, stream_command_then};
 
 fn read_installed() -> HashMap<String, String> {
     let home = std::env::var("HOME").unwrap_or_else(|_| "/root".to_string());
@@ -43,61 +41,7 @@ fn read_installed() -> HashMap<String, String> {
         .collect()
 }
 
-fn stream_command(args: &[&str], log_buf: gtk4::TextBuffer) {
-    stream_command_then(args, log_buf, || {});
-}
-
-/// Same as stream_command, but runs `on_done` once the process's output
-/// stream ends (i.e. the child has exited) — the channel closes when both
-/// the stdout- and stderr-forwarding threads drop their sender, which only
-/// happens after `child.wait()` returns.
-fn stream_command_then(args: &[&str], log_buf: gtk4::TextBuffer, on_done: impl FnOnce() + 'static) {
-    let (sender, receiver) = async_channel::bounded::<String>(256);
-    let args: Vec<String> = args.iter().map(|s| s.to_string()).collect();
-
-    std::thread::spawn(move || {
-        let mut child = match Command::new(&args[0])
-            .args(&args[1..])
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn()
-        {
-            Ok(c) => c,
-            Err(e) => {
-                let _ = sender.send_blocking(format!("Error: {e}"));
-                return;
-            }
-        };
-
-        // Merge stderr into the channel too.
-        // Both are Some because we spawned with Stdio::piped() above.
-        let stdout = child.stdout.take().expect("stdout piped");
-        let stderr = child.stderr.take().expect("stderr piped");
-
-        let tx2 = sender.clone();
-        let stderr_thread = std::thread::spawn(move || {
-            for line in BufReader::new(stderr).lines().flatten() {
-                let _ = tx2.send_blocking(line);
-            }
-        });
-
-        for line in BufReader::new(stdout).lines().flatten() {
-            let _ = sender.send_blocking(line);
-        }
-        let _ = child.wait();
-        let _ = stderr_thread.join();
-    });
-
-    glib::spawn_future_local(async move {
-        while let Ok(line) = receiver.recv().await {
-            let mut end = log_buf.end_iter();
-            log_buf.insert(&mut end, &format!("{line}\n"));
-        }
-        on_done();
-    });
-}
-
-fn populate_packages(list: &ListBox, log_buf: &gtk4::TextBuffer) {
+fn populate_packages(list: &ListBox, log_buf: &gtk4::TextBuffer, log_view: &TextView) {
     while let Some(child) = list.first_child() {
         list.remove(&child);
     }
@@ -106,13 +50,11 @@ fn populate_packages(list: &ListBox, log_buf: &gtk4::TextBuffer) {
     if packages.is_empty() {
         let row = ListBoxRow::new();
         row.set_selectable(false);
-        let lbl = Label::new(Some(
-            "No bakery packages found (~/.local/state/bakery/installed.json)",
-        ));
-        lbl.set_margin_top(8);
-        lbl.set_margin_bottom(8);
-        lbl.set_margin_start(8);
-        row.set_child(Some(&lbl));
+        row.set_child(Some(&w::empty_state(
+            "package-x-generic-symbolic",
+            "No bakery packages found",
+            "~/.local/state/bakery/installed.json is missing or empty.",
+        )));
         list.append(&row);
         return;
     }
@@ -140,11 +82,14 @@ fn populate_packages(list: &ListBox, log_buf: &gtk4::TextBuffer) {
         let update_btn = Button::with_label("Update");
         {
             let log_buf = log_buf.clone();
+            let log_view = log_view.clone();
             let list = list.clone();
             update_btn.connect_clicked(move |_| {
                 log_buf.set_text("");
+                log_view.set_visible(true);
                 let list2 = list.clone();
                 let log_buf2 = log_buf.clone();
+                let log_view2 = log_view.clone();
                 // Route through stream_command (like the other buttons) so
                 // output is visible and the row refreshes with the new
                 // version once the update actually finishes — previously
@@ -152,7 +97,7 @@ fn populate_packages(list: &ListBox, log_buf: &gtk4::TextBuffer) {
                 // swallowed, so a missing `bakery` binary made the button
                 // look broken with zero feedback either way.
                 stream_command_then(&["bakery", "update", &pkg_name], log_buf.clone(), move || {
-                    populate_packages(&list2, &log_buf2);
+                    populate_packages(&list2, &log_buf2, &log_view2);
                 });
             });
         }
@@ -166,35 +111,32 @@ fn populate_packages(list: &ListBox, log_buf: &gtk4::TextBuffer) {
 }
 
 pub fn build() -> GBox {
-    let vbox = GBox::new(Orientation::Vertical, 0);
-    vbox.add_css_class("view-content");
-
-    let title = Label::new(Some("Packages"));
-    title.add_css_class("title");
-    title.set_xalign(0.0);
-    vbox.append(&title);
-
-    let subtitle = Label::new(Some("Bread ecosystem packages installed via bakery, and system packages via pacman below."));
-    subtitle.set_xalign(0.0);
-    subtitle.set_margin_bottom(16);
-    vbox.append(&subtitle);
+    let (outer, content) = w::view_scaffold("Packages");
+    content.append(&w::hint(
+        "Bread ecosystem packages installed via bakery, and system packages via pacman below.",
+    ));
 
     let list = ListBox::new();
     list.set_selection_mode(gtk4::SelectionMode::None);
 
     let log_buf = gtk4::TextBuffer::new(None);
-    populate_packages(&list, &log_buf);
 
-    let scroll = ScrolledWindow::new();
-    scroll.set_vexpand(true);
-    scroll.set_child(Some(&list));
-    vbox.append(&scroll);
-
+    // Hidden until a command actually produces output — an always-visible
+    // empty log box below a short package list was the single biggest
+    // "dead space" offender in the app.
     let log_view = TextView::with_buffer(&log_buf);
     log_view.set_editable(false);
     log_view.set_monospace(true);
     log_view.set_height_request(140);
     log_view.set_margin_top(8);
+    log_view.set_visible(false);
+
+    populate_packages(&list, &log_buf, &log_view);
+
+    let scroll = ScrolledWindow::new();
+    scroll.set_vexpand(true);
+    scroll.set_child(Some(&list));
+    content.append(&scroll);
 
     let btn_row = GBox::new(Orientation::Horizontal, 8);
     btn_row.set_margin_top(12);
@@ -206,23 +148,27 @@ pub fn build() -> GBox {
 
     {
         let log_buf = log_buf.clone();
+        let log_view = log_view.clone();
         check_btn.connect_clicked(move |_| {
             log_buf.set_text("");
+            log_view.set_visible(true);
             stream_command(&["bakery", "list"], log_buf.clone());
         });
     }
 
     {
         let log_buf = log_buf.clone();
+        let log_view = log_view.clone();
         update_all_btn.connect_clicked(move |_| {
             log_buf.set_text("");
+            log_view.set_visible(true);
             stream_command(&["bakery", "update", "--all"], log_buf.clone());
         });
     }
 
     btn_row.append(&check_btn);
     btn_row.append(&update_all_btn);
-    vbox.append(&btn_row);
+    content.append(&btn_row);
 
     // ---------------------------------------------------------------------
     // System packages (pacman) — the other update channel. bakery only
@@ -232,8 +178,8 @@ pub fn build() -> GBox {
     // only exposed the bakery half, so a user relying on it alone would
     // never get base-system updates through the GUI.
     // ---------------------------------------------------------------------
-    vbox.append(&w::section("System packages (pacman)"));
-    vbox.append(&w::hint(
+    content.append(&w::section("System packages (pacman)"));
+    content.append(&w::hint(
         "Base system, kernel, bos-settings, and republished AUR packages — \
          the other half of what `bos-update` covers. Needs your password \
          (polkit) since pacman requires root.",
@@ -244,15 +190,17 @@ pub fn build() -> GBox {
     let pacman_update_btn = Button::with_label("Update system (pacman -Syu)");
     {
         let log_buf = log_buf.clone();
+        let log_view = log_view.clone();
         pacman_update_btn.connect_clicked(move |_| {
             log_buf.set_text("");
+            log_view.set_visible(true);
             stream_command(&["pkexec", "pacman", "-Syu", "--noconfirm"], log_buf.clone());
         });
     }
     pacman_btn_row.append(&pacman_update_btn);
-    vbox.append(&pacman_btn_row);
+    content.append(&pacman_btn_row);
 
-    vbox.append(&log_view);
+    content.append(&log_view);
 
-    vbox
+    outer
 }

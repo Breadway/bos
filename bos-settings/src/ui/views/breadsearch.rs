@@ -18,7 +18,8 @@ pub fn build() -> GBox {
     let path = config_path();
     let doc = Rc::new(RefCell::new(config::load_doc(&path)));
 
-    let (outer, c) = w::view_scaffold("breadsearch");
+    let (outer, c) = w::view_scaffold("File Search");
+    c.append(&w::service_control("breadmill.service"));
 
     c.append(&w::section("Power"));
     c.append(&w::hint(
@@ -34,22 +35,24 @@ pub fn build() -> GBox {
     ));
 
     c.append(&w::section("Model"));
-    // breadsearch v0.2.1+ publishes breadmill built with --features full
-    // (npu + rocm + cuda all in one binary, ort load-dynamic/dlopen — no
-    // separate build needed per backend). Selecting a GPU/NPU backend here
-    // only takes effect if the matching ONNX Runtime is actually present on
-    // this machine; breadmill logs which EP really registered at startup.
+    // breadsearch v0.2.3+ publishes breadmill built with --features full
+    // (npu + rocm + cuda + openvino all in one binary, ort load-dynamic/
+    // dlopen — no separate build needed per backend). Selecting a GPU/NPU
+    // backend here only takes effect if the matching ONNX Runtime is
+    // actually present on this machine; breadmill logs which EP really
+    // registered at startup.
     c.append(&w::dropdown_row(
         "Compute backend",
         &doc,
         &["model", "backend"],
-        &["cpu", "npu", "rocm", "cuda"],
+        &["cpu", "npu", "rocm", "cuda", "openvino"],
         "cpu",
     ));
     c.append(&w::hint(
         "npu = AMD Ryzen AI (XDNA), rocm = AMD GPU (via MIGraphX), cuda = \
-         NVIDIA GPU. Each needs the matching ONNX Runtime installed and \
-         visible to breadmill (system package, or ORT_DYLIB_PATH) — check \
+         NVIDIA GPU, openvino = Intel iGPU/Arc GPU. Each needs the matching \
+         ONNX Runtime installed and visible to breadmill (system package, \
+         or ORT_DYLIB_PATH) — check \
          `journalctl --user -u breadmill` after restarting for a \
          \"Successfully registered\" line confirming it actually took. \
          ROCm additionally needs ORT_MIGRAPHX_MODEL_CACHE_PATH set (bakery's \
@@ -108,7 +111,7 @@ pub fn build() -> GBox {
     ));
 
     c.append(&w::hint(
-        "Changes take effect after: systemctl --user restart breadmill",
+        "Changes take effect after a restart — use the Restart button above.",
     ));
 
     outer.append(&w::save_button(&doc, path));

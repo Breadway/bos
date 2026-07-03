@@ -15,6 +15,7 @@ use gtk4::{
 use toml_edit::{value, Array, ArrayOfTables, DocumentMut, Item, Table};
 
 use crate::config;
+use crate::ui::widgets as w;
 
 #[derive(Clone, Default)]
 struct Context {
@@ -61,6 +62,17 @@ fn write_contexts(doc: &mut DocumentMut, ctxs: &[Context]) {
 fn rebuild_list(list: &ListBox, model: &Rc<RefCell<Vec<Context>>>) {
     while let Some(child) = list.first_child() {
         list.remove(&child);
+    }
+    if model.borrow().is_empty() {
+        let row = ListBoxRow::new();
+        row.set_selectable(false);
+        row.set_child(Some(&w::empty_state(
+            "view-app-grid-symbolic",
+            "No launcher contexts yet",
+            "Add one to control which apps/categories breadbox surfaces first.",
+        )));
+        list.append(&row);
+        return;
     }
     for (i, ctx) in model.borrow().iter().enumerate() {
         let row = ListBoxRow::new();
@@ -128,21 +140,13 @@ pub fn build() -> GBox {
     let doc = Rc::new(RefCell::new(config::load_doc(&path)));
     let model = Rc::new(RefCell::new(read_contexts(&doc.borrow())));
 
-    let vbox = GBox::new(Orientation::Vertical, 12);
-    vbox.add_css_class("view-content");
+    let (outer, content) = w::view_scaffold("Launcher");
+    content.append(&w::service_control("breadbox-sync.service"));
 
-    let title = Label::new(Some("breadbox"));
-    title.add_css_class("title");
-    title.set_xalign(0.0);
-    vbox.append(&title);
-
-    let subtitle = Label::new(Some(
+    content.append(&w::section("Contexts"));
+    content.append(&w::hint(
         "Launcher contexts — each lists, in priority order, the apps/categories surfaced first.",
     ));
-    subtitle.set_xalign(0.0);
-    subtitle.set_wrap(true);
-    subtitle.set_margin_bottom(8);
-    vbox.append(&subtitle);
 
     let list = ListBox::new();
     list.set_selection_mode(gtk4::SelectionMode::None);
@@ -151,7 +155,7 @@ pub fn build() -> GBox {
     let scroll = ScrolledWindow::new();
     scroll.set_vexpand(true);
     scroll.set_child(Some(&list));
-    vbox.append(&scroll);
+    content.append(&scroll);
 
     let btn_row = GBox::new(Orientation::Horizontal, 8);
     btn_row.set_margin_top(8);
@@ -198,7 +202,7 @@ pub fn build() -> GBox {
     btn_row.append(&add_btn);
     btn_row.append(&save_btn);
     btn_row.append(&status_lbl);
-    vbox.append(&btn_row);
+    outer.append(&btn_row);
 
-    vbox
+    outer
 }

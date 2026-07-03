@@ -14,6 +14,26 @@ use std::cell::RefCell;
 const APP_CSS: &str = "\
 .view-content { padding: 24px; }\n\
 .view-content > label.title { margin-bottom: 16px; }\n\
+/* Sidebar row sub-labels (the underlying binary/config name under a row's \
+   human label) — smaller than the shared sheet's default dim-label size. */\n\
+.caption { font-size: 11px; }\n\
+/* bread-theme's shared sheet only overrides background-color on \
+   suggested/destructive buttons, not background-image — so Adwaita's \
+   built-in gradient (bright blue/red) paints over our flat colour \
+   underneath it. Belongs upstream in bread-theme; patched locally here \
+   until that's worth its own release. */\n\
+button.suggested-action, button.destructive-action { background-image: none; }\n\
+/* Same upstream gap for scale (Sound's volume sliders) — the shared sheet \
+   has no `scale` rules at all, so they render in Adwaita's default blue. */\n\
+scale trough { background-color: alpha(@on-surface, 0.15); border-radius: 999px; min-height: 6px; background-image: none; }\n\
+scale highlight { background-color: @accent; background-image: none; border-radius: 999px; }\n\
+scale slider { background-color: @on-surface; border-radius: 999px; }\n\
+/* Destructive actions must not follow the wallpaper palette: @red is \
+   pywal's color1, which can land on gold/yellow/anything depending on the \
+   wallpaper (it did, this session) — making Delete/Remove look like a \
+   primary action instead of a dangerous one. Fixed regardless of palette. */\n\
+button.destructive-action { background-color: #c0392b; color: #ffffff; }\n\
+button.destructive-action:hover { background-color: #d64535; }\n\
 ";
 
 thread_local! {
