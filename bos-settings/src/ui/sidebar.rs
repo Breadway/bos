@@ -55,7 +55,12 @@ pub const MAINTENANCE_ITEMS: &[SidebarItem] = &[
 
 pub const ABOUT_ITEMS: &[SidebarItem] = &[item("about", "About", "help-about-symbolic")];
 
-pub fn build() -> (GBox, ListBox) {
+/// `default_id` must match whatever page `window.rs` sets as the `Stack`'s
+/// initial visible child — previously these were two independent hardcoded
+/// "about" literals in different files with no link between them, so
+/// changing one without the other silently desynced the sidebar highlight
+/// from the actually-displayed page.
+pub fn build(default_id: &str) -> (GBox, ListBox) {
     let vbox = GBox::new(Orientation::Vertical, 0);
     vbox.add_css_class("sidebar");
     vbox.set_width_request(210);
@@ -69,12 +74,11 @@ pub fn build() -> (GBox, ListBox) {
     append_section(&list, "Maintenance", MAINTENANCE_ITEMS);
     append_section(&list, None, ABOUT_ITEMS);
 
-    // Select About so it matches the default stack page.
     let mut i = 0;
     loop {
         match list.row_at_index(i) {
             None => break,
-            Some(row) if row.widget_name() == "about" => {
+            Some(row) if row.widget_name() == default_id => {
                 list.select_row(Some(&row));
                 break;
             }

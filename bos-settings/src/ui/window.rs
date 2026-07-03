@@ -4,6 +4,12 @@ use gtk4::{Application, ApplicationWindow, Orientation, Paned, Stack};
 use super::sidebar;
 use super::views;
 
+// About is a settings app's most GNOME-Settings-like landing page —
+// identifies the machine, no config editor thrown at you first. Defined
+// once here and threaded through to both the `Stack` and the sidebar's
+// initial selection, so the two can't independently drift out of sync.
+const DEFAULT_PAGE: &str = "about";
+
 pub fn build_ui(app: &Application) {
     let window = ApplicationWindow::builder()
         .application(app)
@@ -19,7 +25,7 @@ pub fn build_ui(app: &Application) {
     hpaned.set_shrink_start_child(false);
     hpaned.set_resize_start_child(false);
 
-    let (sidebar_box, list) = sidebar::build();
+    let (sidebar_box, list) = sidebar::build(DEFAULT_PAGE);
 
     let stack = Stack::new();
     stack.set_hexpand(true);
@@ -41,9 +47,7 @@ pub fn build_ui(app: &Application) {
     stack.add_named(&views::breadsearch::build(), Some("breadsearch"));
     stack.add_named(&views::hyprland::build(), Some("hyprland"));
 
-    // Default to About — a settings app's most GNOME-Settings-like landing
-    // page: identifies the machine, no config editor thrown at you first.
-    stack.set_visible_child_name("about");
+    stack.set_visible_child_name(DEFAULT_PAGE);
 
     {
         let stack = stack.clone();
