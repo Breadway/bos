@@ -7,9 +7,14 @@
 # breadbox-sync, …) would be missing from PATH and the Hyprland `exec-once`
 # launches would fail. Source the login profile here so PATH is correct, set the
 # Wayland session hints, then hand off to Hyprland.
+#
+# Launched via start-hyprland (ships with the hyprland package) rather than the
+# raw Hyprland binary — Hyprland upstream no longer recommends exec'ing it
+# directly; start-hyprland wraps it in a watchdog process that also gives us
+# crash recovery for free.
 source /etc/profile 2>/dev/null
 
 export XDG_SESSION_TYPE=wayland
 export XDG_CURRENT_DESKTOP=Hyprland
 
-exec Hyprland
+exec start-hyprland

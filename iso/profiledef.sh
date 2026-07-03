@@ -20,6 +20,7 @@ file_permissions=(
     ["/usr/local/bin/bos-live-setup"]="0:0:755"
     ["/usr/local/bin/bos-launch-calamares"]="0:0:755"
     ["/usr/local/bin/bos-copy-kernel"]="0:0:755"
+    ["/usr/local/bin/bos-resolve-airootfs"]="0:0:755"
     ["/usr/local/bin/bos-session"]="0:0:755"
     ["/usr/local/bin/bos-keybinds"]="0:0:755"
     ["/usr/local/bin/bos-welcome"]="0:0:755"

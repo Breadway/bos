@@ -178,10 +178,10 @@ brightnessctl
 grim
 slurp
 # Clipboard (Wayland copy/paste; also clipboard screenshots) and media keys.
+# Clipboard history is breadclip/breadclipd (bakery-managed, SUPER+SHIFT+V),
+# not cliphist — wl-clipboard is still needed directly by breadclip/breadshot.
 wl-clipboard
 playerctl
-# Clipboard history daemon (stores wl-clipboard events; breadbox bind replays them).
-cliphist
 # Wallpaper daemon + pywal (drives the bread* colour palette from the wallpaper).
 awww
 python-pywal

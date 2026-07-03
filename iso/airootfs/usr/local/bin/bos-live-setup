@@ -34,15 +34,18 @@ fi
 
 # Start Hyprland on tty1 login; capture output and fall back to a shell so a
 # failed compositor start is visible rather than a blank looping cursor.
-cat >/home/liveuser/.bash_profile <<'EOF'
+# liveuser's shell is zsh (see useradd above), which never sources
+# .bash_profile — this must be .zprofile (zsh's login-shell hook) or it never
+# runs at all and the live session boots to a bare console.
+cat >/home/liveuser/.zprofile <<'EOF'
 if [[ "$(tty)" == /dev/tty1 ]] && [[ -z "$WAYLAND_DISPLAY" ]]; then
     export WLR_RENDERER_ALLOW_SOFTWARE=1
     export WLR_NO_HARDWARE_CURSORS=1
     # Log to a user-writable path (/var/log is root-only; redirecting there
     # would fail and silently keep the compositor from ever launching).
-    Hyprland &>/tmp/hyprland-live.log
+    start-hyprland &>/tmp/hyprland-live.log
     echo "Hyprland exited (rc=$?). Log: /tmp/hyprland-live.log"
-    exec bash -i
+    exec zsh -i
 fi
 EOF
 

@@ -5,8 +5,10 @@
 #   1. pacman   — Arch base/desktop + the [breadway] repo (bos-settings, etc.).
 #                 Every transaction is snapshotted by snap-pac, so you can roll
 #                 back from the GRUB "snapshots" submenu or BOS Settings.
-#   2. bakery   — the bread ecosystem apps in ~/.local/bin (bread, breadbar,
-#                 breadbox, breadcrumbs, breadpad, breadman, bread-theme).
+#   2. bakery   — the bread ecosystem apps in ~/.local/bin (whatever `bakery list`
+#                 reports as installed — bread, breadbar, breadbox, breadcrumbs,
+#                 breadpad, breadman, bread-theme, breadpaper, breadmon,
+#                 breadsearch, breadclip, breadshot, ...).
 #
 # Best-effort: a failure in one channel doesn't abort the other.
 set -uo pipefail

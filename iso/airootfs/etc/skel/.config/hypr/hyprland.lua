@@ -125,7 +125,10 @@ hl.bind(mod .. " + slash",     hl.dsp.exec_cmd("bos-keybinds"))
 hl.bind(mod .. " + L",         hl.dsp.exec_cmd("loginctl lock-session"))
 hl.bind(mod .. " + F",         hl.dsp.window.fullscreen({ action = "toggle" }))
 hl.bind(mod .. " + V",         hl.dsp.window.float({ action = "toggle" }))
-hl.bind(mod .. " + SHIFT + V", hl.dsp.exec_cmd([[bash -c 'cliphist list | fzf --reverse --prompt="Clipboard > " | cliphist decode | wl-copy']]))
+-- breadclip (its own gtk4-layer-shell popup — not a TUI, so no terminal
+-- needed). Previously piped cliphist through fzf directly from the
+-- compositor with no terminal attached, which was a silent no-op.
+hl.bind(mod .. " + SHIFT + V", hl.dsp.exec_cmd("breadclip"))
 hl.bind(mod .. " + T",         hl.dsp.layout("togglesplit"))
 hl.bind(mod .. " + Tab",       hl.dsp.focus({ urgent_or_last = true }))
 hl.bind(mod .. " + N",         hl.dsp.exit())
@@ -198,8 +201,9 @@ hl.on("hyprland.start", function()
         "gsettings set org.gnome.desktop.interface icon-theme Papirus-Dark",
         "gsettings set org.gnome.desktop.interface cursor-theme Bibata-Modern-Ice",
         "gsettings set org.gnome.desktop.interface cursor-size 24",
-        -- Clipboard history daemon (feeds SUPER+V history picker via wl-paste).
-        "wl-paste --type text --watch cliphist store",
+        -- Clipboard history is breadclipd, a bakery-managed systemd --user
+        -- service (auto-started via skel — see build-local.sh's service bake)
+        -- rather than an exec-once here.
         "/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1",
         "awww-daemon",
         -- set the default wallpaper once the daemon is up (retry until ready)
@@ -210,8 +214,20 @@ hl.on("hyprland.start", function()
         -- to pick it up — that's how it gets HYPRLAND_INSTANCE_SIGNATURE to talk to Hyprland.
         "dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP HYPRLAND_INSTANCE_SIGNATURE",
         "systemctl --user restart breadd",
+        -- graphical-session.target ships with RefuseManualStart=yes (systemd
+        -- convention — only a session manager like uwsm is meant to activate
+        -- it), confirmed on real hardware: `systemctl --user start
+        -- graphical-session.target` fails outright ("Operation refused").
+        -- BOS doesn't use uwsm, and nothing else activates that target, so
+        -- breadclipd (WantedBy=graphical-session.target) never started.
+        -- Start it directly instead. If more graphical-session.target
+        -- services show up later, add them here too.
+        "systemctl --user start breadclipd.service",
         "breadbar",
-        "breadbox-sync",
+        -- breadbox-sync is a Type=oneshot systemd --user service
+        -- (WantedBy=default.target, no Hyprland IPC dependency) — it
+        -- already runs on login via the unit baked into skel; exec'ing it
+        -- again here would just start it twice.
         "hypridle",
         -- first-boot onboarding (self-gates after the first run)
         "bos-welcome",

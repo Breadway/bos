@@ -1,0 +1,29 @@
+#!/bin/bash
+# Resolve the real location of the live squashfs before Calamares' unpackfs
+# module runs, and leave a stable symlink for it to unpack from.
+#
+# archiso's own initcpio hook unmounts /run/archiso/bootmnt once copytoram has
+# copied the image to a tmpfs (/run/archiso/copytoram/airootfs.sfs) — and
+# copytoram=auto self-enables on most real hardware (non-optical boot device,
+# image under 4 GiB, enough free RAM), not just when explicitly requested. A
+# Calamares unpackfs.conf source path hardcoded to /run/archiso/bootmnt/...
+# would then point at nothing. Check both locations here, in a real script,
+# and hand unpackfs.conf one fixed path that always resolves.
+set -uo pipefail
+
+DEST="/run/archiso/resolved-airootfs.sfs"
+CANDIDATES=(
+    "/run/archiso/copytoram/airootfs.sfs"
+    "/run/archiso/bootmnt/arch/x86_64/airootfs.sfs"
+)
+
+for c in "${CANDIDATES[@]}"; do
+    if [ -f "$c" ]; then
+        ln -sf "$c" "$DEST"
+        echo "resolved live squashfs: $c -> $DEST"
+        exit 0
+    fi
+done
+
+echo "ERROR: could not find the live squashfs in any known location (checked: ${CANDIDATES[*]})" >&2
+exit 1
