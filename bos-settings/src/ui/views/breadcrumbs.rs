@@ -356,7 +356,9 @@ pub fn build() -> GBox {
         &doc,
         &["settings", "default_profile"],
         &["home", "away"],
-        "home",
+        // breadcrumbs' own default_profile_name() is "away", not "home" —
+        // this was showing the wrong value for an unset key.
+        "away",
     ));
     content.append(&w::entry_row("DNS", &doc, &["settings", "dns"], "1.1.1.1", ""));
     content.append(&w::entry_row(

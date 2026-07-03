@@ -12,6 +12,7 @@ pub const APPS_ITEMS: &[SidebarItem] = &[
     SidebarItem { id: "breadbox",    label: "breadbox"    },
     SidebarItem { id: "breadcrumbs", label: "breadcrumbs" },
     SidebarItem { id: "breadpad",    label: "breadpad"    },
+    SidebarItem { id: "breadpaper",  label: "breadpaper"  },
     SidebarItem { id: "breadsearch", label: "breadsearch" },
 ];
 
@@ -33,12 +34,12 @@ pub fn build() -> (GBox, ListBox) {
     append_section(&list, "Apps", APPS_ITEMS);
     append_section(&list, "System", SYSTEM_ITEMS);
 
-    // Select the snapshots row so it matches the default stack page
+    // Select the bread row so it matches the default stack page
     let mut i = 0;
     loop {
         match list.row_at_index(i) {
             None => break,
-            Some(row) if row.widget_name() == "snapshots" => {
+            Some(row) if row.widget_name() == "bread" => {
                 list.select_row(Some(&row));
                 break;
             }

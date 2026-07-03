@@ -10,14 +10,16 @@
      SUPER + E                 files (nautilus)
      SUPER + B                 browser (zen)
      SUPER + U                 notes / reminders (breadpad)
-     SUPER + M                 package manager (breadman)
+     SUPER + M                 notes / task manager (breadman)
      SUPER + ,                 BOS Settings
      SUPER + /                 this keybind cheatsheet
      SUPER + L                 lock screen
      SUPER + Backspace         close window
      SUPER + F                 fullscreen
-     SUPER + V                 toggle floating
-     SUPER + Shift + V         clipboard history
+     SUPER + I                 toggle floating
+     SUPER + P                 toggle pseudotile
+     SUPER + R                 resize mode
+     SUPER + V / Shift + V     clipboard history (breadclip)
      SUPER + T                 toggle split direction
      SUPER + Tab               last window
      SUPER + N                 exit Hyprland (log out)
@@ -45,6 +47,7 @@
 
    MEDIA & HARDWARE KEYS
      volume / brightness / play-pause / next / prev   (work on lock screen)
+     calculator key             opens gnome-calculator
 
    ──────────────────────────────────────────────────────────
    Press q to close.  Configure everything in BOS Settings (SUPER + ,).

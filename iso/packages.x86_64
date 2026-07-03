@@ -11,14 +11,18 @@ amd-ucode
 intel-ucode
 
 # Power management (vendor-neutral; works on Intel and AMD). tlp auto-tunes power
-# by AC/battery and CPU driver; hypridle/hyprlock handle idle dim/off/lock/suspend
+# by AC/battery and CPU driver; hypridle/breadlock handle idle dim/off/lock/suspend
 # and the lock screen; upower exposes battery state. NOT power-profiles-daemon —
 # it conflicts with tlp.
 tlp
 tlp-rdw
 upower
 hypridle
-hyprlock
+# breadlock replaces hyprlock (locker) and tuigreet (greetd's greeter) — see
+# /etc/greetd/config.toml and skel's hypridle.conf lock_cmd. cage hosts
+# breadgreet as a single-client kiosk compositor under greetd.
+breadlock
+cage
 
 # Bootloader + filesystem
 grub
@@ -56,9 +60,8 @@ xdg-desktop-portal-hyprland
 # and Firefox-based apps (Zen). Without it those apps get no file dialog.
 xdg-desktop-portal-gtk
 # Login manager for the installed system (Wayland-native; enabled by
-# post-install.sh, launches the Hyprland session via tuigreet → bos-session).
+# post-install.sh, launches the Hyprland session via breadgreet → bos-session).
 greetd
-greetd-tuigreet
 xdg-utils
 xdg-user-dirs
 polkit

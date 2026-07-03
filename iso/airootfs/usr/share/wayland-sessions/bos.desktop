@@ -1,0 +1,5 @@
+[Desktop Entry]
+Name=BOS
+Comment=Bread OS (Hyprland)
+Exec=/usr/local/bin/bos-session
+Type=Application
