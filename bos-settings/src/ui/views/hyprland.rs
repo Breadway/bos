@@ -26,6 +26,17 @@ fn hypr_path(name: &str) -> std::path::PathBuf {
     crate::config::config_dir().join("hypr").join(name)
 }
 
+/// Open `path` in $EDITOR (nano if unset) inside a terminal window. Spawning
+/// an editor directly (no terminal) is a silent no-op for any TUI editor —
+/// there's nothing for it to attach to — so it always needs a terminal
+/// wrapper. Uses kitty, which is what BOS actually ships (not foot).
+fn open_in_terminal(path: &std::path::Path) {
+    let editor = std::env::var("EDITOR").unwrap_or_else(|_| "nano".to_string());
+    if let Ok(mut child) = Command::new("kitty").args(["-e", &editor]).arg(path).spawn() {
+        std::thread::spawn(move || { let _ = child.wait(); });
+    }
+}
+
 pub fn build() -> GBox {
     let vbox = GBox::new(Orientation::Vertical, 12);
     vbox.add_css_class("view-content");
@@ -55,31 +66,28 @@ pub fn build() -> GBox {
         }
     }
 
-    let open_btn = Button::with_label("Open hyprland.conf in editor");
+    // BOS's Hyprland config is Lua-native (hyprland.lua), not the classic
+    // hyprland.conf/keybinds.conf pair — those names only ever matched a
+    // stale, unshipped dotfiles/ directory, so this button opened (or
+    // silently created) the wrong file entirely.
+    let open_btn = Button::with_label("Open hyprland.lua in editor");
     open_btn.set_margin_top(16);
     open_btn.set_halign(gtk4::Align::Start);
     {
-        let conf_path = hypr_path("hyprland.conf");
-        open_btn.connect_clicked(move |_| {
-            let editor = std::env::var("EDITOR").unwrap_or_else(|_| "foot".to_string());
-            if let Ok(mut child) = Command::new(&editor).arg(&conf_path).spawn() {
-                std::thread::spawn(move || { let _ = child.wait(); });
-            }
-        });
+        let conf_path = hypr_path("hyprland.lua");
+        open_btn.connect_clicked(move |_| open_in_terminal(&conf_path));
     }
     vbox.append(&open_btn);
 
-    let keybinds_btn = Button::with_label("Open keybinds.conf in editor");
+    // Keybinds are defined inline in hyprland.lua (no separate file); point
+    // this at the shipped cheat sheet instead of a keybinds.conf that has
+    // never existed on BOS.
+    let keybinds_btn = Button::with_label("View keybinds cheat sheet");
     keybinds_btn.set_margin_top(8);
     keybinds_btn.set_halign(gtk4::Align::Start);
     {
-        let kb_path = hypr_path("keybinds.conf");
-        keybinds_btn.connect_clicked(move |_| {
-            let editor = std::env::var("EDITOR").unwrap_or_else(|_| "foot".to_string());
-            if let Ok(mut child) = Command::new(&editor).arg(&kb_path).spawn() {
-                std::thread::spawn(move || { let _ = child.wait(); });
-            }
-        });
+        let kb_path = std::path::PathBuf::from("/usr/share/bos/keybinds.txt");
+        keybinds_btn.connect_clicked(move |_| open_in_terminal(&kb_path));
     }
     vbox.append(&keybinds_btn);
 

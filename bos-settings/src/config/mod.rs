@@ -12,13 +12,31 @@ use std::path::{Path, PathBuf};
 
 use toml_edit::{value, Array, DocumentMut, Item, Table, Value};
 
-/// Load a TOML file into an editable document. A missing or unparseable file
-/// yields an empty document so the UI still renders (with defaults).
+/// Load a TOML file into an editable document. A missing file yields an
+/// empty document so the UI still renders with defaults — normal for a fresh
+/// install. A file that *exists* but fails to parse is far more dangerous:
+/// falling back to an empty document there means the next Save (see
+/// `save_doc`) overwrites it with only the UI-modelled keys, silently
+/// destroying anything else in the file (breadpad's calendar credentials,
+/// breadcrumbs' saved network passwords, ...). Back up the unparseable file
+/// once before falling back, so a bad edit is always recoverable.
 pub fn load_doc(path: &Path) -> DocumentMut {
-    std::fs::read_to_string(path)
-        .ok()
-        .and_then(|s| s.parse::<DocumentMut>().ok())
-        .unwrap_or_default()
+    let Ok(text) = std::fs::read_to_string(path) else {
+        return DocumentMut::default();
+    };
+    match text.parse::<DocumentMut>() {
+        Ok(doc) => doc,
+        Err(e) => {
+            let backup = PathBuf::from(format!("{}.bak", path.display()));
+            eprintln!(
+                "bos-settings: {} failed to parse ({e}); backed up to {} before falling back to defaults",
+                path.display(),
+                backup.display()
+            );
+            let _ = std::fs::write(&backup, &text);
+            DocumentMut::default()
+        }
+    }
 }
 
 /// Write the document back to disk, creating parent dirs as needed.

@@ -15,11 +15,20 @@ fn read_installed() -> HashMap<String, String> {
     let Ok(text) = std::fs::read_to_string(&path) else {
         return HashMap::new();
     };
-    let Ok(parsed) = serde_json::from_str::<HashMap<String, serde_json::Value>>(&text) else {
+    let Ok(mut parsed) = serde_json::from_str::<serde_json::Value>(&text) else {
+        return HashMap::new();
+    };
+    // installed.json is {"packages": {name: {version, binaries, services}}},
+    // not a flat map of package name to metadata — without unwrapping this,
+    // every install shows a single bogus row named "packages".
+    let Some(packages) = parsed.get_mut("packages").map(std::mem::take) else {
+        return HashMap::new();
+    };
+    let Ok(packages) = serde_json::from_value::<HashMap<String, serde_json::Value>>(packages) else {
         return HashMap::new();
     };
 
-    parsed
+    packages
         .into_iter()
         .filter_map(|(name, val)| {
             let version = val

@@ -32,6 +32,7 @@ pub fn build_ui(app: &Application) {
     stack.add_named(&views::breadbox::build(), Some("breadbox"));
     stack.add_named(&views::breadcrumbs::build(), Some("breadcrumbs"));
     stack.add_named(&views::breadpad::build(), Some("breadpad"));
+    stack.add_named(&views::breadsearch::build(), Some("breadsearch"));
     stack.add_named(&views::hyprland::build(), Some("hyprland"));
 
     // Default to snapshots view
