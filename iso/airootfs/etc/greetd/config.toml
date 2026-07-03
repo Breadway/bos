@@ -2,11 +2,15 @@
 # squashfs and enabled by post-install.sh; the live ISO instead autologins
 # liveuser on tty1 (see getty@tty1 drop-in) so the installer comes straight up.
 #
-# tuigreet shows a minimal greeter, then launches the BOS Hyprland session via
-# bos-session (which fixes up PATH for the bakery bread apps).
+# breadgreet (bread-ecosystem's own greeter) is hosted under cage — a single-
+# client kiosk Wayland compositor, since greetd itself has no display of its
+# own — and speaks greetd's IPC directly. It resolves the session to launch
+# from /usr/share/wayland-sessions/bos.desktop, which points at bos-session
+# (fixes up PATH for the bakery bread apps; greetd starts no login shell, so
+# /etc/profile.d is never sourced otherwise).
 [terminal]
 vt = 1
 
 [default_session]
-command = "tuigreet --remember --time --cmd /usr/local/bin/bos-session"
+command = "cage -s -- breadgreet"
 user = "greeter"

@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=breadsearch
+Comment=Semantic system-wide search
+Exec=breadsearch
+Icon=system-search
+Terminal=false
+Type=Application
+Categories=Utility;
+StartupWMClass=breadsearch

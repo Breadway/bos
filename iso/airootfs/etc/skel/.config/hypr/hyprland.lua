@@ -124,10 +124,15 @@ hl.bind(mod .. " + comma",     hl.dsp.exec_cmd("bos-settings"))
 hl.bind(mod .. " + slash",     hl.dsp.exec_cmd("bos-keybinds"))
 hl.bind(mod .. " + L",         hl.dsp.exec_cmd("loginctl lock-session"))
 hl.bind(mod .. " + F",         hl.dsp.window.fullscreen({ action = "toggle" }))
-hl.bind(mod .. " + V",         hl.dsp.window.float({ action = "toggle" }))
+hl.bind(mod .. " + I",         hl.dsp.window.float({ action = "toggle" }))
+hl.bind(mod .. " + P",         hl.dsp.window.pseudo({ action = "toggle" }))
+hl.bind(mod .. " + R",         hl.dsp.window.resize())
 -- breadclip (its own gtk4-layer-shell popup — not a TUI, so no terminal
 -- needed). Previously piped cliphist through fzf directly from the
 -- compositor with no terminal attached, which was a silent no-op.
+-- Bound on both V (breadclip's own suggested default, freed up now that
+-- float toggle moved to I) and SHIFT+V (kept for muscle memory).
+hl.bind(mod .. " + V",         hl.dsp.exec_cmd("breadclip"))
 hl.bind(mod .. " + SHIFT + V", hl.dsp.exec_cmd("breadclip"))
 hl.bind(mod .. " + T",         hl.dsp.layout("togglesplit"))
 hl.bind(mod .. " + Tab",       hl.dsp.focus({ urgent_or_last = true }))
@@ -185,6 +190,7 @@ hl.bind("XF86MonBrightnessDown", hl.dsp.exec_cmd("brightnessctl -e4 -n2 set 5%-"
 hl.bind("XF86AudioNext",         hl.dsp.exec_cmd("playerctl next"),                                   { locked = true })
 hl.bind("XF86AudioPrev",         hl.dsp.exec_cmd("playerctl previous"),                               { locked = true })
 hl.bind("XF86AudioPlay",         hl.dsp.exec_cmd("playerctl play-pause"),                             { locked = true })
+hl.bind("XF86Calculator",        hl.dsp.exec_cmd("gnome-calculator"))
 
 -- ---------------------------------------------------------------------------
 -- Autostart. polkit agent + the bread ecosystem + idle daemon + wallpaper.
@@ -206,8 +212,12 @@ hl.on("hyprland.start", function()
         -- rather than an exec-once here.
         "/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1",
         "awww-daemon",
-        -- set the default wallpaper once the daemon is up (retry until ready)
-        [[bash -c 'until awww img /usr/share/backgrounds/bos/bread-background.png 2>/dev/null; do sleep 0.3; done']],
+        -- Set the default wallpaper once the daemon is up (retry until
+        -- ready) via `breadpaper set`, not raw `awww img` — breadpaper also
+        -- generates the pywal palette and reloads bread-theme, and records
+        -- the path so `breadpaper get` (and its bos-settings panel) show
+        -- the real default instead of "No wallpaper set" on a fresh install.
+        [[bash -c 'until breadpaper set /usr/share/backgrounds/bos/bread-background.png 2>/dev/null; do sleep 0.3; done']],
         -- breadd runs as a systemd user service (~/.config/systemd/user/breadd.service,
         -- enabled in skel). It autostarts at login but before Hyprland exists, so
         -- push the compositor's Wayland env into the user manager and restart breadd

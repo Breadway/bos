@@ -34,16 +34,22 @@ pub fn build() -> GBox {
     ));
 
     c.append(&w::section("Model"));
+    // breadmill supports npu/rocm backends in its own codebase, but the
+    // prebuilt binary bakery actually ships is CPU-only (no --features
+    // npu/rocm in its release build) — offering them here would just be a
+    // dropdown option that silently falls back to cpu. Re-add once a build
+    // with those features is published.
     c.append(&w::dropdown_row(
         "Compute backend",
         &doc,
         &["model", "backend"],
-        &["cpu", "npu", "rocm"],
+        &["cpu"],
         "cpu",
     ));
     c.append(&w::hint(
-        "npu needs breadmill built with --features npu (AMD Ryzen AI SDK); \
-         rocm needs --features rocm. Falls back to cpu if not compiled in.",
+        "The bakery-published breadmill is CPU-only for now. NPU (AMD Ryzen \
+         AI) and ROCm backends exist in breadmill's own code but need a \
+         separately-built binary with those features enabled.",
     ));
 
     c.append(&w::section("Index"));

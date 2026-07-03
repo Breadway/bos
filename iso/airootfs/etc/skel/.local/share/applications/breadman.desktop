@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=breadman
+Comment=Notes and reminders manager
+Exec=breadman
+Icon=accessories-text-editor
+Terminal=false
+Type=Application
+Categories=Utility;Office;
+StartupWMClass=breadman

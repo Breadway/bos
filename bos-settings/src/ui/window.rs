@@ -32,11 +32,13 @@ pub fn build_ui(app: &Application) {
     stack.add_named(&views::breadbox::build(), Some("breadbox"));
     stack.add_named(&views::breadcrumbs::build(), Some("breadcrumbs"));
     stack.add_named(&views::breadpad::build(), Some("breadpad"));
+    stack.add_named(&views::breadpaper::build(), Some("breadpaper"));
     stack.add_named(&views::breadsearch::build(), Some("breadsearch"));
     stack.add_named(&views::hyprland::build(), Some("hyprland"));
 
-    // Default to snapshots view
-    stack.set_visible_child_name("snapshots");
+    // Default to the bread panel — Snapshots was previously first, an odd
+    // first impression for a settings app named after the bread ecosystem.
+    stack.set_visible_child_name("bread");
 
     {
         let stack = stack.clone();

@@ -12,20 +12,37 @@ struct SnapshotRow {
 }
 
 fn list_snapshots() -> Vec<SnapshotRow> {
+    // NOTE: the real flag is --columns, not --output-cols (which snapper
+    // rejects outright with "Unknown option") — confirmed against snapper
+    // 0.13's own --help. With the wrong flag this always failed and the
+    // panel silently showed "No snapshots found" on every install.
     let Ok(output) = Command::new("snapper")
-        .args(["list", "--output-cols", "number,date,description"])
+        .args(["list", "--columns", "number,date,description"])
         .output()
     else {
         return Vec::new();
     };
+    if !output.status.success() {
+        eprintln!(
+            "bos-settings: snapper list failed: {}",
+            String::from_utf8_lossy(&output.stderr).trim()
+        );
+        return Vec::new();
+    }
 
     let text = String::from_utf8_lossy(&output.stdout);
     text.lines()
         .skip(2) // header + separator
         .filter_map(|line| {
             let mut cols = line.splitn(3, '|');
+            let number = cols.next()?.trim().to_string();
+            // Snapshot 0 ("current") always exists, can't be rolled back to
+            // or deleted, and isn't a real snapshot — filter it out.
+            if number == "0" {
+                return None;
+            }
             Some(SnapshotRow {
-                number:      cols.next()?.trim().to_string(),
+                number,
                 date:        cols.next()?.trim().to_string(),
                 description: cols.next()?.trim().to_string(),
             })
@@ -89,7 +106,8 @@ pub fn build() -> GBox {
     vbox.append(&title);
 
     let subtitle = Label::new(Some(
-        "System snapshots created by snap-pac on each pacman transaction.",
+        "System snapshots created by snap-pac on each pacman transaction. \
+         Boot into one from the GRUB menu to recover; delete old ones here.",
     ));
     subtitle.set_xalign(0.0);
     subtitle.set_margin_bottom(16);
@@ -108,7 +126,7 @@ pub fn build() -> GBox {
     btn_row.set_margin_top(12);
 
     let refresh_btn = Button::with_label("Refresh");
-    let rollback_btn = Button::with_label("Rollback to selected");
+    let rollback_btn = Button::with_label("Boot into selected...");
     let delete_btn = Button::with_label("Delete selected");
     delete_btn.add_css_class("destructive-action");
 
@@ -130,23 +148,29 @@ pub fn build() -> GBox {
                 .root()
                 .and_then(|r| r.downcast::<gtk4::Window>().ok());
 
+            // BOS boots with root pinned to a named subvolume (grub emits
+            // rootflags=subvol=@), so `snapper rollback`'s usual mechanism —
+            // switching the btrfs *default* subvolume — has no effect here;
+            // grub never consults it. The real, working way to get back to a
+            // snapshot on this layout is grub-btrfs (already installed +
+            // running via grub-btrfsd.service): it generates a GRUB submenu
+            // entry per snapshot, bootable directly. So this button doesn't
+            // touch the filesystem at all — it just points you at that menu.
             let dialog = AlertDialog::builder()
-                .message(&format!("Roll back to snapshot #{number}?"))
-                .detail("The current system state will be replaced on next boot. \
-                         A polkit prompt will ask for your password.")
-                .buttons(["Cancel", "Roll back"])
+                .message(&format!("Boot into snapshot #{number}?"))
+                .detail("Snapshots on BOS are booted directly from the GRUB \
+                         menu (under \"BOS snapshots\"), not rolled back in \
+                         place. Reboot now and pick this snapshot there, or \
+                         later if you'd rather keep working — the menu entry \
+                         will still be there.")
+                .buttons(["Later", "Reboot now"])
                 .cancel_button(0)
                 .default_button(0)
                 .build();
 
             dialog.choose(window.as_ref(), gtk4::gio::Cancellable::NONE, move |result| {
                 if result == Ok(1) {
-                    // pkexec so polkit handles the privilege escalation
-                    std::thread::spawn(move || {
-                        let _ = Command::new("pkexec")
-                            .args(["snapper", "rollback", &number])
-                            .status();
-                    });
+                    let _ = Command::new("systemctl").args(["reboot"]).spawn();
                 }
             });
         });
@@ -163,7 +187,6 @@ pub fn build() -> GBox {
                 .root()
                 .and_then(|r| r.downcast::<gtk4::Window>().ok());
 
-            let list = list.clone();
             let dialog = AlertDialog::builder()
                 .message(&format!("Delete snapshot #{number}?"))
                 .detail("This cannot be undone.")
@@ -172,11 +195,43 @@ pub fn build() -> GBox {
                 .default_button(0)
                 .build();
 
+            let window2 = window.clone();
+            let list2 = list.clone();
             dialog.choose(window.as_ref(), gtk4::gio::Cancellable::NONE, move |result| {
-                if result == Ok(1) {
-                    let _ = Command::new("snapper").args(["delete", &number]).status();
-                    populate_list(&list);
-                }
+                if result != Ok(1) { return }
+
+                // snapper's DBus path authorizes via ALLOW_USERS, not pkexec —
+                // this only works because post-install.sh seeds that config
+                // key, but if it's ever missing this fails silently unless we
+                // check the exit status. GTK widgets aren't Send, so hand the
+                // outcome back over a channel rather than touching them from
+                // the thread (same pattern as the rollback flow used to).
+                let (tx, rx) = async_channel::bounded::<bool>(1);
+                std::thread::spawn(move || {
+                    let ok = Command::new("snapper")
+                        .args(["delete", &number])
+                        .status()
+                        .map(|s| s.success())
+                        .unwrap_or(false);
+                    let _ = tx.send_blocking(ok);
+                });
+
+                let list = list2.clone();
+                let window = window2.clone();
+                glib::spawn_future_local(async move {
+                    let ok = rx.recv().await.unwrap_or(false);
+                    if ok {
+                        populate_list(&list);
+                    } else {
+                        let err = AlertDialog::builder()
+                            .message("Delete failed")
+                            .detail("snapper delete exited with an error — the \
+                                     snapshot wasn't removed.")
+                            .buttons(["OK"])
+                            .build();
+                        err.choose(window.as_ref(), gtk4::gio::Cancellable::NONE, |_| {});
+                    }
+                });
             });
         });
     }
