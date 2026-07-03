@@ -34,22 +34,27 @@ pub fn build() -> GBox {
     ));
 
     c.append(&w::section("Model"));
-    // breadmill supports npu/rocm backends in its own codebase, but the
-    // prebuilt binary bakery actually ships is CPU-only (no --features
-    // npu/rocm in its release build) — offering them here would just be a
-    // dropdown option that silently falls back to cpu. Re-add once a build
-    // with those features is published.
+    // breadsearch v0.2.1+ publishes breadmill built with --features full
+    // (npu + rocm + cuda all in one binary, ort load-dynamic/dlopen — no
+    // separate build needed per backend). Selecting a GPU/NPU backend here
+    // only takes effect if the matching ONNX Runtime is actually present on
+    // this machine; breadmill logs which EP really registered at startup.
     c.append(&w::dropdown_row(
         "Compute backend",
         &doc,
         &["model", "backend"],
-        &["cpu"],
+        &["cpu", "npu", "rocm", "cuda"],
         "cpu",
     ));
     c.append(&w::hint(
-        "The bakery-published breadmill is CPU-only for now. NPU (AMD Ryzen \
-         AI) and ROCm backends exist in breadmill's own code but need a \
-         separately-built binary with those features enabled.",
+        "npu = AMD Ryzen AI (XDNA), rocm = AMD GPU (via MIGraphX), cuda = \
+         NVIDIA GPU. Each needs the matching ONNX Runtime installed and \
+         visible to breadmill (system package, or ORT_DYLIB_PATH) — check \
+         `journalctl --user -u breadmill` after restarting for a \
+         \"Successfully registered\" line confirming it actually took. \
+         ROCm additionally needs ORT_MIGRAPHX_MODEL_CACHE_PATH set (bakery's \
+         breadmill.service sets this by default) or the first query after \
+         each backend/model change costs a one-time ~1-2 minute GPU compile.",
     ));
 
     c.append(&w::section("Index"));
