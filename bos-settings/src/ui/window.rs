@@ -35,8 +35,13 @@ pub fn build_ui(app: &Application) {
     stack.add_named(&views::network::build(), Some("network"));
     stack.add_named(&views::sound::build(), Some("sound"));
     stack.add_named(&views::datetime::build(), Some("datetime"));
+    stack.add_named(&views::power::build(), Some("power"));
+    stack.add_named(&views::firewall::build(), Some("firewall"));
+    stack.add_named(&views::users::build(), Some("users"));
     stack.add_named(&views::snapshots::build(), Some("snapshots"));
     stack.add_named(&views::packages::build(), Some("packages"));
+    stack.add_named(&views::firmware::build(), Some("firmware"));
+    stack.add_named(&views::aur::build(), Some("aur"));
     stack.add_named(&views::bread::build(), Some("bread"));
     stack.add_named(&views::breadbar::build(), Some("breadbar"));
     stack.add_named(&views::breadbox::build(), Some("breadbox"));

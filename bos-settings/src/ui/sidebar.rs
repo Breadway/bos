@@ -33,9 +33,12 @@ const fn item_sub(
 pub const SYSTEM_ITEMS: &[SidebarItem] = &[
     item("network", "Network", "network-wireless-symbolic"),
     item_sub("breadcrumbs", "Wi-Fi Profiles", "breadcrumbs", "network-workgroup-symbolic"),
+    item("firewall", "Firewall", "security-high-symbolic"),
     item("sound", "Sound", "audio-volume-high-symbolic"),
+    item("power", "Power", "battery-good-symbolic"),
     item("datetime", "Date & Time", "preferences-system-time-symbolic"),
     item_sub("hyprland", "Display", "hyprland.lua", "video-display-symbolic"),
+    item("users", "Users", "system-users-symbolic"),
 ];
 
 pub const PERSONALIZATION_ITEMS: &[SidebarItem] = &[
@@ -50,6 +53,8 @@ pub const PERSONALIZATION_ITEMS: &[SidebarItem] = &[
 
 pub const MAINTENANCE_ITEMS: &[SidebarItem] = &[
     item("packages", "Packages", "package-x-generic-symbolic"),
+    item("aur", "AUR", "system-search-symbolic"),
+    item("firmware", "Firmware", "software-update-available-symbolic"),
     item("snapshots", "Snapshots", "document-open-recent-symbolic"),
 ];
 

@@ -287,6 +287,15 @@ system-config-printer
 # remote post-install (needs network); the runtime is shipped ready.
 flatpak
 
+# Graphical alternatives to terminal-only tools, so users who want more
+# graphical control aren't funneled to a shell for everyday things.
+# gnome-disk-utility: partition/format/SMART-health GUI for gnome-disks.
+# gufw: GUI front-end for the ufw firewall bos already enables by default.
+# mission-center: graphical task manager (CPU/mem/disk/net + process list).
+gnome-disk-utility
+gufw
+mission-center
+
 # Firewall — ufw, enabled deny-incoming in post-install.sh (mDNS allowed so
 # printer discovery still works).
 ufw

@@ -120,21 +120,40 @@ avoid memory pressure.
 
 ## bos-settings
 
-`bos-settings` edits each bread\* app's TOML **non-destructively**: it parses
-the file with `toml_edit`, changes only the keys a view exposes, and writes it
-back — preserving comments and any keys the UI doesn't model (calendar
-passwords, saved-network passwords, model paths). Views:
+A GTK4 settings app aiming for GNOME-Settings-style parity: not just editing
+config files, but live system state and control, so day-to-day machine
+administration doesn't require a terminal.
 
-| View | Config |
-|------|--------|
-| bread | `bread/breadd.toml` — daemon, lua, modules, all adapters, events, notifications |
-| breadbar | `breadbar/style.css` override |
-| breadbox | `breadbox/config.toml` — launcher contexts |
-| breadcrumbs | `breadcrumbs/breadcrumbs.toml` — settings, saved networks, profiles |
-| breadpad | `breadpad/breadpad.toml` — settings, model + ollama, reminders, calendar |
-| Snapshots | `snapper` list / rollback / delete |
-| Packages | `bakery` installed list + updates |
-| Hyprland | open config in editor + monitor list |
+Bread-ecosystem TOML configs are edited **non-destructively**: `toml_edit`
+parses the file, changes only the keys a view exposes, and writes it back —
+preserving comments and any keys the UI doesn't model (calendar passwords,
+saved-network passwords, model paths). Panels with a daemon behind them
+(bread, breadbox, breadcrumbs, breadsearch, breadclip) also get live
+systemd status + Start/Stop/Restart/Logs via a shared `service_control`
+widget, not just the config file.
+
+| Panel | What it does |
+|-------|--------------|
+| About | System info (OS/kernel/CPU/GPU/memory/disk/uptime) + hostname |
+| Network | Wi-Fi scan/connect, Ethernet status, radio toggle |
+| Wi-Fi Profiles (breadcrumbs) | `breadcrumbs.toml` — settings, saved networks, profiles |
+| Firewall | ufw rules: enable/disable, add/remove, view active rules |
+| Sound | PipeWire output/input device + volume via `pactl` |
+| Power | Battery status/health, brightness, charge limits (hardware-dependent), TLP profile (read-only) |
+| Date & Time | Timezone, NTP sync toggle |
+| Display (Hyprland) | Connected monitors + open `hyprland.lua` in editor |
+| Users | Add/remove accounts, change passwords |
+| Wallpaper (breadpaper) | Set wallpaper, drives the pywal-derived accent palette |
+| Bar (breadbar) | `breadbar/style.css` override, live-reloads on save |
+| Launcher (breadbox) | `breadbox/config.toml` — launcher contexts |
+| Clipboard (breadclip) | breadclipd service control + "open history" |
+| Notes (breadpad) | `breadpad/breadpad.toml` — settings, model + ollama, reminders, calendar |
+| File Search (breadsearch) | `breadsearch/config.toml` — index/search/model + breadmill service |
+| Daemon (bread) | `breadd.toml` — daemon, lua, modules, adapters, events, notifications |
+| Packages | `bakery` installed list + updates, pacman system update |
+| AUR | Search via `yay`; installing opens a terminal (AUR build scripts need review) |
+| Firmware | `fwupd` device list + updates |
+| Snapshots | `snapper` list / boot-into (grub-btrfs) / delete |
 
 Build standalone:
 
