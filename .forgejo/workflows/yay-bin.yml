@@ -1,0 +1,36 @@
+name: Build and publish yay-bin
+
+# yay (and every AUR helper) is AUR-only — not in Arch's official repos — so
+# BOS maintains an in-house PKGBUILD and publishes the built package to the
+# [breadway] repo, same as bibata-cursor-theme and calamares. Prebuilt
+# release tarball, no build step.
+on:
+  push:
+    paths:
+      - 'packaging/yay-bin/**'
+  workflow_dispatch:
+
+jobs:
+  yay-bin:
+    runs-on: [self-hosted, hestia]
+    container:
+      image: archlinux:latest
+    steps:
+      - name: Build and publish
+        env:
+          PUBLISH_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
+        run: |
+          set -euo pipefail
+          pacman -Syu --noconfirm base-devel git
+          useradd -m builder
+          git config --global --add safe.directory '*'
+          git clone --depth 1 --branch "${GITHUB_REF_NAME}" \
+            "https://git.breadway.dev/${GITHUB_REPOSITORY}.git" /home/builder/src
+          chown -R builder:builder /home/builder/src
+          su builder -c "cd /home/builder/src/packaging/yay-bin && makepkg -f --noconfirm --nocheck"
+          PKG=$(find /home/builder/src/packaging/yay-bin -name '*.pkg.tar.zst' | head -1)
+          curl -fsS -X PUT \
+            -H "Authorization: token ${PUBLISH_TOKEN}" \
+            -H "Content-Type: application/octet-stream" \
+            --data-binary "@${PKG}" \
+            "https://git.breadway.dev/api/packages/Breadway/arch/os"

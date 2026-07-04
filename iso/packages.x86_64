@@ -30,6 +30,15 @@ efibootmgr
 btrfs-progs
 dosfstools
 mtools
+# LUKS full-disk encryption — Calamares' partition module has encryption
+# support built in and enabled by default, but needs cryptsetup actually
+# present (live, to create the container; installed, to unlock at boot via
+# mkinitcpio's encrypt hook) or the checkbox leads to an unbootable system.
+cryptsetup
+# Secure Boot key enrollment/signing (self-signed — see post-install.sh).
+# Ships its own pacman hook (zz-sbctl.hook) that re-signs the kernel/
+# bootloader automatically on every future update once enrolled.
+sbctl
 # squashfs-tools: provides unsquashfs, which Calamares' unpackfs module uses
 # to extract airootfs.sfs onto the target during install.
 squashfs-tools
@@ -160,6 +169,12 @@ mailcap
 # Installer — Calamares is AUR-only; built in-house and served from [breadway]
 # (calamares 3.4.x is already Qt6; there is no separate calamares-qt6 package)
 calamares
+
+# AUR helper — yay-bin is AUR-only (no AUR helper ships in the official
+# repos), so it's republished to [breadway] the same way (see
+# packaging/yay-bin). Lets users reach the wider AUR beyond bakery's bread
+# ecosystem + [breadway]'s own small set of republished packages.
+yay-bin
 
 # Bread ecosystem.
 #

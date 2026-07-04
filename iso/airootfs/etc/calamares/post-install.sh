@@ -10,6 +10,19 @@ set -uo pipefail
 
 MAIN_USER="$(getent passwd 1000 | cut -d: -f1 || true)"
 
+# Whether Calamares encrypted the root partition (LUKS) — checked once here,
+# used below to conditionally wire mkinitcpio's encrypt hook and GRUB's
+# cryptodisk support. `lsblk TYPE` reports "crypt" for a cryptsetup-opened
+# mapper device regardless of what Calamares named it, so this works whether
+# the user picked automated "Erase disk" encryption or hand-encrypted a
+# partition in manual mode.
+ROOT_SRC="$(findmnt -no SOURCE / | sed 's/\[.*\]//')"
+if [[ "$(lsblk -no TYPE "$ROOT_SRC" 2>/dev/null)" == "crypt" ]]; then
+    ROOT_ENCRYPTED=1
+else
+    ROOT_ENCRYPTED=0
+fi
+
 # ---------------------------------------------------------------------------
 # Strip live-only bits that unpackfs copied verbatim from the live medium.
 # ---------------------------------------------------------------------------
@@ -57,6 +70,15 @@ if [[ -f /etc/mkinitcpio.conf ]]; then
         sed -i 's/^\(HOOKS=.*\budev\b\)/\1 plymouth/' /etc/mkinitcpio.conf \
             || echo "WARN: adding plymouth hook failed"
     fi
+    # encrypt — only when root is actually LUKS-encrypted (ROOT_ENCRYPTED,
+    # detected above). Must sit after `block` (provides the device nodes the
+    # encrypt hook opens) and before `filesystems` (mounts the now-unlocked
+    # root) — both already present in stock mkinitcpio.conf's default HOOKS.
+    if [[ "$ROOT_ENCRYPTED" == "1" ]] \
+       && ! grep -qE '^HOOKS=.*\bencrypt\b' /etc/mkinitcpio.conf; then
+        sed -i 's/^\(HOOKS=.*\bblock\b\)/\1 encrypt/' /etc/mkinitcpio.conf \
+            || echo "WARN: adding encrypt hook failed"
+    fi
 fi
 
 # ---------------------------------------------------------------------------
@@ -72,6 +94,17 @@ if command -v plymouth-set-default-theme &>/dev/null; then
             /etc/default/grub || echo "WARN: adding splash cmdline failed"
     fi
     plymouth-set-default-theme bos || echo "WARN: plymouth-set-default-theme failed"
+fi
+
+# GRUB needs to unlock LUKS itself to reach the kernel — there's no separate
+# unencrypted /boot partition (only /boot/efi is separate). GRUB_ENABLE_CRYPTODISK
+# makes grub-mkconfig emit the cryptomount commands grub.cfg needs; the
+# --modules flags below (on both grub-install calls) make sure the cryptodisk
+# and luks decoders are actually compiled into core.img, not just referenced.
+if [[ "$ROOT_ENCRYPTED" == "1" ]] && [[ -f /etc/default/grub ]] \
+   && ! grep -q '^GRUB_ENABLE_CRYPTODISK=' /etc/default/grub; then
+    echo 'GRUB_ENABLE_CRYPTODISK=y' >> /etc/default/grub \
+        || echo "WARN: adding GRUB_ENABLE_CRYPTODISK failed"
 fi
 
 # Rebuild every preset (default + fallback that bos-copy-kernel wrote) so the
@@ -95,18 +128,20 @@ mkinitcpio -P || echo "WARN: mkinitcpio -P failed"
 #   BIOS: MBR install onto the disk hosting /.
 # ---------------------------------------------------------------------------
 if command -v grub-install &>/dev/null; then
+    CRYPT_MODULES=()
+    [[ "$ROOT_ENCRYPTED" == "1" ]] && CRYPT_MODULES=(--modules="cryptodisk luks luks2")
     if [[ -d /sys/firmware/efi ]]; then
         grub-install --target=x86_64-efi --efi-directory=/boot/efi \
-            --bootloader-id=BOS --recheck \
+            --bootloader-id=BOS --recheck "${CRYPT_MODULES[@]}" \
             || echo "WARN: grub-install (nvram) failed"
         grub-install --target=x86_64-efi --efi-directory=/boot/efi \
-            --removable --recheck \
+            --removable --recheck "${CRYPT_MODULES[@]}" \
             || echo "WARN: grub-install (removable) failed"
     else
         ROOT_DEV="$(findmnt -no SOURCE / | sed 's/\[.*\]//')"
         ROOT_DISK="$(lsblk -no pkname "$ROOT_DEV" 2>/dev/null)"
         if [[ -n "$ROOT_DISK" ]]; then
-            grub-install --target=i386-pc --recheck "/dev/$ROOT_DISK" \
+            grub-install --target=i386-pc --recheck "${CRYPT_MODULES[@]}" "/dev/$ROOT_DISK" \
                 || echo "WARN: grub-install (BIOS) failed"
         else
             echo "WARN: could not determine the disk hosting / (root device: ${ROOT_DEV:-unknown}) — BIOS grub-install skipped"
@@ -115,6 +150,33 @@ if command -v grub-install &>/dev/null; then
 fi
 if command -v grub-mkconfig &>/dev/null; then
     grub-mkconfig -o /boot/grub/grub.cfg || echo "WARN: grub-mkconfig failed"
+fi
+
+# ---------------------------------------------------------------------------
+# Secure Boot: self-signed keys via sbctl, only when the firmware is already
+# in Setup Mode (no vendor PK enrolled — the state a fresh/never-used
+# machine boots in, or one where the user cleared their firmware's keys
+# before installing). BOS can't ship a Microsoft-signed shim — that requires
+# going through Microsoft's own paid UEFI CA signing process — so this is
+# the realistic path for an Arch-based distro: generate our own keys, enroll
+# them (plus Microsoft's, so a dual-booted Windows bootmgr and fwupd's
+# signed capsule updates still verify), and sign the kernel + GRUB. sbctl's
+# own package ships a pacman hook (zz-sbctl.hook) that re-signs everything
+# automatically on every future kernel/GRUB update — nothing else to wire up.
+# Best-effort and silent-skip (not a WARN) when out of Setup Mode — that's
+# the expected state on most real hardware, not a failure.
+# ---------------------------------------------------------------------------
+if [[ -d /sys/firmware/efi ]] && command -v sbctl &>/dev/null; then
+    SETUP_MODE="$(sbctl status --json 2>/dev/null | python3 -c \
+        'import json,sys; print(json.load(sys.stdin).get("setup_mode", False))' 2>/dev/null)"
+    if [[ "$SETUP_MODE" == "True" ]]; then
+        sbctl create-keys || echo "WARN: sbctl create-keys failed"
+        sbctl enroll-keys --microsoft || echo "WARN: sbctl enroll-keys failed"
+        sbctl sign-all -g || echo "WARN: sbctl sign-all failed"
+        echo "Secure Boot: keys enrolled and boot files signed."
+    else
+        echo "Secure Boot: firmware not in Setup Mode — skipped (run 'sudo sbctl enroll-keys --microsoft && sudo sbctl sign-all -g' manually later if desired)."
+    fi
 fi
 
 # ---------------------------------------------------------------------------
