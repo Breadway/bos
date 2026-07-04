@@ -272,30 +272,48 @@ fi
 # transiently fail inside the Calamares chroot (the same mount unmounts
 # cleanly moments later once booted normally — a chroot-specific busy-mount
 # race, not a logic error), which cascades into snapper create-config
-# refusing because .snapshots "already exists". Retry a few times, then
-# fall back to a lazy unmount (detaches the mountpoint immediately even if
-# something still transiently references it) rather than give up.
+# refusing because .snapshots "already exists". A single pass — retry the
+# umount a few times, then fall back to a lazy unmount — was NOT enough on
+# real hardware: also confirmed is a run where every umount attempt in that
+# single pass failed (including the lazy fallback settling too slowly for
+# the immediately-following rmdir/create-config), leaving
+# /etc/snapper/configs/ completely empty and BOS's advertised snapshot/
+# rollback feature silently non-functional on that install. So retry the
+# WHOLE dance, not just the umount substep, and verify at the end that the
+# config file actually exists before declaring success.
 # ---------------------------------------------------------------------------
 if command -v snapper &>/dev/null; then
-    unmounted=0
-    for _ in 1 2 3 4 5; do
-        if umount /.snapshots 2>/dev/null; then
-            unmounted=1
-            break
+    for attempt in 1 2 3; do
+        [[ -f /etc/snapper/configs/root ]] && break
+
+        unmounted=0
+        for _ in 1 2 3 4 5; do
+            if umount /.snapshots 2>/dev/null; then
+                unmounted=1
+                break
+            fi
+            sleep 1
+        done
+        if [[ "$unmounted" != "1" ]]; then
+            echo "WARN: umount /.snapshots failed after retries (attempt $attempt), forcing lazy unmount"
+            umount -l /.snapshots || echo "WARN: lazy umount /.snapshots also failed (attempt $attempt)"
+            # Lazy unmount detaches the mountpoint from the namespace right
+            # away, but whatever was holding it busy may take a moment
+            # longer to actually let go — rmdir/create-config right after
+            # this both fail if anything still references /.snapshots.
+            sleep 2
         fi
-        sleep 1
+        rmdir /.snapshots 2>/dev/null || echo "WARN: rmdir /.snapshots failed (attempt $attempt)"
+        snapper -c root create-config / || echo "WARN: snapper create-config failed (attempt $attempt)"
+        if [[ -d /.snapshots ]]; then
+            btrfs subvolume delete /.snapshots || echo "WARN: deleting snapper's own .snapshots subvolume failed (attempt $attempt)"
+        fi
+        mkdir -p /.snapshots
+        mount /.snapshots || echo "WARN: remounting the real @snapshots subvolume failed (attempt $attempt)"
+
+        [[ -f /etc/snapper/configs/root ]] || sleep 2
     done
-    if [[ "$unmounted" != "1" ]]; then
-        echo "WARN: umount /.snapshots failed after retries, forcing lazy unmount"
-        umount -l /.snapshots || echo "WARN: lazy umount /.snapshots also failed"
-    fi
-    rmdir /.snapshots || echo "WARN: rmdir /.snapshots failed"
-    snapper -c root create-config / || echo "WARN: snapper create-config failed"
-    if [[ -d /.snapshots ]]; then
-        btrfs subvolume delete /.snapshots || echo "WARN: deleting snapper's own .snapshots subvolume failed"
-    fi
-    mkdir -p /.snapshots
-    mount /.snapshots || echo "WARN: remounting the real @snapshots subvolume failed"
+
     if [[ -f /etc/snapper/configs/root ]]; then
         sed -i 's/TIMELINE_CREATE="yes"/TIMELINE_CREATE="no"/' /etc/snapper/configs/root
         sed -i 's/NUMBER_CLEANUP="no"/NUMBER_CLEANUP="yes"/' /etc/snapper/configs/root
@@ -304,6 +322,8 @@ if command -v snapper &>/dev/null; then
         sed -i 's/NUMBER_LIMIT_IMPORTANT="[^"]*"/NUMBER_LIMIT_IMPORTANT="5"/' /etc/snapper/configs/root
         [[ -n "$MAIN_USER" ]] && \
             sed -i "s/ALLOW_USERS=\"\"/ALLOW_USERS=\"$MAIN_USER\"/" /etc/snapper/configs/root
+    else
+        echo "ERROR: snapper config for root still missing after 3 attempts — snapshots/rollback will not work on this install"
     fi
 fi
 
