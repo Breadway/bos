@@ -34,6 +34,12 @@ scale slider { background-color: @on-surface; border-radius: 999px; }\n\
    primary action instead of a dangerous one. Fixed regardless of palette. */\n\
 button.destructive-action { background-color: #c0392b; color: #ffffff; }\n\
 button.destructive-action:hover { background-color: #d64535; }\n\
+/* Adwaita's default switch slider (the knob) carries a box-shadow used for \
+   its 3D bevel look — bread-theme's override only sets background-color, \
+   so that shadow still renders as a pale ring around the knob on top of \
+   our flat colour. */\n\
+switch slider { box-shadow: none; outline: none; border: none; background-image: none; }\n\
+switch { box-shadow: none; outline: none; border: none; background-image: none; }\n\
 ";
 
 thread_local! {

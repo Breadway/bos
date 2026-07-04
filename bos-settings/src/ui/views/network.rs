@@ -104,17 +104,24 @@ pub fn build() -> GBox {
 
     let list = ListBox::new();
     list.set_selection_mode(gtk4::SelectionMode::None);
+    // Starts with an empty_state row ("Not scanned yet") rather than being
+    // hidden — the "no results yet" and "scanned, found nothing" states are
+    // the same idea and should look the same, not one a hint label and the
+    // other an empty_state card.
+    {
+        let row = ListBoxRow::new();
+        row.set_selectable(false);
+        row.set_child(Some(&w::empty_state(
+            "network-wireless-symbolic",
+            "Not scanned yet",
+            "Press Scan to see nearby networks.",
+        )));
+        list.append(&row);
+    }
     let scroll = ScrolledWindow::new();
     scroll.set_min_content_height(220);
     scroll.set_child(Some(&list));
-    // Hidden until a scan actually produces results — a 220px empty scroll
-    // area between the radio row and the Scan button was dead space on
-    // every fresh open of this panel.
-    scroll.set_visible(false);
     content.append(&scroll);
-
-    let not_scanned = w::hint("Not scanned yet — press Scan to see nearby networks.");
-    content.append(&not_scanned);
 
     // Password entry, shown only while connecting to a secured, unknown
     // network — set visible/hidden rather than a modal dialog, to keep this
@@ -189,8 +196,6 @@ pub fn build() -> GBox {
 
     let populate_list = {
         let list = list.clone();
-        let scroll = scroll.clone();
-        let not_scanned = not_scanned.clone();
         let pw_row = pw_row.clone();
         let pending_ssid = pending_ssid.clone();
         let connect_open_or_known = connect_open_or_known.clone();
@@ -198,8 +203,6 @@ pub fn build() -> GBox {
             while let Some(child) = list.first_child() {
                 list.remove(&child);
             }
-            not_scanned.set_visible(false);
-            scroll.set_visible(true);
             if networks.is_empty() {
                 let row = ListBoxRow::new();
                 row.set_selectable(false);
@@ -280,6 +283,7 @@ pub fn build() -> GBox {
     };
 
     let scan_btn = Button::with_label("Scan");
+    scan_btn.set_halign(gtk4::Align::Start);
     {
         let status = status.clone();
         let populate_list = populate_list.clone();

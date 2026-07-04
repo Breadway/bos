@@ -11,7 +11,7 @@ use std::rc::Rc;
 
 use gtk4::prelude::*;
 use gtk4::{
-    Adjustment, Box as GBox, Button, DropDown, Entry, Expression, Label, Orientation,
+    Adjustment, AlertDialog, Box as GBox, Button, DropDown, Entry, Expression, Label, Orientation,
     SpinButton, StringList, Switch,
 };
 use toml_edit::DocumentMut;
@@ -77,6 +77,13 @@ pub fn hint(text: &str) -> Label {
     lbl.add_css_class("dim-label");
     lbl.set_xalign(0.0);
     lbl.set_wrap(true);
+    // set_wrap alone doesn't cap a label's *natural* width — a long enough
+    // hint reports a natural width of its whole unwrapped string, which
+    // `view_scaffold`'s content column (sized to its widest child, floored
+    // not capped at CONTENT_MAX_WIDTH) then inherits, blowing the entire
+    // panel full-width. This is what makes breadsearch/breadclip render
+    // edge-to-edge while every other panel sits in a stable ~760px column.
+    lbl.set_max_width_chars(64);
     lbl.set_margin_bottom(4);
     lbl
 }
@@ -111,6 +118,7 @@ pub fn empty_state(icon_name: &str, title: &str, hint_text: &str) -> GBox {
     hint_lbl.add_css_class("dim-label");
     hint_lbl.set_justify(gtk4::Justification::Center);
     hint_lbl.set_wrap(true);
+    hint_lbl.set_max_width_chars(48);
     wrapper.append(&hint_lbl);
 
     wrapper
@@ -126,18 +134,19 @@ pub fn view_scaffold(title: &str) -> (GBox, GBox) {
     let title_lbl = Label::new(Some(title));
     title_lbl.add_css_class("title");
     title_lbl.set_xalign(0.0);
+    // Same width+center treatment as `content` below, so the title's left
+    // edge lines up with the column it's heading instead of sitting flush
+    // against the panel edge while the column centers ~440px to its right.
+    title_lbl.set_halign(gtk4::Align::Center);
+    title_lbl.set_size_request(CONTENT_MAX_WIDTH, -1);
     outer.append(&title_lbl);
 
     let content = GBox::new(Orientation::Vertical, 4);
     // Explicit hexpand(false) overrides the auto-computed value GTK would
     // otherwise derive from the hexpand-ing labels inside every row, and
-    // Start keeps content pinned under the left-aligned title instead of
-    // stretching (Fill) or floating in the middle of a wide pane (Center).
+    // Center distributes the dead space evenly either side on a wide window
+    // instead of stranding it all on the right of a left-hugging column.
     content.set_hexpand(false);
-    // Center rather than left-align: on a wide/maximized window, a
-    // left-hugging column just moves the dead space from "right of every
-    // row" to "right of the whole column" — centering distributes it evenly
-    // either side instead, which reads as deliberate rather than stranded.
     content.set_halign(gtk4::Align::Center);
     content.set_size_request(CONTENT_MAX_WIDTH, -1);
 
@@ -341,11 +350,29 @@ fn systemctl_active(unit: &str) -> bool {
         .unwrap_or(false)
 }
 
+fn systemctl_enabled(unit: &str) -> bool {
+    std::process::Command::new("systemctl")
+        .args(["--user", "is-enabled", "--quiet", unit])
+        .status()
+        .map(|s| s.success())
+        .unwrap_or(false)
+}
+
 /// Live systemd `--user` unit status plus Start/Stop/Restart/Logs controls —
 /// every bread-ecosystem panel whose app is actually a daemon (not just a
 /// config file) gets this, instead of only ever being able to edit the TOML
 /// and hope the running process picks it up.
-pub fn service_control(unit: &'static str) -> GBox {
+///
+/// `critical` guards Stop behind a confirm dialog — for a unit like `breadd`
+/// (the whole desktop's event backbone), a bare click currently stops it as
+/// casually as an optional sync helper; everything else can stay one-click.
+///
+/// `has_config` adds a one-line note that Restart (not Save) is what applies
+/// config changes below — previously only breadsearch's panel said this,
+/// inconsistently, in its own hint text; bread/breadbox/breadcrumbs edit a
+/// running daemon's TOML and never mentioned the running process won't
+/// notice until restarted.
+pub fn service_control(unit: &'static str, critical: bool, has_config: bool) -> GBox {
     let wrapper = GBox::new(Orientation::Vertical, 4);
     wrapper.append(&section("Service"));
 
@@ -353,6 +380,10 @@ pub fn service_control(unit: &'static str) -> GBox {
     status_lbl.add_css_class("dim-label");
     status_lbl.set_selectable(true);
     wrapper.append(&row(unit, &status_lbl));
+
+    let enabled_lbl = Label::new(None);
+    enabled_lbl.add_css_class("dim-label");
+    wrapper.append(&row("Starts at login", &enabled_lbl));
 
     let btn_row = GBox::new(Orientation::Horizontal, 8);
     btn_row.set_margin_top(4);
@@ -365,24 +396,53 @@ pub fn service_control(unit: &'static str) -> GBox {
     // plain closures aren't Clone.
     let refresh: Rc<dyn Fn()> = {
         let status_lbl = status_lbl.clone();
+        let enabled_lbl = enabled_lbl.clone();
         let toggle_btn = toggle_btn.clone();
         Rc::new(move || {
             let active = systemctl_active(unit);
             status_lbl.set_text(if active { "Running" } else { "Stopped" });
             toggle_btn.set_label(if active { "Stop" } else { "Start" });
+            enabled_lbl.set_text(if systemctl_enabled(unit) { "Yes" } else { "No" });
         })
     };
     refresh();
 
-    {
+    let do_toggle: Rc<dyn Fn()> = {
         let refresh = refresh.clone();
-        toggle_btn.connect_clicked(move |_| {
+        Rc::new(move || {
             let verb = if systemctl_active(unit) { "stop" } else { "start" };
             let log_buf = gtk4::TextBuffer::new(None);
             let refresh = refresh.clone();
             stream_command_then(&["systemctl", "--user", verb, unit], log_buf, move || {
                 refresh();
             });
+        })
+    };
+    {
+        let do_toggle = do_toggle.clone();
+        toggle_btn.connect_clicked(move |btn| {
+            if critical && systemctl_active(unit) {
+                let window = btn.root().and_then(|r| r.downcast::<gtk4::Window>().ok());
+                let dialog = AlertDialog::builder()
+                    .message(format!("Stop {unit}?"))
+                    .detail(
+                        "This is a core part of the desktop's event handling — \
+                         stopping it may affect other bread apps until it's \
+                         restarted.",
+                    )
+                    .buttons(["Cancel", "Stop"])
+                    .cancel_button(0)
+                    .default_button(0)
+                    .build();
+                let do_toggle = do_toggle.clone();
+                dialog.choose(window.as_ref(), gtk4::gio::Cancellable::NONE, move |result| {
+                    if result == Ok(1) {
+                        do_toggle();
+                    }
+                });
+            } else {
+                do_toggle();
+            }
         });
     }
     {
@@ -405,6 +465,13 @@ pub fn service_control(unit: &'static str) -> GBox {
     btn_row.append(&restart_btn);
     btn_row.append(&logs_btn);
     wrapper.append(&btn_row);
+
+    if has_config {
+        wrapper.append(&hint(
+            "Save (below) only writes the config file — click Restart above \
+             for the running service to pick up the change.",
+        ));
+    }
 
     wrapper
 }

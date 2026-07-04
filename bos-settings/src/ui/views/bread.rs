@@ -21,7 +21,7 @@ pub fn build() -> GBox {
 
     let (outer, c) = w::view_scaffold("Daemon");
 
-    c.append(&w::service_control("breadd.service"));
+    c.append(&w::service_control("breadd.service", true, true));
 
     c.append(&w::section("Daemon"));
     c.append(&w::dropdown_row(

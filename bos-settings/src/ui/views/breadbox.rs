@@ -141,7 +141,7 @@ pub fn build() -> GBox {
     let model = Rc::new(RefCell::new(read_contexts(&doc.borrow())));
 
     let (outer, content) = w::view_scaffold("Launcher");
-    content.append(&w::service_control("breadbox-sync.service"));
+    content.append(&w::service_control("breadbox-sync.service", false, true));
 
     content.append(&w::section("Contexts"));
     content.append(&w::hint(
@@ -157,10 +157,12 @@ pub fn build() -> GBox {
     scroll.set_child(Some(&list));
     content.append(&scroll);
 
-    let btn_row = GBox::new(Orientation::Horizontal, 8);
-    btn_row.set_margin_top(8);
-
+    // Add-row button lives with the list it adds to, halign Start like
+    // breadcrumbs' "Add network"/"Add profile" — Save stays alone in its
+    // own row at the bottom, consistent with every other panel.
     let add_btn = Button::with_label("Add context");
+    add_btn.set_halign(gtk4::Align::Start);
+    add_btn.set_margin_top(8);
     {
         let model = model.clone();
         let list = list.clone();
@@ -172,12 +174,14 @@ pub fn build() -> GBox {
             rebuild_list(&list, &model);
         });
     }
+    content.append(&add_btn);
 
+    let btn_row = GBox::new(Orientation::Horizontal, 12);
+    btn_row.set_margin_top(16);
     let save_btn = Button::with_label("Save");
     save_btn.add_css_class("suggested-action");
     let status_lbl = Label::new(None);
     status_lbl.add_css_class("dim-label");
-
     {
         let doc = doc.clone();
         let model = model.clone();
@@ -198,8 +202,6 @@ pub fn build() -> GBox {
             }
         });
     }
-
-    btn_row.append(&add_btn);
     btn_row.append(&save_btn);
     btn_row.append(&status_lbl);
     outer.append(&btn_row);
