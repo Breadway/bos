@@ -65,19 +65,43 @@ if [[ -f /etc/mkinitcpio.conf ]]; then
         sed -i 's/^\(HOOKS=.*\bautodetect\b\)/\1 microcode/' /etc/mkinitcpio.conf \
             || echo "WARN: adding microcode hook failed"
     fi
+
+    # Current mkinitcpio's own shipped default template (verified against the
+    # actual package, not assumed) uses the systemd-based hook set
+    # (`HOOKS=(base systemd autodetect ... sd-vconsole block filesystems
+    # fsck)`), NOT the classic udev-based one — there is no literal "udev"
+    # token to match against on a stock install. The two hook sets are
+    # mutually exclusive alternatives (systemd substitutes for udev as the
+    # base hook providing the init program), and each has its own
+    # counterpart for anything that hooks into device/root setup:
+    # plymouth is the same either way, but LUKS unlocking needs `encrypt`
+    # under udev and `sd-encrypt` under systemd. Detect which is in play
+    # once and use the matching hook, instead of assuming udev (which
+    # silently no-ops the sed on every current install — this was already
+    # true for the plymouth insertion below before this fix, just never
+    # surfaced because it fails quietly).
+    if grep -qE '^HOOKS=.*\bsystemd\b' /etc/mkinitcpio.conf; then
+        BASE_HOOK="systemd"
+        ENCRYPT_HOOK="sd-encrypt"
+    else
+        BASE_HOOK="udev"
+        ENCRYPT_HOOK="encrypt"
+    fi
+
     if command -v plymouth-set-default-theme &>/dev/null \
        && ! grep -qE '^HOOKS=.*\bplymouth\b' /etc/mkinitcpio.conf; then
-        sed -i 's/^\(HOOKS=.*\budev\b\)/\1 plymouth/' /etc/mkinitcpio.conf \
+        sed -i "s/^\(HOOKS=.*\b${BASE_HOOK}\b\)/\1 plymouth/" /etc/mkinitcpio.conf \
             || echo "WARN: adding plymouth hook failed"
     fi
-    # encrypt — only when root is actually LUKS-encrypted (ROOT_ENCRYPTED,
-    # detected above). Must sit after `block` (provides the device nodes the
-    # encrypt hook opens) and before `filesystems` (mounts the now-unlocked
-    # root) — both already present in stock mkinitcpio.conf's default HOOKS.
+    # encrypt/sd-encrypt — only when root is actually LUKS-encrypted
+    # (ROOT_ENCRYPTED, detected above). Must sit after `block` (provides the
+    # device nodes it opens) and before `filesystems` (mounts the now-
+    # unlocked root) — both already present in stock mkinitcpio.conf's
+    # default HOOKS regardless of which base hook is in use.
     if [[ "$ROOT_ENCRYPTED" == "1" ]] \
        && ! grep -qE '^HOOKS=.*\bencrypt\b' /etc/mkinitcpio.conf; then
-        sed -i 's/^\(HOOKS=.*\bblock\b\)/\1 encrypt/' /etc/mkinitcpio.conf \
-            || echo "WARN: adding encrypt hook failed"
+        sed -i "s/^\(HOOKS=.*\bblock\b\)/\1 ${ENCRYPT_HOOK}/" /etc/mkinitcpio.conf \
+            || echo "WARN: adding ${ENCRYPT_HOOK} hook failed"
     fi
 fi
 

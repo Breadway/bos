@@ -148,7 +148,7 @@ jobs:
           sha256sum "$ISO_NAME" > SHA256SUMS
           cat SHA256SUMS
 
-          pacman -Sy --noconfirm --needed gnupg
+          pacman -S --noconfirm --needed gnupg
           export GNUPGHOME=/tmp/gnupg-release
           mkdir -m 700 -p "$GNUPGHOME"
           echo "$GPG_PRIVATE_KEY" | gpg --batch --import
