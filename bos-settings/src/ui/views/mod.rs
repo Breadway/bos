@@ -1,4 +1,5 @@
 pub mod about;
+pub mod aur;
 pub mod bread;
 pub mod breadbar;
 pub mod breadbox;
@@ -8,8 +9,12 @@ pub mod breadpad;
 pub mod breadpaper;
 pub mod breadsearch;
 pub mod datetime;
+pub mod firewall;
+pub mod firmware;
 pub mod hyprland;
 pub mod network;
 pub mod packages;
+pub mod power;
 pub mod snapshots;
 pub mod sound;
+pub mod users;
