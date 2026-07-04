@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=breadclip
+Comment=Clipboard history
+Exec=breadclip
+Icon=edit-paste
+Terminal=false
+Type=Application
+Categories=Utility;
+StartupWMClass=breadclip

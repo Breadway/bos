@@ -20,17 +20,23 @@ wiring up dotfiles, no per-tool bakery installs.
 - **bos-settings**: a GTK4 control panel that configures every bread\* app's
   config from a GUI (non-destructively), plus snapshot rollback and bakery
   updates. See below.
-- **Login**: greetd + tuigreet → Hyprland session.
+- **Login**: greetd + breadgreet (bread-ecosystem's own greeter, under `cage`)
+  → Hyprland session.
 - **Boot splash**: Plymouth `bos` theme (logo + spinner, black background).
 - **Theming**: global dark across GTK3 (Adwaita-dark), GTK4/libadwaita
   (`color-scheme: prefer-dark`), and Qt (qt5ct/qt6ct Fusion dark); Papirus-Dark
   icons; Bibata cursor.
 - **Apps**: kitty, nautilus (+ gvfs), Zen browser, VLC, loupe, gnome-text-editor,
   gnome-calculator, file-roller, with file associations wired in `mimeapps.list`.
+  `yay` ships for AUR access beyond bakery's bread ecosystem + `[breadway]`.
 - **Hardware**: pipewire audio, NetworkManager, BlueZ + blueman, CUPS printing
   with avahi mDNS discovery, TLP power management, fwupd firmware updates.
 - **Resilience**: btrfs + snapper + snap-pac + grub-btrfs snapshots on every
   pacman transaction; zram swap; ufw firewall (deny-incoming, mDNS allowed).
+- **Security**: full-disk encryption (LUKS, via Calamares' built-in support —
+  cryptsetup + the matching mkinitcpio/GRUB wiring ship so an encrypted
+  install actually boots) and self-signed Secure Boot (via `sbctl`, enrolled
+  automatically at install time when the firmware is in Setup Mode).
 
 ## Repo layout
 
@@ -73,11 +79,30 @@ to the Tailscale-reachable Forgejo registry for the build.
 
 ### Why some packages are in-house
 
-`calamares`, `zen-browser-bin`, and `bibata-cursor-theme` are AUR-only. BOS
-keeps a PKGBUILD for each under `packaging/` and republishes the built package
-to the `[breadway]` repo via a Forgejo Actions workflow (built on the hestia
-self-hosted runner, published with a scoped registry token). `bos-settings`
-itself publishes the same way on a `v*` tag.
+`calamares`, `zen-browser-bin`, `bibata-cursor-theme`, and `yay-bin` are
+AUR-only. BOS keeps a PKGBUILD for each under `packaging/` and republishes the
+built package to the `[breadway]` repo via a Forgejo Actions workflow (built
+on the hestia self-hosted runner, published with a scoped registry token).
+`bos-settings` itself publishes the same way on a `v*` tag.
+
+### Verifying a release
+
+Every tagged release ISO on the [Forgejo releases
+page](https://git.breadway.dev/Breadway/bos/releases) ships alongside a
+`SHA256SUMS` file and a detached signature `SHA256SUMS.asc`, signed by a
+dedicated release-signing key (not reused from anything else):
+
+```
+5620 3B86 A110 695A E7F3  1093 4AF3 323D 678E B5E2
+```
+
+The public half is committed at [`KEYS.asc`](KEYS.asc). To verify a download:
+
+```sh
+gpg --import KEYS.asc
+gpg --verify SHA256SUMS.asc SHA256SUMS
+sha256sum -c SHA256SUMS
+```
 
 ## Testing in a VM
 
@@ -95,21 +120,40 @@ avoid memory pressure.
 
 ## bos-settings
 
-`bos-settings` edits each bread\* app's TOML **non-destructively**: it parses
-the file with `toml_edit`, changes only the keys a view exposes, and writes it
-back — preserving comments and any keys the UI doesn't model (calendar
-passwords, saved-network passwords, model paths). Views:
+A GTK4 settings app aiming for GNOME-Settings-style parity: not just editing
+config files, but live system state and control, so day-to-day machine
+administration doesn't require a terminal.
 
-| View | Config |
-|------|--------|
-| bread | `bread/breadd.toml` — daemon, lua, modules, all adapters, events, notifications |
-| breadbar | `breadbar/style.css` override |
-| breadbox | `breadbox/config.toml` — launcher contexts |
-| breadcrumbs | `breadcrumbs/breadcrumbs.toml` — settings, saved networks, profiles |
-| breadpad | `breadpad/breadpad.toml` — settings, model + ollama, reminders, calendar |
-| Snapshots | `snapper` list / rollback / delete |
-| Packages | `bakery` installed list + updates |
-| Hyprland | open config in editor + monitor list |
+Bread-ecosystem TOML configs are edited **non-destructively**: `toml_edit`
+parses the file, changes only the keys a view exposes, and writes it back —
+preserving comments and any keys the UI doesn't model (calendar passwords,
+saved-network passwords, model paths). Panels with a daemon behind them
+(bread, breadbox, breadcrumbs, breadsearch, breadclip) also get live
+systemd status + Start/Stop/Restart/Logs via a shared `service_control`
+widget, not just the config file.
+
+| Panel | What it does |
+|-------|--------------|
+| About | System info (OS/kernel/CPU/GPU/memory/disk/uptime) + hostname |
+| Network | Wi-Fi scan/connect, Ethernet status, radio toggle |
+| Wi-Fi Profiles (breadcrumbs) | `breadcrumbs.toml` — settings, saved networks, profiles |
+| Firewall | ufw rules: enable/disable, add/remove, view active rules |
+| Sound | PipeWire output/input device + volume via `pactl` |
+| Power | Battery status/health, brightness, charge limits (hardware-dependent), TLP profile (read-only) |
+| Date & Time | Timezone, NTP sync toggle |
+| Display (Hyprland) | Connected monitors + open `hyprland.lua` in editor |
+| Users | Add/remove accounts, change passwords |
+| Wallpaper (breadpaper) | Set wallpaper, drives the pywal-derived accent palette |
+| Bar (breadbar) | `breadbar/style.css` override, live-reloads on save |
+| Launcher (breadbox) | `breadbox/config.toml` — launcher contexts |
+| Clipboard (breadclip) | breadclipd service control + "open history" |
+| Notes (breadpad) | `breadpad/breadpad.toml` — settings, model + ollama, reminders, calendar |
+| File Search (breadsearch) | `breadsearch/config.toml` — index/search/model + breadmill service |
+| Daemon (bread) | `breadd.toml` — daemon, lua, modules, adapters, events, notifications |
+| Packages | `bakery` installed list + updates, pacman system update |
+| AUR | Search via `yay`; installing opens a terminal (AUR build scripts need review) |
+| Firmware | `fwupd` device list + updates |
+| Snapshots | `snapper` list / boot-into (grub-btrfs) / delete |
 
 Build standalone:
 
@@ -166,9 +210,19 @@ cheatsheet in-session; first boot shows a short welcome (once).
   `virtio-vga-gl` + `-display gtk,gl=on` (virgl); plain software rendering is
   noticeably laggy.
 - **Wayland-first**: X11-only apps run through XWayland; a few may misbehave.
-- **Secure Boot**: not configured. Boot with Secure Boot disabled, or enroll
-  your own keys. The installer writes both an NVRAM entry and the removable
-  `EFI/BOOT/BOOTX64.EFI` fallback.
+- **Secure Boot**: self-signed only, via `sbctl` — BOS can't ship a
+  Microsoft-signed shim (that needs going through Microsoft's own paid UEFI
+  CA process). Post-install enrolls BOS's own keys automatically, but only
+  when the firmware is already in Setup Mode (no vendor keys installed yet);
+  otherwise it's skipped and you can run
+  `sudo sbctl enroll-keys --microsoft && sudo sbctl sign-all -g` yourself
+  later (after clearing your firmware's existing keys, if any). The installer
+  writes both an NVRAM entry and the removable `EFI/BOOT/BOOTX64.EFI` fallback
+  either way.
+- **Disk encryption**: full-disk LUKS is available on the installer's "Erase
+  disk" page (Calamares' own checkbox) and on manually-created partitions —
+  BOS ships the matching `cryptsetup`/mkinitcpio/GRUB wiring so an encrypted
+  install actually boots (LUKS1, since GRUB doesn't support LUKS2 + Argon2id).
 - **Snapshots assume btrfs**: the snapper/grub-btrfs tooling expects the default
   btrfs subvolume layout the installer creates.
 

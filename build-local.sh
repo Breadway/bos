@@ -49,7 +49,7 @@ grep airootfs_image_tool_options "$STAGE/profiledef.sh"
 # created from skel (the live user and the installed user) then gets the same
 # versions `bakery list` reports here, fully offline. Copied at build time so the
 # binaries never bloat the git repo and always track the current bakery state.
-BREAD_BINS=(bakery bread breadd breadman breadbar breadbox breadbox-sync breadcrumbs breadpad breadpaper bread-theme)
+BREAD_BINS=(bakery bread breadd breadman breadbar breadbox breadbox-sync breadcrumbs breadpad breadpaper bread-theme breadmon breadsearch breadmill breadclip breadclipd breadshot)
 LAPTOP_HOME="${LAPTOP_HOME:-$(getent passwd "${SUDO_USER:-$USER}" | cut -d: -f6)}"
 BAKERY_BIN="$LAPTOP_HOME/.local/bin"
 BAKERY_STATE="$LAPTOP_HOME/.local/state/bakery"
@@ -68,6 +68,50 @@ install -m 0644 "$BAKERY_STATE/installed.json" "$SKEL/.local/state/bakery/instal
 # install/update still need network, as expected).
 install -m 0644 "$BAKERY_CACHE/index.json" "$SKEL/.cache/bakery/index.json"
 echo "baked: $(ls "$SKEL/.local/bin")"
+
+# --- Bake systemd user services for bakery-managed bread packages -----------
+# Historically only breadd.service was hand-committed to skel; every other
+# bakery package's service (breadbox-sync, breadmill, breadclipd, ...) was
+# silently left out, so those daemons never start on a fresh install/live
+# boot until the user re-runs `bakery install` (which needs network).
+# Generalize from the same source of truth as the binary bake above: read
+# the services this laptop's bakery actually installed, copy each unit file
+# into skel with ExecStart rewritten from this laptop's literal home path to
+# the portable `%h` specifier, and recreate whichever *.target.wants enable
+# symlink bakery created locally. Units already committed by hand (breadd.service
+# carries a RuntimeDirectoryPreserve=yes fix not yet upstreamed — see bread-release-build
+# notes) are left alone rather than overwritten.
+echo "=== baking bakery service units into skel ==="
+SYSTEMD_USER_DIR="$LAPTOP_HOME/.config/systemd/user"
+SKEL_SYSTEMD="$SKEL/.config/systemd/user"
+mapfile -t SERVICE_UNITS < <(python3 -c "
+import json
+with open('$BAKERY_STATE/installed.json') as f:
+    d = json.load(f)
+for pkg in d.get('packages', d).values():
+    for s in pkg.get('services', []):
+        print(s)
+")
+for unit in "${SERVICE_UNITS[@]}"; do
+  if [[ -f "$SKEL_SYSTEMD/$unit" ]]; then
+    echo "  $unit already committed in skel, leaving as-is"
+    continue
+  fi
+  src="$SYSTEMD_USER_DIR/$unit"
+  if [[ ! -f "$src" ]]; then
+    echo "  warning: $unit not found at $src, skipping"
+    continue
+  fi
+  install -d -m 0755 "$SKEL_SYSTEMD"
+  sed "s#ExecStart=$LAPTOP_HOME/.local/bin/#ExecStart=%h/.local/bin/#" "$src" > "$SKEL_SYSTEMD/$unit"
+  for wants_dir in "$SYSTEMD_USER_DIR"/*.target.wants; do
+    [[ -L "$wants_dir/$unit" ]] || continue
+    target_name="$(basename "$wants_dir")"
+    install -d -m 0755 "$SKEL_SYSTEMD/$target_name"
+    ln -sf "../$unit" "$SKEL_SYSTEMD/$target_name/$unit"
+  done
+  echo "  baked $unit"
+done
 
 # mkarchiso resets every airootfs file to 0644, so executables must be declared
 # in profiledef.sh's file_permissions array or they ship non-executable and the

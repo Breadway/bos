@@ -10,6 +10,19 @@ set -uo pipefail
 
 MAIN_USER="$(getent passwd 1000 | cut -d: -f1 || true)"
 
+# Whether Calamares encrypted the root partition (LUKS) — checked once here,
+# used below to conditionally wire mkinitcpio's encrypt hook and GRUB's
+# cryptodisk support. `lsblk TYPE` reports "crypt" for a cryptsetup-opened
+# mapper device regardless of what Calamares named it, so this works whether
+# the user picked automated "Erase disk" encryption or hand-encrypted a
+# partition in manual mode.
+ROOT_SRC="$(findmnt -no SOURCE / | sed 's/\[.*\]//')"
+if [[ "$(lsblk -no TYPE "$ROOT_SRC" 2>/dev/null)" == "crypt" ]]; then
+    ROOT_ENCRYPTED=1
+else
+    ROOT_ENCRYPTED=0
+fi
+
 # ---------------------------------------------------------------------------
 # Strip live-only bits that unpackfs copied verbatim from the live medium.
 # ---------------------------------------------------------------------------
@@ -52,10 +65,43 @@ if [[ -f /etc/mkinitcpio.conf ]]; then
         sed -i 's/^\(HOOKS=.*\bautodetect\b\)/\1 microcode/' /etc/mkinitcpio.conf \
             || echo "WARN: adding microcode hook failed"
     fi
+
+    # Current mkinitcpio's own shipped default template (verified against the
+    # actual package, not assumed) uses the systemd-based hook set
+    # (`HOOKS=(base systemd autodetect ... sd-vconsole block filesystems
+    # fsck)`), NOT the classic udev-based one — there is no literal "udev"
+    # token to match against on a stock install. The two hook sets are
+    # mutually exclusive alternatives (systemd substitutes for udev as the
+    # base hook providing the init program), and each has its own
+    # counterpart for anything that hooks into device/root setup:
+    # plymouth is the same either way, but LUKS unlocking needs `encrypt`
+    # under udev and `sd-encrypt` under systemd. Detect which is in play
+    # once and use the matching hook, instead of assuming udev (which
+    # silently no-ops the sed on every current install — this was already
+    # true for the plymouth insertion below before this fix, just never
+    # surfaced because it fails quietly).
+    if grep -qE '^HOOKS=.*\bsystemd\b' /etc/mkinitcpio.conf; then
+        BASE_HOOK="systemd"
+        ENCRYPT_HOOK="sd-encrypt"
+    else
+        BASE_HOOK="udev"
+        ENCRYPT_HOOK="encrypt"
+    fi
+
     if command -v plymouth-set-default-theme &>/dev/null \
        && ! grep -qE '^HOOKS=.*\bplymouth\b' /etc/mkinitcpio.conf; then
-        sed -i 's/^\(HOOKS=.*\budev\b\)/\1 plymouth/' /etc/mkinitcpio.conf \
+        sed -i "s/^\(HOOKS=.*\b${BASE_HOOK}\b\)/\1 plymouth/" /etc/mkinitcpio.conf \
             || echo "WARN: adding plymouth hook failed"
+    fi
+    # encrypt/sd-encrypt — only when root is actually LUKS-encrypted
+    # (ROOT_ENCRYPTED, detected above). Must sit after `block` (provides the
+    # device nodes it opens) and before `filesystems` (mounts the now-
+    # unlocked root) — both already present in stock mkinitcpio.conf's
+    # default HOOKS regardless of which base hook is in use.
+    if [[ "$ROOT_ENCRYPTED" == "1" ]] \
+       && ! grep -qE '^HOOKS=.*\bencrypt\b' /etc/mkinitcpio.conf; then
+        sed -i "s/^\(HOOKS=.*\bblock\b\)/\1 ${ENCRYPT_HOOK}/" /etc/mkinitcpio.conf \
+            || echo "WARN: adding ${ENCRYPT_HOOK} hook failed"
     fi
 fi
 
@@ -74,36 +120,182 @@ if command -v plymouth-set-default-theme &>/dev/null; then
     plymouth-set-default-theme bos || echo "WARN: plymouth-set-default-theme failed"
 fi
 
+# GRUB needs to unlock LUKS itself to reach the kernel — there's no separate
+# unencrypted /boot partition (only /boot/efi is separate). GRUB_ENABLE_CRYPTODISK
+# makes grub-mkconfig emit the cryptomount commands grub.cfg needs; the
+# --modules flags below (on both grub-install calls) make sure the cryptodisk
+# and luks decoders are actually compiled into core.img, not just referenced.
+if [[ "$ROOT_ENCRYPTED" == "1" ]] && [[ -f /etc/default/grub ]] \
+   && ! grep -q '^GRUB_ENABLE_CRYPTODISK=' /etc/default/grub; then
+    echo 'GRUB_ENABLE_CRYPTODISK=y' >> /etc/default/grub \
+        || echo "WARN: adding GRUB_ENABLE_CRYPTODISK failed"
+fi
+
 # Rebuild every preset (default + fallback that bos-copy-kernel wrote) so the
 # microcode + plymouth HOOKS above are actually baked into the initramfs.
 mkinitcpio -P || echo "WARN: mkinitcpio -P failed"
 
 # ---------------------------------------------------------------------------
-# Install GRUB (UEFI). /boot now has the kernel + initramfs, and the mount
-# module has bind-mounted /proc /sys /dev /run + efivars into this chroot, so
+# Install GRUB. /boot now has the kernel + initramfs, and the mount module has
+# bind-mounted /proc /sys /dev /run (+ efivars on UEFI) into this chroot, so
 # both grub-install passes and grub-mkconfig succeed.
-#   1. NVRAM entry (EFI/BOS/grubx64.efi + a firmware boot entry)
-#   2. --removable copy to EFI/BOOT/BOOTX64.EFI, so firmware that ignores/loses
-#      the NVRAM entry (the "no boot device / PXE fallback" failure) still finds
-#      a bootloader.
+#
+# BOS ships a syslinux BIOS boot mode on the ISO (profiledef.sh bootmodes
+# includes bios.syslinux), but this only ever ran the UEFI grub-install path —
+# a BIOS install would complete successfully and then have no bootloader at
+# all. Branch on /sys/firmware/efi (present only when booted UEFI) and install
+# the matching GRUB target; on BIOS, grub-install needs the whole disk, not a
+# partition, so it's derived from the mounted root via lsblk.
+#   UEFI: 1. NVRAM entry (EFI/BOS/grubx64.efi + a firmware boot entry)
+#         2. --removable copy to EFI/BOOT/BOOTX64.EFI, so firmware that
+#            ignores/loses the NVRAM entry still finds a bootloader.
+#   BIOS: MBR install onto the disk hosting /.
 # ---------------------------------------------------------------------------
 if command -v grub-install &>/dev/null; then
-    grub-install --target=x86_64-efi --efi-directory=/boot/efi \
-        --bootloader-id=BOS --recheck \
-        || echo "WARN: grub-install (nvram) failed"
-    grub-install --target=x86_64-efi --efi-directory=/boot/efi \
-        --removable --recheck \
-        || echo "WARN: grub-install (removable) failed"
+    CRYPT_MODULES=()
+    [[ "$ROOT_ENCRYPTED" == "1" ]] && CRYPT_MODULES=(--modules="cryptodisk luks luks2")
+    if [[ -d /sys/firmware/efi ]]; then
+        grub-install --target=x86_64-efi --efi-directory=/boot/efi \
+            --bootloader-id=BOS --recheck "${CRYPT_MODULES[@]}" \
+            || echo "WARN: grub-install (nvram) failed"
+        grub-install --target=x86_64-efi --efi-directory=/boot/efi \
+            --removable --recheck "${CRYPT_MODULES[@]}" \
+            || echo "WARN: grub-install (removable) failed"
+    else
+        ROOT_DEV="$(findmnt -no SOURCE / | sed 's/\[.*\]//')"
+        ROOT_DISK="$(lsblk -no pkname "$ROOT_DEV" 2>/dev/null)"
+        if [[ -n "$ROOT_DISK" ]]; then
+            grub-install --target=i386-pc --recheck "${CRYPT_MODULES[@]}" "/dev/$ROOT_DISK" \
+                || echo "WARN: grub-install (BIOS) failed"
+        else
+            echo "WARN: could not determine the disk hosting / (root device: ${ROOT_DEV:-unknown}) — BIOS grub-install skipped"
+        fi
+    fi
 fi
 if command -v grub-mkconfig &>/dev/null; then
     grub-mkconfig -o /boot/grub/grub.cfg || echo "WARN: grub-mkconfig failed"
 fi
 
 # ---------------------------------------------------------------------------
+# Secure Boot: self-signed keys via sbctl, only when the firmware is already
+# in Setup Mode (no vendor PK enrolled — the state a fresh/never-used
+# machine boots in, or one where the user cleared their firmware's keys
+# before installing). BOS can't ship a Microsoft-signed shim — that requires
+# going through Microsoft's own paid UEFI CA signing process — so this is
+# the realistic path for an Arch-based distro: generate our own keys, enroll
+# them (plus Microsoft's, so a dual-booted Windows bootmgr and fwupd's
+# signed capsule updates still verify), and sign the kernel + GRUB. sbctl's
+# own package ships a pacman hook (zz-sbctl.hook) that re-signs everything
+# automatically on every future kernel/GRUB update — nothing else to wire up.
+# Best-effort and silent-skip (not a WARN) when out of Setup Mode — that's
+# the expected state on most real hardware, not a failure.
+# ---------------------------------------------------------------------------
+if [[ -d /sys/firmware/efi ]] && command -v sbctl &>/dev/null; then
+    SETUP_MODE="$(sbctl status --json 2>/dev/null | python3 -c \
+        'import json,sys; print(json.load(sys.stdin).get("setup_mode", False))' 2>/dev/null)"
+    if [[ "$SETUP_MODE" == "True" ]]; then
+        sbctl create-keys || echo "WARN: sbctl create-keys failed"
+        sbctl enroll-keys --microsoft || echo "WARN: sbctl enroll-keys failed"
+        sbctl sign-all -g || echo "WARN: sbctl sign-all failed"
+        echo "Secure Boot: keys enrolled and boot files signed."
+    else
+        echo "Secure Boot: firmware not in Setup Mode — skipped (run 'sudo sbctl enroll-keys --microsoft && sudo sbctl sign-all -g' manually later if desired)."
+    fi
+fi
+
+# ---------------------------------------------------------------------------
+# Create @snapshots, @log, @cache as top-level btrfs subvolumes (peers of @,
+# not nested under it — so snapshots of @ don't recursively include
+# themselves, and log/cache churn doesn't bloat @'s snapshot history).
+#
+# iso/partition.conf's `btrfsSubvolumes:` key does NOT do this — verified on
+# real hardware that it's not a recognized key in this Calamares version's
+# partition module schema at all (same class of bug as the `userShell` fix
+# below: Calamares silently ignores unknown top-level keys). Calamares' own
+# btrfs support only natively creates @ and @home; everything else has to be
+# done by hand, here, after unpackfs has populated / but before anything
+# reads/writes /var/log or /var/cache going forward. Existing content in
+# those two dirs (real files already unpacked from the squashfs) is migrated
+# into the new subvolumes before mounting over them, so nothing is lost —
+# just shadowed by the mount, same as any other mountpoint.
+# ---------------------------------------------------------------------------
+if command -v btrfs &>/dev/null; then
+    ROOT_DEV="$(findmnt -no SOURCE / | sed 's/\[.*\]//')"
+    ROOT_UUID="$(blkid -s UUID -o value "$ROOT_DEV" 2>/dev/null)"
+    BTRFS_TOP=/.btrfs-top-tmp
+
+    if [[ -z "$ROOT_UUID" ]]; then
+        echo "WARN: could not determine root filesystem UUID — skipping @snapshots/@log/@cache creation"
+    else
+        mkdir -p "$BTRFS_TOP"
+        if mount -o subvolid=5 "$ROOT_DEV" "$BTRFS_TOP"; then
+            for sv in @snapshots @log @cache; do
+                if ! btrfs subvolume show "$BTRFS_TOP/$sv" &>/dev/null; then
+                    btrfs subvolume create "$BTRFS_TOP/$sv" || echo "WARN: creating $sv failed"
+                fi
+            done
+            rsync -aAX /var/log/ "$BTRFS_TOP/@log/" || echo "WARN: migrating /var/log into @log failed"
+            rsync -aAX /var/cache/ "$BTRFS_TOP/@cache/" || echo "WARN: migrating /var/cache into @cache failed"
+            umount "$BTRFS_TOP"
+            rmdir "$BTRFS_TOP"
+
+            OPTS="noatime,compress=zstd,space_cache=v2"
+            grep -q "@snapshots" /etc/fstab || echo "UUID=$ROOT_UUID /.snapshots btrfs subvol=/@snapshots,$OPTS 0 0" >> /etc/fstab
+            grep -q "@log"       /etc/fstab || echo "UUID=$ROOT_UUID /var/log    btrfs subvol=/@log,$OPTS 0 0" >> /etc/fstab
+            grep -q "@cache"     /etc/fstab || echo "UUID=$ROOT_UUID /var/cache  btrfs subvol=/@cache,$OPTS 0 0" >> /etc/fstab
+
+            mkdir -p /.snapshots
+            mount /.snapshots || echo "WARN: mounting /.snapshots failed"
+            mount /var/log     || echo "WARN: mounting /var/log failed"
+            mount /var/cache   || echo "WARN: mounting /var/cache failed"
+        else
+            echo "WARN: could not mount btrfs top-level — skipping @snapshots/@log/@cache creation"
+        fi
+    fi
+fi
+
+# ---------------------------------------------------------------------------
 # Snapper root config (root is btrfs).
+#
+# @snapshots is now mounted at /.snapshots (created above) — a dedicated
+# top-level subvolume, a peer of @ rather than nested under it, so snapshots
+# aren't themselves recursively snapshotted. `snapper create-config` insists
+# on creating that subvolume itself and refuses whenever /.snapshots already
+# exists, mounted or not — silently, so without this dance every downstream
+# sed below is a no-op and BOS ships with its advertised auto-snapshot/
+# rollback feature entirely non-functional.
+# Unmount the real subvolume, let snapper create + own its nested one, then
+# discard that and remount the real @snapshots in its place (fstab entry was
+# added above, right after the subvolume was created).
+#
+# Confirmed on real hardware: a plain `umount /.snapshots` here can
+# transiently fail inside the Calamares chroot (the same mount unmounts
+# cleanly moments later once booted normally — a chroot-specific busy-mount
+# race, not a logic error), which cascades into snapper create-config
+# refusing because .snapshots "already exists". Retry a few times, then
+# fall back to a lazy unmount (detaches the mountpoint immediately even if
+# something still transiently references it) rather than give up.
 # ---------------------------------------------------------------------------
 if command -v snapper &>/dev/null; then
+    unmounted=0
+    for _ in 1 2 3 4 5; do
+        if umount /.snapshots 2>/dev/null; then
+            unmounted=1
+            break
+        fi
+        sleep 1
+    done
+    if [[ "$unmounted" != "1" ]]; then
+        echo "WARN: umount /.snapshots failed after retries, forcing lazy unmount"
+        umount -l /.snapshots || echo "WARN: lazy umount /.snapshots also failed"
+    fi
+    rmdir /.snapshots || echo "WARN: rmdir /.snapshots failed"
     snapper -c root create-config / || echo "WARN: snapper create-config failed"
+    if [[ -d /.snapshots ]]; then
+        btrfs subvolume delete /.snapshots || echo "WARN: deleting snapper's own .snapshots subvolume failed"
+    fi
+    mkdir -p /.snapshots
+    mount /.snapshots || echo "WARN: remounting the real @snapshots subvolume failed"
     if [[ -f /etc/snapper/configs/root ]]; then
         sed -i 's/TIMELINE_CREATE="yes"/TIMELINE_CREATE="no"/' /etc/snapper/configs/root
         sed -i 's/NUMBER_CLEANUP="no"/NUMBER_CLEANUP="yes"/' /etc/snapper/configs/root

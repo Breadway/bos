@@ -20,7 +20,7 @@ pub fn build() -> GBox {
     let path = config_path();
     let doc = Rc::new(RefCell::new(config::load_doc(&path)));
 
-    let (outer, c) = w::view_scaffold("breadpad");
+    let (outer, c) = w::view_scaffold("Notes");
 
     c.append(&w::section("Capture"));
     c.append(&w::dropdown_row(

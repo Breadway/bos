@@ -7,19 +7,40 @@
 # (the stock linux.preset points ALL_kver at /boot/vmlinuz-linux) and before the
 # `bootloader` module runs grub — otherwise the installed system is unbootable.
 #
-# Runs in the LIVE environment (Calamares shellprocess, dontChroot) so it can
-# read /run/archiso/bootmnt; the target root mount point is passed as $1.
+# Runs in the LIVE environment (Calamares shellprocess, dontChroot); the
+# target root mount point is passed as $1.
+#
+# The kernel is read from /usr/lib/modules/$(uname -r)/vmlinuz — part of the
+# live squashfs itself (the linux package always installs it there), not from
+# the ISO's separate arch/boot/x86_64/ dir under /run/archiso/bootmnt. That
+# mount gets torn down by archiso's own copytoram handling, which self-enables
+# on most real hardware, so depending on it here would leave $ROOT/boot empty
+# and the install unbootable on exactly the machines this is meant to run on.
 set -uo pipefail
 
 ROOT="${1:?target root required}"
-SRC="/run/archiso/bootmnt/arch/boot/x86_64"
+KVER="$(uname -r)"
+SRC_KERNEL="/usr/lib/modules/${KVER}/vmlinuz"
+SRC_BOOT="/run/archiso/bootmnt/arch/boot/x86_64"
 
 install -d -m 0755 "$ROOT/boot"
-cp -f "$SRC/vmlinuz-linux" "$ROOT/boot/vmlinuz-linux"
 
-# Microcode, if the live medium carries it (grub-mkconfig picks it up).
+if [ -f "$SRC_KERNEL" ]; then
+    cp -f "$SRC_KERNEL" "$ROOT/boot/vmlinuz-linux"
+elif [ -f "$SRC_BOOT/vmlinuz-linux" ]; then
+    echo "WARN: $SRC_KERNEL missing, falling back to $SRC_BOOT"
+    cp -f "$SRC_BOOT/vmlinuz-linux" "$ROOT/boot/vmlinuz-linux"
+else
+    echo "ERROR: no kernel image found (checked $SRC_KERNEL and $SRC_BOOT/vmlinuz-linux) — install would be unbootable" >&2
+    exit 1
+fi
+
+# Microcode, if the live medium carries it (grub-mkconfig picks it up). This
+# is best-effort: post-install.sh's mkinitcpio `microcode` HOOKS entry embeds
+# microcode from /usr/lib/firmware directly, so a missing standalone ucode.img
+# here is not boot-critical, unlike the kernel image above.
 for u in amd-ucode.img intel-ucode.img; do
-    [ -f "$SRC/$u" ] && cp -f "$SRC/$u" "$ROOT/boot/$u"
+    [ -f "$SRC_BOOT/$u" ] && cp -f "$SRC_BOOT/$u" "$ROOT/boot/$u"
 done
 
 # Replace the archiso initramfs setup that unpackfs copied from the live medium.

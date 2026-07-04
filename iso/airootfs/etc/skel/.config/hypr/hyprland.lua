@@ -124,8 +124,16 @@ hl.bind(mod .. " + comma",     hl.dsp.exec_cmd("bos-settings"))
 hl.bind(mod .. " + slash",     hl.dsp.exec_cmd("bos-keybinds"))
 hl.bind(mod .. " + L",         hl.dsp.exec_cmd("loginctl lock-session"))
 hl.bind(mod .. " + F",         hl.dsp.window.fullscreen({ action = "toggle" }))
-hl.bind(mod .. " + V",         hl.dsp.window.float({ action = "toggle" }))
-hl.bind(mod .. " + SHIFT + V", hl.dsp.exec_cmd([[bash -c 'cliphist list | fzf --reverse --prompt="Clipboard > " | cliphist decode | wl-copy']]))
+hl.bind(mod .. " + I",         hl.dsp.window.float({ action = "toggle" }))
+hl.bind(mod .. " + P",         hl.dsp.window.pseudo({ action = "toggle" }))
+hl.bind(mod .. " + R",         hl.dsp.window.resize())
+-- breadclip (its own gtk4-layer-shell popup — not a TUI, so no terminal
+-- needed). Previously piped cliphist through fzf directly from the
+-- compositor with no terminal attached, which was a silent no-op.
+-- Bound on both V (breadclip's own suggested default, freed up now that
+-- float toggle moved to I) and SHIFT+V (kept for muscle memory).
+hl.bind(mod .. " + V",         hl.dsp.exec_cmd("breadclip"))
+hl.bind(mod .. " + SHIFT + V", hl.dsp.exec_cmd("breadclip"))
 hl.bind(mod .. " + T",         hl.dsp.layout("togglesplit"))
 hl.bind(mod .. " + Tab",       hl.dsp.focus({ urgent_or_last = true }))
 hl.bind(mod .. " + N",         hl.dsp.exit())
@@ -182,6 +190,7 @@ hl.bind("XF86MonBrightnessDown", hl.dsp.exec_cmd("brightnessctl -e4 -n2 set 5%-"
 hl.bind("XF86AudioNext",         hl.dsp.exec_cmd("playerctl next"),                                   { locked = true })
 hl.bind("XF86AudioPrev",         hl.dsp.exec_cmd("playerctl previous"),                               { locked = true })
 hl.bind("XF86AudioPlay",         hl.dsp.exec_cmd("playerctl play-pause"),                             { locked = true })
+hl.bind("XF86Calculator",        hl.dsp.exec_cmd("gnome-calculator"))
 
 -- ---------------------------------------------------------------------------
 -- Autostart. polkit agent + the bread ecosystem + idle daemon + wallpaper.
@@ -198,11 +207,22 @@ hl.on("hyprland.start", function()
         "gsettings set org.gnome.desktop.interface icon-theme Papirus-Dark",
         "gsettings set org.gnome.desktop.interface cursor-theme Bibata-Modern-Ice",
         "gsettings set org.gnome.desktop.interface cursor-size 24",
-        -- Clipboard history daemon (feeds SUPER+V history picker via wl-paste).
-        "wl-paste --type text --watch cliphist store",
+        -- Clipboard history is breadclipd, a bakery-managed systemd --user
+        -- service (auto-started via skel — see build-local.sh's service bake)
+        -- rather than an exec-once here.
         "/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1",
         "awww-daemon",
-        -- set the default wallpaper once the daemon is up (retry until ready)
+        -- Set the default wallpaper once the daemon is up (retry until ready).
+        -- Raw `awww img`, NOT `breadpaper set` — breadpaper set also runs real
+        -- pywal against the image, which would clobber the curated black-base
+        -- colors.json baked into skel (.cache/wal/colors.json: #0c0c0c bg,
+        -- bread-toned browns reserved for accent slots only) with colors
+        -- actually extracted from bread-background.png — which is an all-beige
+        -- photo, so every bread-theme app (breadbar included) turns brown.
+        -- `breadpaper get` still works on a fresh install without ever running
+        -- pywal: .cache/wal/wal (pywal's own "last image" marker, which is all
+        -- breadpaper reads) is baked into skel too, right beside colors.json.
+        -- pywal only runs for real once the user picks a wallpaper themselves.
         [[bash -c 'until awww img /usr/share/backgrounds/bos/bread-background.png 2>/dev/null; do sleep 0.3; done']],
         -- breadd runs as a systemd user service (~/.config/systemd/user/breadd.service,
         -- enabled in skel). It autostarts at login but before Hyprland exists, so
@@ -210,8 +230,20 @@ hl.on("hyprland.start", function()
         -- to pick it up — that's how it gets HYPRLAND_INSTANCE_SIGNATURE to talk to Hyprland.
         "dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP HYPRLAND_INSTANCE_SIGNATURE",
         "systemctl --user restart breadd",
+        -- graphical-session.target ships with RefuseManualStart=yes (systemd
+        -- convention — only a session manager like uwsm is meant to activate
+        -- it), confirmed on real hardware: `systemctl --user start
+        -- graphical-session.target` fails outright ("Operation refused").
+        -- BOS doesn't use uwsm, and nothing else activates that target, so
+        -- breadclipd (WantedBy=graphical-session.target) never started.
+        -- Start it directly instead. If more graphical-session.target
+        -- services show up later, add them here too.
+        "systemctl --user start breadclipd.service",
         "breadbar",
-        "breadbox-sync",
+        -- breadbox-sync is a Type=oneshot systemd --user service
+        -- (WantedBy=default.target, no Hyprland IPC dependency) — it
+        -- already runs on login via the unit baked into skel; exec'ing it
+        -- again here would just start it twice.
         "hypridle",
         -- first-boot onboarding (self-gates after the first run)
         "bos-welcome",

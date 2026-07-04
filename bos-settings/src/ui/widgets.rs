@@ -11,7 +11,7 @@ use std::rc::Rc;
 
 use gtk4::prelude::*;
 use gtk4::{
-    Adjustment, Box as GBox, Button, DropDown, Entry, Expression, Label, Orientation,
+    Adjustment, AlertDialog, Box as GBox, Button, DropDown, Entry, Expression, Label, Orientation,
     SpinButton, StringList, Switch,
 };
 use toml_edit::DocumentMut;
@@ -31,13 +31,34 @@ fn field_label(text: &str) -> Label {
     lbl
 }
 
-fn row(label: &str, control: &impl IsA<gtk4::Widget>) -> GBox {
+/// A label + control row, the same layout every `*_row` helper below uses.
+/// Styled as its own small card (background + padding + rounded corners) so
+/// a page of settings reads as a list of distinct rows, not a flat column of
+/// labels with the control floating far away at the window's edge — which is
+/// what plain edge-aligned rows look like once [`view_scaffold`] stops
+/// letting the content column stretch to the full window width.
+/// Exposed so panels that front live system state (not a `Doc`) — About,
+/// Sound, Date & Time, Network — can still lay out rows consistently with
+/// the TOML-editor panels.
+pub fn row(label: &str, control: &impl IsA<gtk4::Widget>) -> GBox {
     let row = GBox::new(Orientation::Horizontal, 16);
+    row.add_css_class("card");
+    row.set_margin_top(3);
+    row.set_margin_bottom(3);
     row.append(&field_label(label));
     control.set_halign(gtk4::Align::End);
     control.set_valign(gtk4::Align::Center);
     row.append(control);
     row
+}
+
+/// A label + read-only value label, for panels that only display state
+/// (About's CPU/memory/disk readouts, etc).
+pub fn info_row(label: &str, value: &str) -> GBox {
+    let value_lbl = Label::new(Some(value));
+    value_lbl.add_css_class("dim-label");
+    value_lbl.set_selectable(true);
+    row(label, &value_lbl)
 }
 
 /// A bold section heading with spacing above it.
@@ -56,8 +77,51 @@ pub fn hint(text: &str) -> Label {
     lbl.add_css_class("dim-label");
     lbl.set_xalign(0.0);
     lbl.set_wrap(true);
+    // set_wrap alone doesn't cap a label's *natural* width — a long enough
+    // hint reports a natural width of its whole unwrapped string, which
+    // `view_scaffold`'s content column (sized to its widest child, floored
+    // not capped at CONTENT_MAX_WIDTH) then inherits, blowing the entire
+    // panel full-width. This is what makes breadsearch/breadclip render
+    // edge-to-edge while every other panel sits in a stable ~760px column.
+    lbl.set_max_width_chars(64);
     lbl.set_margin_bottom(4);
     lbl
+}
+
+/// Widest a settings column is allowed to grow. Without a cap, `content`
+/// inherits hexpand from its rows' hexpand-ing labels and the ScrolledWindow
+/// stretches it to the full window width — on a maximized/ultrawide window
+/// that leaves the control on every row stranded ~1500px from its label.
+const CONTENT_MAX_WIDTH: i32 = 760;
+
+/// A centered placeholder for a panel's empty state (no snapshots yet, no
+/// scan results yet, etc) — a dim icon + title + hint, instead of a single
+/// small sentence lost in an otherwise-empty scroll area.
+pub fn empty_state(icon_name: &str, title: &str, hint_text: &str) -> GBox {
+    let wrapper = GBox::new(Orientation::Vertical, 6);
+    wrapper.set_valign(gtk4::Align::Center);
+    wrapper.set_halign(gtk4::Align::Center);
+    wrapper.set_vexpand(true);
+    wrapper.set_margin_top(32);
+    wrapper.set_margin_bottom(32);
+
+    let icon = gtk4::Image::from_icon_name(icon_name);
+    icon.set_pixel_size(48);
+    icon.add_css_class("dim-label");
+    wrapper.append(&icon);
+
+    let title_lbl = Label::new(Some(title));
+    title_lbl.add_css_class("heading");
+    wrapper.append(&title_lbl);
+
+    let hint_lbl = Label::new(Some(hint_text));
+    hint_lbl.add_css_class("dim-label");
+    hint_lbl.set_justify(gtk4::Justification::Center);
+    hint_lbl.set_wrap(true);
+    hint_lbl.set_max_width_chars(48);
+    wrapper.append(&hint_lbl);
+
+    wrapper
 }
 
 /// Standard view scaffold: an outer vertical box with a title and a scrollable
@@ -70,9 +134,22 @@ pub fn view_scaffold(title: &str) -> (GBox, GBox) {
     let title_lbl = Label::new(Some(title));
     title_lbl.add_css_class("title");
     title_lbl.set_xalign(0.0);
+    // Same width+center treatment as `content` below, so the title's left
+    // edge lines up with the column it's heading instead of sitting flush
+    // against the panel edge while the column centers ~440px to its right.
+    title_lbl.set_halign(gtk4::Align::Center);
+    title_lbl.set_size_request(CONTENT_MAX_WIDTH, -1);
     outer.append(&title_lbl);
 
-    let content = GBox::new(Orientation::Vertical, 8);
+    let content = GBox::new(Orientation::Vertical, 4);
+    // Explicit hexpand(false) overrides the auto-computed value GTK would
+    // otherwise derive from the hexpand-ing labels inside every row, and
+    // Center distributes the dead space evenly either side on a wide window
+    // instead of stranding it all on the right of a left-hugging column.
+    content.set_hexpand(false);
+    content.set_halign(gtk4::Align::Center);
+    content.set_size_request(CONTENT_MAX_WIDTH, -1);
+
     let scroll = gtk4::ScrolledWindow::new();
     scroll.set_vexpand(true);
     scroll.set_hscrollbar_policy(gtk4::PolicyType::Never);
@@ -203,6 +280,200 @@ pub fn csv_row(label: &str, doc: &Doc, path: Path, placeholder: &str) -> GBox {
         config::set_str_list(&mut doc.borrow_mut(), path, &items);
     });
     row(label, &entry)
+}
+
+/// Run `args` as a subprocess, streaming stdout+stderr into `log_buf` line by
+/// line, then call `on_done` once the process exits. GTK widgets aren't
+/// `Send`, so the child runs on its own thread and results come back over an
+/// `async_channel` to a `glib::spawn_future_local` task that touches the
+/// widget. Shared by every panel that shells out to a CLI tool and wants live
+/// output (Packages, Network, Firewall, Firmware, ...).
+pub fn stream_command_then(
+    args: &[&str],
+    log_buf: gtk4::TextBuffer,
+    on_done: impl FnOnce() + 'static,
+) {
+    let (sender, receiver) = async_channel::bounded::<String>(256);
+    let args: Vec<String> = args.iter().map(|s| s.to_string()).collect();
+
+    std::thread::spawn(move || {
+        let mut child = match std::process::Command::new(&args[0])
+            .args(&args[1..])
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::piped())
+            .spawn()
+        {
+            Ok(c) => c,
+            Err(e) => {
+                let _ = sender.send_blocking(format!("Error: {e}"));
+                return;
+            }
+        };
+
+        // Both are Some because we spawned with Stdio::piped() above.
+        let stdout = child.stdout.take().expect("stdout piped");
+        let stderr = child.stderr.take().expect("stderr piped");
+
+        let tx2 = sender.clone();
+        let stderr_thread = std::thread::spawn(move || {
+            for line in std::io::BufRead::lines(std::io::BufReader::new(stderr)).flatten() {
+                let _ = tx2.send_blocking(line);
+            }
+        });
+
+        for line in std::io::BufRead::lines(std::io::BufReader::new(stdout)).flatten() {
+            let _ = sender.send_blocking(line);
+        }
+        let _ = child.wait();
+        let _ = stderr_thread.join();
+    });
+
+    glib::spawn_future_local(async move {
+        while let Ok(line) = receiver.recv().await {
+            let mut end = log_buf.end_iter();
+            log_buf.insert(&mut end, &format!("{line}\n"));
+        }
+        on_done();
+    });
+}
+
+/// [`stream_command_then`] with no completion callback.
+pub fn stream_command(args: &[&str], log_buf: gtk4::TextBuffer) {
+    stream_command_then(args, log_buf, || {});
+}
+
+fn systemctl_active(unit: &str) -> bool {
+    std::process::Command::new("systemctl")
+        .args(["--user", "is-active", "--quiet", unit])
+        .status()
+        .map(|s| s.success())
+        .unwrap_or(false)
+}
+
+fn systemctl_enabled(unit: &str) -> bool {
+    std::process::Command::new("systemctl")
+        .args(["--user", "is-enabled", "--quiet", unit])
+        .status()
+        .map(|s| s.success())
+        .unwrap_or(false)
+}
+
+/// Live systemd `--user` unit status plus Start/Stop/Restart/Logs controls —
+/// every bread-ecosystem panel whose app is actually a daemon (not just a
+/// config file) gets this, instead of only ever being able to edit the TOML
+/// and hope the running process picks it up.
+///
+/// `critical` guards Stop behind a confirm dialog — for a unit like `breadd`
+/// (the whole desktop's event backbone), a bare click currently stops it as
+/// casually as an optional sync helper; everything else can stay one-click.
+///
+/// `has_config` adds a one-line note that Restart (not Save) is what applies
+/// config changes below — previously only breadsearch's panel said this,
+/// inconsistently, in its own hint text; bread/breadbox/breadcrumbs edit a
+/// running daemon's TOML and never mentioned the running process won't
+/// notice until restarted.
+pub fn service_control(unit: &'static str, critical: bool, has_config: bool) -> GBox {
+    let wrapper = GBox::new(Orientation::Vertical, 4);
+    wrapper.append(&section("Service"));
+
+    let status_lbl = Label::new(None);
+    status_lbl.add_css_class("dim-label");
+    status_lbl.set_selectable(true);
+    wrapper.append(&row(unit, &status_lbl));
+
+    let enabled_lbl = Label::new(None);
+    enabled_lbl.add_css_class("dim-label");
+    wrapper.append(&row("Starts at login", &enabled_lbl));
+
+    let btn_row = GBox::new(Orientation::Horizontal, 8);
+    btn_row.set_margin_top(4);
+    let toggle_btn = Button::new();
+    let restart_btn = Button::with_label("Restart");
+    let logs_btn = Button::with_label("View logs");
+
+    // Rc<dyn Fn()> rather than a plain closure: three different button
+    // handlers all need to re-run this after their action completes, and
+    // plain closures aren't Clone.
+    let refresh: Rc<dyn Fn()> = {
+        let status_lbl = status_lbl.clone();
+        let enabled_lbl = enabled_lbl.clone();
+        let toggle_btn = toggle_btn.clone();
+        Rc::new(move || {
+            let active = systemctl_active(unit);
+            status_lbl.set_text(if active { "Running" } else { "Stopped" });
+            toggle_btn.set_label(if active { "Stop" } else { "Start" });
+            enabled_lbl.set_text(if systemctl_enabled(unit) { "Yes" } else { "No" });
+        })
+    };
+    refresh();
+
+    let do_toggle: Rc<dyn Fn()> = {
+        let refresh = refresh.clone();
+        Rc::new(move || {
+            let verb = if systemctl_active(unit) { "stop" } else { "start" };
+            let log_buf = gtk4::TextBuffer::new(None);
+            let refresh = refresh.clone();
+            stream_command_then(&["systemctl", "--user", verb, unit], log_buf, move || {
+                refresh();
+            });
+        })
+    };
+    {
+        let do_toggle = do_toggle.clone();
+        toggle_btn.connect_clicked(move |btn| {
+            if critical && systemctl_active(unit) {
+                let window = btn.root().and_then(|r| r.downcast::<gtk4::Window>().ok());
+                let dialog = AlertDialog::builder()
+                    .message(format!("Stop {unit}?"))
+                    .detail(
+                        "This is a core part of the desktop's event handling — \
+                         stopping it may affect other bread apps until it's \
+                         restarted.",
+                    )
+                    .buttons(["Cancel", "Stop"])
+                    .cancel_button(0)
+                    .default_button(0)
+                    .build();
+                let do_toggle = do_toggle.clone();
+                dialog.choose(window.as_ref(), gtk4::gio::Cancellable::NONE, move |result| {
+                    if result == Ok(1) {
+                        do_toggle();
+                    }
+                });
+            } else {
+                do_toggle();
+            }
+        });
+    }
+    {
+        let refresh = refresh.clone();
+        restart_btn.connect_clicked(move |_| {
+            let log_buf = gtk4::TextBuffer::new(None);
+            let refresh = refresh.clone();
+            stream_command_then(&["systemctl", "--user", "restart", unit], log_buf, move || {
+                refresh();
+            });
+        });
+    }
+    logs_btn.connect_clicked(move |_| {
+        let _ = std::process::Command::new("kitty")
+            .args(["-e", "journalctl", "--user", "-u", unit, "-f"])
+            .spawn();
+    });
+
+    btn_row.append(&toggle_btn);
+    btn_row.append(&restart_btn);
+    btn_row.append(&logs_btn);
+    wrapper.append(&btn_row);
+
+    if has_config {
+        wrapper.append(&hint(
+            "Save (below) only writes the config file — click Restart above \
+             for the running service to pick up the change.",
+        ));
+    }
+
+    wrapper
 }
 
 /// A Save button + transient status label that persists the document to `path`.

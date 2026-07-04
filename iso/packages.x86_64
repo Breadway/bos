@@ -11,14 +11,18 @@ amd-ucode
 intel-ucode
 
 # Power management (vendor-neutral; works on Intel and AMD). tlp auto-tunes power
-# by AC/battery and CPU driver; hypridle/hyprlock handle idle dim/off/lock/suspend
+# by AC/battery and CPU driver; hypridle/breadlock handle idle dim/off/lock/suspend
 # and the lock screen; upower exposes battery state. NOT power-profiles-daemon —
 # it conflicts with tlp.
 tlp
 tlp-rdw
 upower
 hypridle
-hyprlock
+# breadlock replaces hyprlock (locker) and tuigreet (greetd's greeter) — see
+# /etc/greetd/config.toml and skel's hypridle.conf lock_cmd. cage hosts
+# breadgreet as a single-client kiosk compositor under greetd.
+breadlock
+cage
 
 # Bootloader + filesystem
 grub
@@ -26,6 +30,15 @@ efibootmgr
 btrfs-progs
 dosfstools
 mtools
+# LUKS full-disk encryption — Calamares' partition module has encryption
+# support built in and enabled by default, but needs cryptsetup actually
+# present (live, to create the container; installed, to unlock at boot via
+# mkinitcpio's encrypt hook) or the checkbox leads to an unbootable system.
+cryptsetup
+# Secure Boot key enrollment/signing (self-signed — see post-install.sh).
+# Ships its own pacman hook (zz-sbctl.hook) that re-signs the kernel/
+# bootloader automatically on every future update once enrolled.
+sbctl
 # squashfs-tools: provides unsquashfs, which Calamares' unpackfs module uses
 # to extract airootfs.sfs onto the target during install.
 squashfs-tools
@@ -56,9 +69,8 @@ xdg-desktop-portal-hyprland
 # and Firefox-based apps (Zen). Without it those apps get no file dialog.
 xdg-desktop-portal-gtk
 # Login manager for the installed system (Wayland-native; enabled by
-# post-install.sh, launches the Hyprland session via tuigreet → bos-session).
+# post-install.sh, launches the Hyprland session via breadgreet → bos-session).
 greetd
-greetd-tuigreet
 xdg-utils
 xdg-user-dirs
 polkit
@@ -158,6 +170,12 @@ mailcap
 # (calamares 3.4.x is already Qt6; there is no separate calamares-qt6 package)
 calamares
 
+# AUR helper — yay-bin is AUR-only (no AUR helper ships in the official
+# repos), so it's republished to [breadway] the same way (see
+# packaging/yay-bin). Lets users reach the wider AUR beyond bakery's bread
+# ecosystem + [breadway]'s own small set of republished packages.
+yay-bin
+
 # Bread ecosystem.
 #
 # The bread apps themselves (bakery, bread, breadbar, breadbox, breadcrumbs,
@@ -178,10 +196,10 @@ brightnessctl
 grim
 slurp
 # Clipboard (Wayland copy/paste; also clipboard screenshots) and media keys.
+# Clipboard history is breadclip/breadclipd (bakery-managed, SUPER+SHIFT+V),
+# not cliphist — wl-clipboard is still needed directly by breadclip/breadshot.
 wl-clipboard
 playerctl
-# Clipboard history daemon (stores wl-clipboard events; breadbox bind replays them).
-cliphist
 # Wallpaper daemon + pywal (drives the bread* colour palette from the wallpaper).
 awww
 python-pywal
@@ -268,6 +286,15 @@ system-config-printer
 # Flatpak — sandboxed third-party app distribution (Flathub). The user adds a
 # remote post-install (needs network); the runtime is shipped ready.
 flatpak
+
+# Graphical alternatives to terminal-only tools, so users who want more
+# graphical control aren't funneled to a shell for everyday things.
+# gnome-disk-utility: partition/format/SMART-health GUI for gnome-disks.
+# gufw: GUI front-end for the ufw firewall bos already enables by default.
+# mission-center: graphical task manager (CPU/mem/disk/net + process list).
+gnome-disk-utility
+gufw
+mission-center
 
 # Firewall — ufw, enabled deny-incoming in post-install.sh (mDNS allowed so
 # printer discovery still works).

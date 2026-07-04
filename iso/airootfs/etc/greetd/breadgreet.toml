@@ -1,0 +1,15 @@
+# BOS's real breadgreet config — see breadgreet.example.toml in this same
+# directory for the full set of options with explanations.
+#
+# The one setting that actually matters here: `sessions.default` MUST be
+# "bos", not breadgreet's compiled-in default of "hyprland". The `hyprland`
+# pacman package installs its own /usr/share/wayland-sessions/hyprland.desktop
+# alongside BOS's own bos.desktop, and breadgreet's session picker matches by
+# .desktop file stem — with no override it picks "hyprland.desktop" over
+# "bos.desktop", which skips bos-session's PATH fixup (adds ~/.local/bin for
+# the bakery bread apps; greetd starts no login shell, so /etc/profile.d is
+# never sourced any other way). Confirmed via breadgreet's own test suite
+# (sessions.rs: discover_prefers_configured_default_over_first_entry).
+
+[sessions]
+default = "bos"

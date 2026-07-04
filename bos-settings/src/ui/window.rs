@@ -4,6 +4,12 @@ use gtk4::{Application, ApplicationWindow, Orientation, Paned, Stack};
 use super::sidebar;
 use super::views;
 
+// About is a settings app's most GNOME-Settings-like landing page —
+// identifies the machine, no config editor thrown at you first. Defined
+// once here and threaded through to both the `Stack` and the sidebar's
+// initial selection, so the two can't independently drift out of sync.
+const DEFAULT_PAGE: &str = "about";
+
 pub fn build_ui(app: &Application) {
     let window = ApplicationWindow::builder()
         .application(app)
@@ -15,27 +21,38 @@ pub fn build_ui(app: &Application) {
     crate::theme::load(&WidgetExt::display(&window));
 
     let hpaned = Paned::new(Orientation::Horizontal);
-    hpaned.set_position(190);
+    hpaned.set_position(210);
     hpaned.set_shrink_start_child(false);
     hpaned.set_resize_start_child(false);
 
-    let (sidebar_box, list) = sidebar::build();
+    let (sidebar_box, list) = sidebar::build(DEFAULT_PAGE);
 
     let stack = Stack::new();
     stack.set_hexpand(true);
     stack.set_vexpand(true);
 
+    stack.add_named(&views::about::build(), Some("about"));
+    stack.add_named(&views::network::build(), Some("network"));
+    stack.add_named(&views::sound::build(), Some("sound"));
+    stack.add_named(&views::datetime::build(), Some("datetime"));
+    stack.add_named(&views::power::build(), Some("power"));
+    stack.add_named(&views::firewall::build(), Some("firewall"));
+    stack.add_named(&views::users::build(), Some("users"));
     stack.add_named(&views::snapshots::build(), Some("snapshots"));
     stack.add_named(&views::packages::build(), Some("packages"));
+    stack.add_named(&views::firmware::build(), Some("firmware"));
+    stack.add_named(&views::aur::build(), Some("aur"));
     stack.add_named(&views::bread::build(), Some("bread"));
     stack.add_named(&views::breadbar::build(), Some("breadbar"));
     stack.add_named(&views::breadbox::build(), Some("breadbox"));
+    stack.add_named(&views::breadclip::build(), Some("breadclip"));
     stack.add_named(&views::breadcrumbs::build(), Some("breadcrumbs"));
     stack.add_named(&views::breadpad::build(), Some("breadpad"));
+    stack.add_named(&views::breadpaper::build(), Some("breadpaper"));
+    stack.add_named(&views::breadsearch::build(), Some("breadsearch"));
     stack.add_named(&views::hyprland::build(), Some("hyprland"));
 
-    // Default to snapshots view
-    stack.set_visible_child_name("snapshots");
+    stack.set_visible_child_name(DEFAULT_PAGE);
 
     {
         let stack = stack.clone();

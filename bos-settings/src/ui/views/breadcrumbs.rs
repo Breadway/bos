@@ -11,7 +11,7 @@ use std::rc::Rc;
 
 use gtk4::prelude::*;
 use gtk4::{
-    Box as GBox, Button, Entry, Label, ListBox, ListBoxRow, Orientation, ScrolledWindow, Switch,
+    Box as GBox, Button, Entry, Label, ListBox, ListBoxRow, Orientation, Switch,
 };
 use toml_edit::{value, Array, ArrayOfTables, DocumentMut, Item, Table};
 
@@ -334,20 +334,8 @@ pub fn build() -> GBox {
     let nets = Rc::new(RefCell::new(read_networks(&doc.borrow())));
     let profiles = Rc::new(RefCell::new(read_profiles(&doc.borrow())));
 
-    let outer = GBox::new(Orientation::Vertical, 8);
-    outer.add_css_class("view-content");
-
-    let title = Label::new(Some("breadcrumbs"));
-    title.add_css_class("title");
-    title.set_xalign(0.0);
-    outer.append(&title);
-
-    let content = GBox::new(Orientation::Vertical, 8);
-    let scroll = ScrolledWindow::new();
-    scroll.set_vexpand(true);
-    scroll.set_hscrollbar_policy(gtk4::PolicyType::Never);
-    scroll.set_child(Some(&content));
-    outer.append(&scroll);
+    let (outer, content) = w::view_scaffold("Wi-Fi Profiles");
+    content.append(&w::service_control("breadcrumbs.service", false, true));
 
     // [settings] — edited in place on the shared doc
     content.append(&w::section("Settings"));
@@ -356,7 +344,9 @@ pub fn build() -> GBox {
         &doc,
         &["settings", "default_profile"],
         &["home", "away"],
-        "home",
+        // breadcrumbs' own default_profile_name() is "away", not "home" —
+        // this was showing the wrong value for an unset key.
+        "away",
     ));
     content.append(&w::entry_row("DNS", &doc, &["settings", "dns"], "1.1.1.1", ""));
     content.append(&w::entry_row(
