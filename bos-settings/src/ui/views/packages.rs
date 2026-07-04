@@ -66,10 +66,9 @@ fn populate_packages(list: &ListBox, log_buf: &gtk4::TextBuffer, log_view: &Text
         let row = ListBoxRow::new();
         row.set_selectable(false);
         let hbox = GBox::new(Orientation::Horizontal, 16);
-        hbox.set_margin_top(6);
-        hbox.set_margin_bottom(6);
-        hbox.set_margin_start(8);
-        hbox.set_margin_end(8);
+        hbox.add_css_class("card");
+        hbox.set_margin_top(3);
+        hbox.set_margin_bottom(3);
 
         let name_lbl = Label::new(Some(name));
         name_lbl.set_hexpand(true);

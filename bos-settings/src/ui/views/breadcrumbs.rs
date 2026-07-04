@@ -335,7 +335,7 @@ pub fn build() -> GBox {
     let profiles = Rc::new(RefCell::new(read_profiles(&doc.borrow())));
 
     let (outer, content) = w::view_scaffold("Wi-Fi Profiles");
-    content.append(&w::service_control("breadcrumbs.service"));
+    content.append(&w::service_control("breadcrumbs.service", false, true));
 
     // [settings] — edited in place on the shared doc
     content.append(&w::section("Settings"));

@@ -19,7 +19,7 @@ pub fn build() -> GBox {
     let doc = Rc::new(RefCell::new(config::load_doc(&path)));
 
     let (outer, c) = w::view_scaffold("File Search");
-    c.append(&w::service_control("breadmill.service"));
+    c.append(&w::service_control("breadmill.service", false, true));
 
     c.append(&w::section("Power"));
     c.append(&w::hint(
@@ -108,10 +108,6 @@ pub fn build() -> GBox {
         2000.0,
         20.0,
         200,
-    ));
-
-    c.append(&w::hint(
-        "Changes take effect after a restart — use the Restart button above.",
     ));
 
     outer.append(&w::save_button(&doc, path));
