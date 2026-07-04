@@ -7,8 +7,13 @@ name: Build and release ISO
 # (GitHub releases cannot host files larger than 2 GB).
 #
 # Required secrets:
-#   RELEASE_TOKEN  — Forgejo API token with write:repository scope
-#   MIRROR_TOKEN   — GitHub personal access token with repo scope (already used by mirror.yml)
+#   RELEASE_TOKEN    — Forgejo API token with write:repository scope
+#   MIRROR_TOKEN     — GitHub personal access token with repo scope (already used by mirror.yml)
+#   GPG_PRIVATE_KEY  — armoured secret key for the dedicated "BOS Release Signing"
+#                      identity (releases@breadway.dev); public half is committed
+#                      at KEYS.asc for verification. No passphrase (CI-only key,
+#                      access controlled via the Forgejo secret store, not a
+#                      passphrase nobody could type non-interactively anyway).
 
 on:
   push:
@@ -129,14 +134,35 @@ jobs:
           bash build-local.sh
           ls -lh /bos-out/*.iso
 
-      - name: Create Forgejo release and upload ISO
+      - name: Checksum and sign
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.vars.outputs.version }}"
+          ISO=$(ls /bos-out/*.iso | head -1)
+          ISO_NAME="bos-${VERSION}-x86_64.iso"
+          cd /bos-out
+          mv "$(basename "$ISO")" "$ISO_NAME"
+
+          sha256sum "$ISO_NAME" > SHA256SUMS
+          cat SHA256SUMS
+
+          pacman -Sy --noconfirm --needed gnupg
+          export GNUPGHOME=/tmp/gnupg-release
+          mkdir -m 700 -p "$GNUPGHOME"
+          echo "$GPG_PRIVATE_KEY" | gpg --batch --import
+          gpg --batch --yes --local-user releases@breadway.dev \
+              --detach-sign --armor -o SHA256SUMS.asc SHA256SUMS
+          echo "Signed SHA256SUMS -> SHA256SUMS.asc"
+
+      - name: Create Forgejo release and upload assets
         env:
           FORGEJO_TOKEN: ${{ secrets.RELEASE_TOKEN }}
         run: |
           set -euo pipefail
           TAG="${{ steps.vars.outputs.tag }}"
           VERSION="${{ steps.vars.outputs.version }}"
-          ISO=$(ls /bos-out/*.iso | head -1)
           ISO_NAME="bos-${VERSION}-x86_64.iso"
 
           # Use an existing release for this tag if one exists (e.g. created
@@ -157,35 +183,41 @@ jobs:
                 \"tag_name\": \"${TAG}\",
                 \"name\": \"BOS ${TAG}\",
                 \"prerelease\": false,
-                \"body\": \"ISO image attached below.\\n\\nSee the [README](https://github.com/Breadway/bos#testing-in-a-vm) for VM testing instructions.\"
+                \"body\": \"ISO image attached below. Verify with SHA256SUMS + SHA256SUMS.asc (signed by the BOS Release Signing key — see KEYS.asc in the repo).\\n\\nSee the [README](https://github.com/Breadway/bos#testing-in-a-vm) for VM testing instructions.\"
               }")
             RELEASE_ID=$(echo "${RELEASE}" | python3 -c "import json,sys; print(json.load(sys.stdin)['id'])")
           fi
           echo "Using release ID: ${RELEASE_ID}"
 
-          # Remove any existing asset with the same name before uploading
-          ASSET_ID=$(curl -sf \
-            -H "Authorization: token ${FORGEJO_TOKEN}" \
-            "http://localhost:3002/api/v1/repos/${GITHUB_REPOSITORY}/releases/${RELEASE_ID}/assets" \
-            | python3 -c "
+          upload_asset() {
+            local file="$1" name
+            name="$(basename "$file")"
+            local asset_id
+            asset_id=$(curl -sf \
+              -H "Authorization: token ${FORGEJO_TOKEN}" \
+              "http://localhost:3002/api/v1/repos/${GITHUB_REPOSITORY}/releases/${RELEASE_ID}/assets" \
+              | python3 -c "
           import json,sys
           assets=json.load(sys.stdin)
-          match=[a['id'] for a in assets if a['name']=='${ISO_NAME}']
+          match=[a['id'] for a in assets if a['name']=='${name}']
           print(match[0] if match else '')
           " 2>/dev/null || true)
-
-          if [ -n "${ASSET_ID}" ]; then
-            curl -fsS -X DELETE \
+            if [ -n "${asset_id}" ]; then
+              curl -fsS -X DELETE \
+                -H "Authorization: token ${FORGEJO_TOKEN}" \
+                "http://localhost:3002/api/v1/repos/${GITHUB_REPOSITORY}/releases/${RELEASE_ID}/assets/${asset_id}"
+              echo "Removed existing ${name} asset"
+            fi
+            curl -fsS -X POST \
               -H "Authorization: token ${FORGEJO_TOKEN}" \
-              "http://localhost:3002/api/v1/repos/${GITHUB_REPOSITORY}/releases/${RELEASE_ID}/assets/${ASSET_ID}"
-            echo "Removed existing ${ISO_NAME} asset"
-          fi
+              -F "attachment=@${file};filename=${name}" \
+              "http://localhost:3002/api/v1/repos/${GITHUB_REPOSITORY}/releases/${RELEASE_ID}/assets"
+            echo "Uploaded: ${name}"
+          }
 
-          curl -fsS -X POST \
-            -H "Authorization: token ${FORGEJO_TOKEN}" \
-            -F "attachment=@${ISO};filename=${ISO_NAME}" \
-            "http://localhost:3002/api/v1/repos/${GITHUB_REPOSITORY}/releases/${RELEASE_ID}/assets"
-          echo "Uploaded: ${ISO_NAME}"
+          upload_asset "/bos-out/${ISO_NAME}"
+          upload_asset "/bos-out/SHA256SUMS"
+          upload_asset "/bos-out/SHA256SUMS.asc"
 
       - name: Create GitHub release
         env:
@@ -196,7 +228,7 @@ jobs:
           VERSION="${{ steps.vars.outputs.version }}"
           FORGEJO_URL="https://git.breadway.dev/${GITHUB_REPOSITORY}/releases/tag/${TAG}"
 
-          printf '**Download ISO:** %s\n\nGitHub releases cannot host files >2 GB; the `bos-%s-x86_64.iso` (~2.5 GB) is on Forgejo.\n\nSee the [README](https://github.com/Breadway/bos#testing-in-a-vm) for VM testing instructions.' \
+          printf '**Download ISO:** %s\n\nGitHub releases cannot host files >2 GB; the `bos-%s-x86_64.iso` (~2.5 GB), SHA256SUMS, and SHA256SUMS.asc (signed by the BOS Release Signing key — public half at [KEYS.asc](https://github.com/Breadway/bos/blob/main/KEYS.asc)) are all on Forgejo.\n\nSee the [README](https://github.com/Breadway/bos#testing-in-a-vm) for VM testing instructions.' \
             "${FORGEJO_URL}" "${VERSION}" > /tmp/gh-release-notes.md
 
           gh release create "${TAG}" \
