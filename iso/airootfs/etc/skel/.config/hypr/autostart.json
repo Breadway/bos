@@ -1,0 +1,8 @@
+{
+  "extra": [
+    { "command": "breadbar", "label": "Bar (breadbar)", "enabled": true },
+    { "command": "hypridle", "label": "Idle / lock daemon (hypridle)", "enabled": true },
+    { "command": "bos-netcheck", "label": "Network connectivity check", "enabled": true },
+    { "command": "breadhelp --autostart", "label": "BOS Help (first-run onboarding)", "enabled": true }
+  ]
+}

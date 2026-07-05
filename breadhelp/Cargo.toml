@@ -1,0 +1,17 @@
+[package]
+name = "breadhelp"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+gtk4 = { version = "0.11", features = ["v4_12"] }
+glib = "0.22"
+# Shared ecosystem theming — same generated stylesheet bos-settings/breadbar/
+# breadbox/breadpad load, so this looks like part of the same desktop.
+bread-theme = { git = "https://github.com/Breadway/bread-ecosystem", tag = "v0.2.10", features = ["gtk"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+toml = "0.8"
+# Non-destructive state editing (mirrors bos-settings/src/config/mod.rs).
+toml_edit = "0.22"
+async-channel = "2"

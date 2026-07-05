@@ -1,0 +1,88 @@
+{
+  "default_mods": ["SUPER"],
+  "bindings": [
+    { "action": "exec", "command": "kitty", "key": "RETURN", "label": "Open a terminal", "category": "apps" },
+    { "action": "close", "key": "BACKSPACE", "label": "Close the focused window", "category": "windows" },
+    { "action": "exec", "command": "breadbox", "key": "SPACE", "label": "Open the app launcher (breadbox)", "category": "apps", "demo_cmd": "breadbox" },
+    { "action": "exec", "command": "nautilus", "key": "E", "label": "Open files (nautilus)", "category": "apps" },
+    { "action": "exec", "command": "zen-browser", "key": "B", "label": "Open the browser (zen)", "category": "apps" },
+    { "action": "exec", "command": "breadpad", "key": "U", "label": "Notes / reminders (breadpad)", "category": "apps", "demo_cmd": "breadpad" },
+    { "action": "exec", "command": "breadman", "key": "M", "label": "Notes / task manager (breadman)", "category": "apps" },
+    { "action": "exec", "command": "bos-settings", "key": "comma", "label": "Open BOS Settings", "category": "apps", "demo_cmd": "bos-settings" },
+    { "action": "exec", "command": "breadhelp", "key": "slash", "label": "Show this keybind cheatsheet", "category": "apps" },
+    { "action": "exec", "command": "loginctl lock-session", "key": "L", "label": "Lock screen", "category": "apps" },
+    { "action": "fullscreen", "key": "F", "label": "Toggle fullscreen", "category": "windows" },
+    { "action": "float", "key": "I", "label": "Toggle floating", "category": "windows" },
+    { "action": "pseudo", "key": "P", "label": "Toggle pseudotile", "category": "windows" },
+    { "action": "resize", "key": "R", "label": "Resize mode", "category": "windows" },
+
+    { "action": "exec", "command": "breadclip", "key": "V", "label": "Clipboard history (breadclip)", "category": "apps", "demo_cmd": "breadclip" },
+    { "action": "exec", "command": "breadclip", "key": "V", "mods": ["SUPER", "SHIFT"], "label": "Clipboard history (breadclip) — same as SUPER + V", "category": "apps" },
+
+    { "action": "layout", "layout": "togglesplit", "key": "T", "label": "Toggle split direction", "category": "windows" },
+    { "action": "focus_last", "key": "Tab", "label": "Focus last window", "category": "windows" },
+    { "action": "exit", "key": "N", "label": "Exit Hyprland (log out)", "category": "windows" },
+
+    { "action": "exec", "command": "breadshot region -o ~/Pictures/Screenshots", "key": "S", "mods": ["SUPER", "SHIFT"], "label": "Screenshot: select region -> file", "category": "screenshots" },
+    { "action": "exec", "command": "breadshot region --clipboard-only", "key": "C", "mods": ["SUPER", "SHIFT"], "label": "Screenshot: select region -> clipboard", "category": "screenshots" },
+    { "action": "exec", "command": "breadshot active-output -o ~/Pictures/Screenshots", "key": "P", "mods": ["SUPER", "SHIFT"], "label": "Screenshot: whole active screen -> file", "category": "screenshots" },
+
+    { "action": "focus", "direction": "left", "key": "left", "label": "Move focus left", "category": "focus" },
+    { "action": "focus", "direction": "right", "key": "right", "label": "Move focus right", "category": "focus" },
+    { "action": "focus", "direction": "up", "key": "up", "label": "Move focus up", "category": "focus" },
+    { "action": "focus", "direction": "down", "key": "down", "label": "Move focus down", "category": "focus" },
+
+    { "action": "move_dir", "direction": "left", "key": "h", "mods": ["SUPER", "SHIFT"], "label": "Move the focused window left", "category": "focus" },
+    { "action": "move_dir", "direction": "down", "key": "j", "mods": ["SUPER", "SHIFT"], "label": "Move the focused window down", "category": "focus" },
+    { "action": "move_dir", "direction": "up", "key": "k", "mods": ["SUPER", "SHIFT"], "label": "Move the focused window up", "category": "focus" },
+    { "action": "move_dir", "direction": "right", "key": "l", "mods": ["SUPER", "SHIFT"], "label": "Move the focused window right", "category": "focus" },
+
+    { "action": "resize_dir", "x": 30, "y": 0, "key": "right", "mods": ["SUPER", "SHIFT"], "options": { "repeating": true }, "label": "Resize the focused window (grow right)", "category": "focus" },
+    { "action": "resize_dir", "x": -30, "y": 0, "key": "left", "mods": ["SUPER", "SHIFT"], "options": { "repeating": true }, "label": "Resize the focused window (grow left)", "category": "focus" },
+    { "action": "resize_dir", "x": 0, "y": -30, "key": "up", "mods": ["SUPER", "SHIFT"], "options": { "repeating": true }, "label": "Resize the focused window (grow up)", "category": "focus" },
+    { "action": "resize_dir", "x": 0, "y": 30, "key": "down", "mods": ["SUPER", "SHIFT"], "options": { "repeating": true }, "label": "Resize the focused window (grow down)", "category": "focus" },
+
+    { "action": "focus", "workspace": 1, "key": "1", "label": "Switch to workspace 1", "category": "workspaces" },
+    { "action": "focus", "workspace": 2, "key": "2", "label": "Switch to workspace 2", "category": "workspaces" },
+    { "action": "focus", "workspace": 3, "key": "3", "label": "Switch to workspace 3", "category": "workspaces" },
+    { "action": "focus", "workspace": 4, "key": "4", "label": "Switch to workspace 4", "category": "workspaces" },
+    { "action": "focus", "workspace": 5, "key": "5", "label": "Switch to workspace 5", "category": "workspaces" },
+    { "action": "focus", "workspace": 6, "key": "6", "label": "Switch to workspace 6", "category": "workspaces" },
+    { "action": "focus", "workspace": 7, "key": "7", "label": "Switch to workspace 7", "category": "workspaces" },
+    { "action": "focus", "workspace": 8, "key": "8", "label": "Switch to workspace 8", "category": "workspaces" },
+    { "action": "focus", "workspace": 9, "key": "9", "label": "Switch to workspace 9", "category": "workspaces" },
+    { "action": "focus", "workspace": 10, "key": "0", "label": "Switch to workspace 10", "category": "workspaces" },
+
+    { "action": "move", "workspace": 1, "key": "1", "mods": ["SUPER", "SHIFT"], "label": "Move the focused window to workspace 1", "category": "workspaces" },
+    { "action": "move", "workspace": 2, "key": "2", "mods": ["SUPER", "SHIFT"], "label": "Move the focused window to workspace 2", "category": "workspaces" },
+    { "action": "move", "workspace": 3, "key": "3", "mods": ["SUPER", "SHIFT"], "label": "Move the focused window to workspace 3", "category": "workspaces" },
+    { "action": "move", "workspace": 4, "key": "4", "mods": ["SUPER", "SHIFT"], "label": "Move the focused window to workspace 4", "category": "workspaces" },
+    { "action": "move", "workspace": 5, "key": "5", "mods": ["SUPER", "SHIFT"], "label": "Move the focused window to workspace 5", "category": "workspaces" },
+    { "action": "move", "workspace": 6, "key": "6", "mods": ["SUPER", "SHIFT"], "label": "Move the focused window to workspace 6", "category": "workspaces" },
+    { "action": "move", "workspace": 7, "key": "7", "mods": ["SUPER", "SHIFT"], "label": "Move the focused window to workspace 7", "category": "workspaces" },
+    { "action": "move", "workspace": 8, "key": "8", "mods": ["SUPER", "SHIFT"], "label": "Move the focused window to workspace 8", "category": "workspaces" },
+    { "action": "move", "workspace": 9, "key": "9", "mods": ["SUPER", "SHIFT"], "label": "Move the focused window to workspace 9", "category": "workspaces" },
+    { "action": "move", "workspace": 10, "key": "0", "mods": ["SUPER", "SHIFT"], "label": "Move the focused window to workspace 10", "category": "workspaces" },
+
+    { "action": "focus", "workspace": "e+1", "key": "bracketright", "label": "Next workspace", "category": "workspaces" },
+    { "action": "focus", "workspace": "e-1", "key": "bracketleft", "label": "Previous workspace", "category": "workspaces" },
+    { "action": "move", "workspace": "e+1", "key": "bracketright", "mods": ["SUPER", "SHIFT"], "label": "Move the focused window to the next workspace", "category": "workspaces" },
+    { "action": "move", "workspace": "e-1", "key": "bracketleft", "mods": ["SUPER", "SHIFT"], "label": "Move the focused window to the previous workspace", "category": "workspaces" },
+
+    { "action": "focus", "workspace": "e+1", "key": "mouse_down", "label": "Cycle to the next workspace (scroll)", "category": "mouse" },
+    { "action": "focus", "workspace": "e-1", "key": "mouse_up", "label": "Cycle to the previous workspace (scroll)", "category": "mouse" },
+    { "action": "drag", "key": "mouse:272", "options": { "mouse": true }, "label": "Move a window (drag)", "category": "mouse" },
+    { "action": "resize", "key": "mouse:273", "options": { "mouse": true }, "label": "Resize a window (drag)", "category": "mouse" },
+
+    { "action": "exec", "command": "wpctl set-volume -l 1 @DEFAULT_AUDIO_SINK@ 5%+", "key": "XF86AudioRaiseVolume", "mods": [], "options": { "locked": true, "repeating": true }, "label": "Volume up", "category": "media" },
+    { "action": "exec", "command": "wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-", "key": "XF86AudioLowerVolume", "mods": [], "options": { "locked": true, "repeating": true }, "label": "Volume down", "category": "media" },
+    { "action": "exec", "command": "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle", "key": "XF86AudioMute", "mods": [], "options": { "locked": true }, "label": "Mute", "category": "media" },
+    { "action": "exec", "command": "wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle", "key": "XF86AudioMicMute", "mods": [], "options": { "locked": true }, "label": "Mic mute", "category": "media" },
+    { "action": "exec", "command": "brightnessctl -e4 -n2 set 5%+", "key": "XF86MonBrightnessUp", "mods": [], "options": { "locked": true, "repeating": true }, "label": "Brightness up", "category": "media" },
+    { "action": "exec", "command": "brightnessctl -e4 -n2 set 5%-", "key": "XF86MonBrightnessDown", "mods": [], "options": { "locked": true, "repeating": true }, "label": "Brightness down", "category": "media" },
+    { "action": "exec", "command": "playerctl next", "key": "XF86AudioNext", "mods": [], "options": { "locked": true }, "label": "Next track", "category": "media" },
+    { "action": "exec", "command": "playerctl previous", "key": "XF86AudioPrev", "mods": [], "options": { "locked": true }, "label": "Previous track", "category": "media" },
+    { "action": "exec", "command": "playerctl play-pause", "key": "XF86AudioPlay", "mods": [], "options": { "locked": true }, "label": "Play / pause", "category": "media" },
+    { "action": "exec", "command": "gnome-calculator", "key": "XF86Calculator", "mods": [], "label": "Open the calculator", "category": "media" }
+  ]
+}
