@@ -1,0 +1,35 @@
+# Symptom tree for the troubleshooting wizard — walked by
+# src/ui/troubleshoot_wizard.rs via src/content/troubleshoot.rs.
+
+[[node]]
+id = "start"
+prompt = "What's wrong with your sound?"
+[[node.options]]
+label = "No sound at all"
+goto = "restart-audio"
+[[node.options]]
+label = "Wrong output device (e.g. HDMI instead of speakers)"
+goto = "wrong-device"
+
+[[node]]
+id = "restart-audio"
+prompt = "Restarting the audio service fixes this most of the time."
+[node.fix]
+description = "Restart PipeWire/WirePlumber"
+command = "systemctl --user restart wireplumber pipewire pipewire.socket pipewire-pulse pipewire-pulse.socket"
+requires_confirm = false
+
+[[node]]
+id = "wrong-device"
+prompt = "Open Sound settings and pick the right output device from the list."
+[[node.options]]
+label = "Open Sound settings"
+goto = "open-sound-settings"
+
+[[node]]
+id = "open-sound-settings"
+prompt = "Opening BOS Settings' Sound page."
+[node.fix]
+description = "Open Sound settings"
+command = "bos-settings --page sound"
+requires_confirm = false

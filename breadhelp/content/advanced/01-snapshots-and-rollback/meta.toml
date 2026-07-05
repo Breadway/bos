@@ -1,0 +1,5 @@
+title = "Snapshots and rollback"
+difficulty = "advanced"
+tags = ["snapper", "snapshots", "rollback"]
+related = []
+estimated_minutes = 3

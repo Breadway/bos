@@ -53,8 +53,18 @@ done
 echo "== bos-settings =="
 check "bos-settings installed" "command -v bos-settings"
 
+echo "== breadhelp =="
+check "breadhelp installed" "command -v breadhelp"
+check "breadhelp content installed" "[ -d /usr/share/breadhelp/content ]"
+check "bos-netcheck present" "command -v bos-netcheck"
+
 echo "== default dotfiles =="
 check "hyprland.lua present"  "[ -f \"\$HOME/.config/hypr/hyprland.lua\" ]"
+check "binds.json present" "[ -f \"\$HOME/.config/hypr/binds.json\" ]"
+check "monitors.json present" "[ -f \"\$HOME/.config/hypr/monitors.json\" ]"
+check "settings.json present" "[ -f \"\$HOME/.config/hypr/settings.json\" ]"
+check "autostart.json present" "[ -f \"\$HOME/.config/hypr/autostart.json\" ]"
+check "hypr scripts/lib present" "[ -f \"\$HOME/.config/hypr/scripts/lib/json.lua\" ]"
 check "mimeapps.list present" "[ -f \"\$HOME/.config/mimeapps.list\" ]"
 check "kitty config present"  "[ -f \"\$HOME/.config/kitty/kitty.conf\" ]"
 
