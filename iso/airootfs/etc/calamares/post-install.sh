@@ -320,8 +320,14 @@ if command -v snapper &>/dev/null; then
         sed -i 's/NUMBER_MIN_AGE="[^"]*"/NUMBER_MIN_AGE="1800"/' /etc/snapper/configs/root
         sed -i 's/NUMBER_LIMIT="[^"]*"/NUMBER_LIMIT="10"/' /etc/snapper/configs/root
         sed -i 's/NUMBER_LIMIT_IMPORTANT="[^"]*"/NUMBER_LIMIT_IMPORTANT="5"/' /etc/snapper/configs/root
+        # set-config (not sed) — snapper's own template text for this line has
+        # drifted across versions before, and a sed that doesn't match just
+        # silently no-ops, leaving ALLOW_USERS empty and every non-root
+        # `snapper` call (bos-settings' Snapshots page included) failing with
+        # "No permissions." forever. set-config is the stable API regardless
+        # of template wording.
         [[ -n "$MAIN_USER" ]] && \
-            sed -i "s/ALLOW_USERS=\"\"/ALLOW_USERS=\"$MAIN_USER\"/" /etc/snapper/configs/root
+            snapper -c root set-config "ALLOW_USERS=$MAIN_USER"
     else
         echo "ERROR: snapper config for root still missing after 3 attempts — snapshots/rollback will not work on this install"
     fi
@@ -369,7 +375,8 @@ fi
 # is bakery-managed, not pacman: the binaries and bakery manifest live in
 # /etc/skel/.local (baked in at ISO build time) and are copied into the user's
 # home below, so the install works fully offline with no DNS for bakery/GitHub.
-# bos-settings is the only pacman bread package and was installed by unpackfs.
+# bos-settings and breadhelp are the only pacman bread packages and were
+# installed by unpackfs.
 
 # ---------------------------------------------------------------------------
 # Deploy dotfiles + the bakery bread ecosystem into the user's home (Calamares
