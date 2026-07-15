@@ -1,3 +1,0 @@
-[workspace]
-members = ["breadhelp"]
-resolver = "2"
