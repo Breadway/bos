@@ -2,21 +2,19 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use gtk4::prelude::*;
-use gtk4::{Application, ApplicationWindow, Box as GBox, Orientation, Overlay, Stack, StackTransitionType};
+use gtk4::{Application, ApplicationWindow, Box as GBox, Orientation, Stack, StackTransitionType};
 
 use crate::cli::Action;
 use crate::config::State;
 use crate::content::{keybinds, ContentStore};
 
 use super::home::Home;
-use super::onboarding::{self, Onboarding};
-use super::{ask, learn, modes, tabs};
+use super::{ask, learn, modes, tabs, tour};
 
 const DEFAULT_TAB: &str = "home";
 
 struct Handle {
     window: ApplicationWindow,
-    onboarding: Onboarding,
     home: Home,
 }
 
@@ -39,14 +37,15 @@ pub fn present(app: &Application, action: Action) {
         }
         let cell_ref = cell.borrow();
         let handle = cell_ref.as_ref().unwrap();
+        let display = WidgetExt::display(&handle.window);
 
         if action.force_onboard {
-            let mut state = State::load();
-            state.set_onboarding_completed(false);
-            state.set_onboarding_step(0);
-            handle.onboarding.goto(0);
-            handle.onboarding.root.set_visible(true);
-            handle.window.present();
+            tour::restart(&display);
+            return;
+        }
+
+        if let Some(id) = &action.tour_event {
+            tour::on_tour_event(id);
             return;
         }
 
@@ -64,8 +63,12 @@ pub fn present(app: &Application, action: Action) {
         }
 
         // Every-login autostart builds the window (so the app is ready to
-        // respond to SUPER+/ instantly) but must only pop it open on a
-        // genuine first run — not on every subsequent login.
+        // respond to SUPER+/ instantly) but only starts the tour / pops the
+        // window open on a genuine first run — never on later logins.
+        if action.autostart && !State::load().onboarding_completed() {
+            tour::start(&display);
+            return;
+        }
         let silent_autostart = action.autostart && State::load().onboarding_completed();
         if !silent_autostart {
             handle.window.present();
@@ -74,6 +77,12 @@ pub fn present(app: &Application, action: Action) {
 }
 
 fn build(app: &Application) -> Handle {
+    // First thing on every cold start: revert any keybind a previous,
+    // crashed run may have left temporarily rebound mid tour-step (see
+    // `ui::tour`'s crash-safety notes) before the user could be surprised
+    // by it firing again.
+    tour::self_heal();
+
     let window = ApplicationWindow::builder()
         .application(app)
         .title("BOS Help")
@@ -94,7 +103,7 @@ fn build(app: &Application) -> Handle {
     stack.set_vexpand(true);
     stack.set_transition_type(StackTransitionType::SlideLeftRight);
 
-    let home = super::home::build(&store, &binds, &window, state.mode(), {
+    let home = super::home::build(&binds, &window, state.mode(), {
         let window = window.clone();
         move |mode| {
             modes::apply(&window, mode);
@@ -113,30 +122,14 @@ fn build(app: &Application) -> Handle {
     content_vbox.append(&switcher);
     content_vbox.append(&stack);
 
-    let overlay = Overlay::new();
-    overlay.set_child(Some(&content_vbox));
-
-    // The on_finish closure needs to hide the onboarding widget once it's
-    // built, but the widget doesn't exist until `onboarding::build` returns —
-    // so it closes over a cell filled in right after.
-    let hide_target: Rc<RefCell<Option<GBox>>> = Rc::new(RefCell::new(None));
-    let hide_target_for_closure = hide_target.clone();
-    let ob = onboarding::build(move || {
-        if let Some(w) = hide_target_for_closure.borrow().as_ref() {
-            w.set_visible(false);
-        }
-    });
-    *hide_target.borrow_mut() = Some(ob.root.clone());
-
-    ob.root.set_visible(!state.onboarding_completed());
-    overlay.add_overlay(&ob.root);
-
-    window.set_child(Some(&overlay));
+    window.set_child(Some(&content_vbox));
     // Deliberately not presented here — `present()` (the caller) decides
     // whether this initial build should actually be shown (see
     // `silent_autostart` above), so a from-cold every-login autostart with
     // onboarding already complete builds a ready-but-hidden window instead
-    // of flashing it open.
+    // of flashing it open. On a genuine first run, the tour overlay runs
+    // independently of this window (see `tour::start`) — it never needs to
+    // be shown at all until the user explicitly opens it later.
 
-    Handle { window, onboarding: ob, home }
+    Handle { window, home }
 }

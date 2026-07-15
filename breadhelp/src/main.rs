@@ -30,5 +30,13 @@ fn main() {
         glib::ExitCode::SUCCESS
     });
 
+    // Best-effort revert of a tour step's temporarily-rebound keybind (see
+    // `ui::tour`'s crash-safety notes) on a clean exit — `rebind_temp` is a
+    // detached fire-and-forget `hyprctl` spawn, so it still completes even
+    // though this process is exiting right after.
+    app.connect_shutdown(|_| {
+        ui::tour::self_heal();
+    });
+
     app.run();
 }

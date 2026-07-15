@@ -119,6 +119,32 @@ impl State {
         self.save();
     }
 
+    /// Set the instant before `services::hyprland::rebind_temp` is called for
+    /// a tour step with no compositor-observable signal (e.g. the screenshot
+    /// step), cleared the instant after reverting. If breadhelp is killed
+    /// mid-step, this is how the next launch knows a keybind was left
+    /// pointing at a chained `--tour-event` ping and self-heals it before
+    /// the user can be surprised by a stray tour popup — see `ui::tour`.
+    pub fn pending_rebind(&self) -> Option<(String, String)> {
+        let key = self.doc.get("tour")?.get("pending_rebind_key")?.as_str()?.to_string();
+        let original = self.doc.get("tour")?.get("pending_rebind_original")?.as_str()?.to_string();
+        Some((key, original))
+    }
+
+    pub fn set_pending_rebind(&mut self, key: &str, original_bind_value: &str) {
+        self.doc["tour"]["pending_rebind_key"] = value(key);
+        self.doc["tour"]["pending_rebind_original"] = value(original_bind_value);
+        self.save();
+    }
+
+    pub fn clear_pending_rebind(&mut self) {
+        if let Some(table) = self.doc.get_mut("tour").and_then(|t| t.as_table_mut()) {
+            table.remove("pending_rebind_key");
+            table.remove("pending_rebind_original");
+        }
+        self.save();
+    }
+
     pub fn mode(&self) -> Mode {
         let s = self.doc.get("general").and_then(|t| t.get("mode")).and_then(|v| v.as_str()).unwrap_or("normal");
         Mode::from_str(s)

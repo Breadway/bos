@@ -1,0 +1,24 @@
+# Live guided tour steps, walked by ui::tour. Phase A validation subset —
+# just enough to prove the spotlight/must-do engine end-to-end (breadbar's
+# plain observe-only highlight, breadbox's real openlayer detection) before
+# authoring the full app-by-app tour. See breadhelp-tour.lua for the
+# `--tour-event` ids this matches against.
+
+[[step]]
+id = "welcome"
+title = "Welcome to BOS"
+body = "This is a quick, hands-on tour of your desktop. Instead of just describing things, we'll point at the real thing on screen as we go. Press Next when you're ready."
+
+[[step]]
+id = "breadbar"
+title = "Breadbar"
+body = "This bar across the top of your screen always shows your workspace, the time, and quick status for network, volume, and battery. Click any icon on it to see more."
+target_namespace = "breadbar"
+
+[[step]]
+id = "breadbox"
+title = "Opening apps"
+body = "Everything in BOS opens from here. Press [Show Keybind]super + space[/Show Keybind] to open breadbox, then start typing an app's name and press Enter to launch it."
+target_namespace = "breadbox"
+launch = "breadbox"
+success_event = "layer-closed:breadbox"

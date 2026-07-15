@@ -27,6 +27,32 @@ label.keybind-chip { \
 .dad-mode button { min-height: 44px; padding: 10px 18px; }\n\
 .beginner-mode button { min-height: 36px; }\n\
 .compact-mode .view-content { padding: 12px; }\n\
+/* ui::tour — mask strips dim everything except the spotlight cutout; the \
+   callout is a small floating card near (or, for no-target steps, centered \
+   over) the highlighted thing. The shared stylesheet's `window { \
+   background-color: @bg }` rule matches every GtkWindow including these — \
+   without this override GTK paints that opaque backdrop before the \
+   translucent mask box composites onto it, so the alpha never reaches the \
+   compositor and the \"dim\" reads as solid black. A class-qualified \
+   selector beats the shared rule's bare type selector on specificity \
+   regardless of stylesheet load order. */\n\
+window.tour-window { background-color: transparent; }\n\
+.tour-mask { background-color: rgba(0, 0, 0, 0.65); }\n\
+.tour-callout { \
+  background-color: @surface; \
+  color: @on-surface; \
+  border-radius: 12px; \
+  padding: 16px 20px; \
+}\n\
+.tour-callout label.title { font-weight: bold; font-size: 15px; }\n\
+/* The one payoff line in the whole tour — the user did the real thing and \
+   the compositor proved it — shouldn't read as the same throwaway meta \
+   text as the step counter. */\n\
+.tour-confirmed { color: @green; font-weight: bold; }\n\
+/* Extra top margin (on top of the callout's uniform 12px row gap) marks \
+   the \"Show me\" fallback as its own beat, not a continuation of the \
+   instructional paragraph above it. */\n\
+.tour-hint-row { margin-top: 8px; }\n\
 ";
 
 thread_local! {
