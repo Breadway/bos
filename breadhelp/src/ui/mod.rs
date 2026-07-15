@@ -4,7 +4,7 @@ pub mod home;
 pub mod keybind_viewer;
 pub mod learn;
 pub mod modes;
-pub mod onboarding;
 pub mod tabs;
+pub mod tour;
 pub mod troubleshoot_wizard;
 pub mod window;

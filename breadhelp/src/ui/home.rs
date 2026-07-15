@@ -5,7 +5,7 @@ use gtk4::{
 };
 
 use crate::config::Mode;
-use crate::content::{keybinds::Keybind, ContentStore};
+use crate::content::keybinds::Keybind;
 
 use super::{keybind_viewer, troubleshoot_wizard};
 
@@ -37,7 +37,6 @@ impl Home {
 }
 
 pub fn build(
-    store: &ContentStore,
     binds: &[Keybind],
     parent_window: &ApplicationWindow,
     initial_mode: Mode,
@@ -88,19 +87,19 @@ pub fn build(
     }
     vbox.append(&troubleshoot_btn);
 
-    let getting_started = store.guides_in("getting-started");
-    if !getting_started.is_empty() {
-        let heading = Label::new(Some("Getting Started"));
-        heading.add_css_class("section-header");
-        heading.set_xalign(0.0);
-        vbox.append(&heading);
-
-        for guide in getting_started.iter().take(3) {
-            let lbl = Label::new(Some(&format!("\u{2022} {}", guide.meta.title)));
-            lbl.set_xalign(0.0);
-            vbox.append(&lbl);
-        }
+    // The live guided tour (ui::tour) is the real hands-on onboarding now —
+    // a static text preview of the same guide titles Learn already lists
+    // was a fossil of the old in-window wizard and just duplicated Learn's
+    // sidebar. A single re-entry point is all this tab needs.
+    let replay_btn = Button::with_label("Replay the tour");
+    replay_btn.set_halign(Align::Start);
+    {
+        let parent = parent_window.clone();
+        replay_btn.connect_clicked(move |_| {
+            crate::ui::tour::restart(&WidgetExt::display(&parent));
+        });
     }
+    vbox.append(&replay_btn);
 
     vbox.append(&keybind_viewer::build(binds));
 

@@ -19,6 +19,12 @@ pub struct Action {
     /// From a breadd Lua module (e.g. `breadhelp-suggest.lua`) reacting to a
     /// system event. Resolved to banner text by `services::breadd::resolve`.
     pub suggest: Option<String>,
+    /// From `breadhelp-tour.lua` forwarding a bread/Hyprland event (window
+    /// opened, layer opened, workspace changed, or a rebind-chained ping) as
+    /// a candidate "the user just did the thing" signal for the live tour.
+    /// Only acted on if a tour is currently waiting for this exact id —
+    /// see the crash-safety note on `ui::tour`.
+    pub tour_event: Option<String>,
 }
 
 pub fn parse(args: &[std::ffi::OsString]) -> Action {
@@ -31,6 +37,8 @@ pub fn parse(args: &[std::ffi::OsString]) -> Action {
             action.autostart = true;
         } else if arg == "--suggest" {
             action.suggest = it.next().and_then(|s| s.to_str()).map(str::to_string);
+        } else if arg == "--tour-event" {
+            action.tour_event = it.next().and_then(|s| s.to_str()).map(str::to_string);
         }
     }
     action

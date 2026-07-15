@@ -8,6 +8,7 @@
 pub mod keybinds;
 pub mod markdown;
 pub mod meta;
+pub mod tour;
 pub mod troubleshoot;
 
 use std::collections::BTreeMap;

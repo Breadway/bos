@@ -135,6 +135,13 @@ fn render_spans(spans: &[Span], binds: &[Keybind]) -> gtk4::Widget {
                 let lbl = Label::new(None);
                 lbl.set_markup(&inline_markup(t));
                 lbl.set_wrap(true);
+                // `set_wrap` alone only wraps once something else constrains
+                // the label's allocated width (true inside guide_view's fixed-
+                // width scrolled pane) — a freestanding top-level window (the
+                // tour callout) has nothing to allocate against, so without
+                // this a long paragraph reports its unwrapped natural width
+                // and the whole window balloons to fit it.
+                lbl.set_max_width_chars(48);
                 lbl.set_xalign(0.0);
                 row.append(&lbl);
             }
