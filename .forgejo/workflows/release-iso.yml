@@ -111,8 +111,18 @@ jobs:
         run: |
           set -euo pipefail
           # bread-theme is not in the bakery index; build it at the tag pinned
-          # in bos-settings/Cargo.toml so the CLI matches the library version.
-          THEME_TAG=$(grep 'bread-theme.*tag' /bos/bos-settings/Cargo.toml \
+          # in bos-settings' Cargo.toml so the CLI matches the library version
+          # the bos-settings package (and breadbar/breadbox/breadpad) were
+          # built against. bos-settings used to live at bos-settings/Cargo.toml
+          # inside this repo; it's since been split into its own repo
+          # (git.breadway.dev/Breadway/bos-settings), so fetch its Cargo.toml
+          # from there instead of a path that no longer exists in this
+          # checkout. Uses bos-settings' default branch (dev) — the branch its
+          # own CI actually publishes the `bos-settings` pacman package from.
+          REPO_OWNER="${GITHUB_REPOSITORY%%/*}"
+          curl -fsSL "https://git.breadway.dev/${REPO_OWNER}/bos-settings/raw/branch/dev/Cargo.toml" \
+            -o /tmp/bos-settings-Cargo.toml
+          THEME_TAG=$(grep 'bread-theme.*tag' /tmp/bos-settings-Cargo.toml \
                       | grep -oP '"v[^"]+"' | tr -d '"')
           echo "Building bread-theme @ $THEME_TAG"
           git clone --branch "$THEME_TAG" --depth 1 \
