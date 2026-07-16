@@ -18,9 +18,23 @@
 
 local M = bread.module({ name = "breadhelp-tour", version = "1.0.0" })
 
+-- `bread.exec` only takes a single shell command string — it always runs it
+-- as `sh -lc <cmd>` (see breadd's Lua runtime), there's no array-exec form
+-- that bypasses the shell. `event.data.class` (a Wayland window class) and
+-- `event.data.data` (a layer-shell namespace) are both arbitrary strings a
+-- client fully controls — a window/surface can name itself
+-- `x; rm -rf ~ #` and have that land in a real shell command otherwise.
+-- POSIX single-quoting neutralizes that: wrap the value in single quotes,
+-- and turn any single quote *inside* it into `'\''` (close the quote, an
+-- escaped literal quote, reopen the quote) — the one escaping rule `sh`
+-- needs to treat the whole thing as inert data, never command syntax.
+local function shell_quote(s)
+    return "'" .. tostring(s):gsub("'", "'\\''") .. "'"
+end
+
 function M.on_load()
     bread.on("bread.window.opened", function(event)
-        bread.exec("breadhelp --tour-event window:" .. event.data.class)
+        bread.exec("breadhelp --tour-event " .. shell_quote("window:" .. event.data.class))
     end)
 
     bread.on("bread.workspace.changed", function(event)
@@ -28,11 +42,11 @@ function M.on_load()
     end)
 
     bread.hyprland.on_raw("openlayer", function(event)
-        bread.exec("breadhelp --tour-event layer:" .. event.data.data)
+        bread.exec("breadhelp --tour-event " .. shell_quote("layer:" .. event.data.data))
     end)
 
     bread.hyprland.on_raw("closelayer", function(event)
-        bread.exec("breadhelp --tour-event layer-closed:" .. event.data.data)
+        bread.exec("breadhelp --tour-event " .. shell_quote("layer-closed:" .. event.data.data))
     end)
 end
 

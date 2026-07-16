@@ -24,7 +24,12 @@ jobs:
             kcoreaddons kpmcore libpwquality qt6-declarative qt6-svg yaml-cpp
           useradd -m builder
           git config --global --add safe.directory '*'
-          git clone --depth 1 "https://git.breadway.dev/${GITHUB_REPOSITORY}.git" /home/builder/src
+          # Clone the branch/tag that triggered this run (not the default
+          # branch) — same as bibata.yml/powerlevel10k.yml/yay-bin.yml, so a
+          # push to a feature branch (or a release tag) builds and publishes
+          # from that ref, not whatever happens to be on the default branch.
+          git clone --depth 1 --branch "${GITHUB_REF_NAME}" \
+            "https://git.breadway.dev/${GITHUB_REPOSITORY}.git" /home/builder/src
           chown -R builder:builder /home/builder/src
           su builder -c "cd /home/builder/src/packaging/calamares && makepkg -f --noconfirm --nocheck"
           PKG=$(find /home/builder/src/packaging/calamares -name '*.pkg.tar.zst' | head -1)
