@@ -189,12 +189,8 @@ yay-bin
 #
 # bos-settings and breadhelp are BOS-specific pacman packages (not part of the
 # bakery index), so they stay here, served from the [breadway] repo.
-# breadhelp temporarily commented out: its own repo (git.breadway.dev/
-# Breadway/breadhelp) exists and builds, but hasn't been published to
-# [breadway] yet (package.yml's REGISTRY_TOKEN secret still needs to be
-# added to that repo). Re-add once a tag publish succeeds.
 bos-settings
-#breadhelp
+breadhelp
 
 # Input / screen utilities
 brightnessctl

@@ -81,6 +81,14 @@ alias ip='ip --color=auto'
 alias update='bos-update'
 alias pacman='sudo pacman'
 
+# Package shortcuts — official repos via pacman, AUR via yay (alt-* prefix).
+alias install='sudo pacman -S'
+alias uninstall='sudo pacman -R'
+alias srchpkg='sudo pacman -Ss'
+alias alt-install='yay -S'
+alias alt-uninstall='yay -R'
+alias alt-srchpkg='yay -Ss'
+
 # ~/.local/bin holds the bread* binaries baked in at build time.
 export PATH="$HOME/.local/bin:$PATH"
 

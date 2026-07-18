@@ -1,7 +1,7 @@
 # BOS — Bread Operating System
 
 An Arch-based, Hyprland desktop distribution that ships the [bread
-ecosystem](https://github.com/Breadway) preconfigured. One Calamares install
+ecosystem](https://git.breadway.dev/Breadway) preconfigured. One Calamares install
 produces a themed, bootable Wayland desktop — no manual Arch bootstrap, no
 wiring up dotfiles, no per-tool bakery installs.
 
