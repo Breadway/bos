@@ -7,7 +7,7 @@ from this repo.
 
 `bos-settings` is also pacman-packaged and served from the same [breadway]
 repo, but its source lives in its own repo now (`~/Projects/bos-settings`,
-`github.com/Breadway/bos-settings`) so a bos-settings release doesn't require
+`git.breadway.dev/Breadway/bos-settings`) so a bos-settings release doesn't require
 a BOS ISO release.
 
 Everything else the bread ecosystem ships (breadbar, breadbox, breadpad, ...)
