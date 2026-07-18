@@ -1,0 +1,19 @@
+{
+  "gaps_in": 5,
+  "gaps_out": 10,
+  "border_size": 2,
+  "active_border": "rgba(88c0d0ff)",
+  "inactive_border": "rgba(4c566aff)",
+  "layout": "dwindle",
+  "resize_on_border": true,
+  "rounding": 8,
+  "blur_enabled": true,
+  "blur_size": 6,
+  "blur_passes": 2,
+  "shadow_enabled": true,
+  "shadow_range": 12,
+  "shadow_render_power": 3,
+  "kb_layout": "us",
+  "follow_mouse": 1,
+  "natural_scroll": true
+}

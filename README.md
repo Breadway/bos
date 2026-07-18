@@ -1,7 +1,7 @@
 # BOS — Bread Operating System
 
 An Arch-based, Hyprland desktop distribution that ships the [bread
-ecosystem](https://github.com/Breadway) preconfigured. One Calamares install
+ecosystem](https://git.breadway.dev/Breadway) preconfigured. One Calamares install
 produces a themed, bootable Wayland desktop — no manual Arch bootstrap, no
 wiring up dotfiles, no per-tool bakery installs.
 
@@ -14,9 +14,15 @@ wiring up dotfiles, no per-tool bakery installs.
 - **Compositor**: Hyprland with a native-Lua config (`hyprland.lua`), curated
   keybinds, snappy animations, blur, and pywal-driven colours on a black base.
 - **bread ecosystem**, baked into `/etc/skel` from bakery-managed binaries
-  (no network needed at install time): `bread`/`breadd`, `breadbar` (status bar
-  + notification daemon), `breadbox` (launcher), `breadcrumbs` (Wi-Fi profiles),
-  `breadpad` (notes/reminders), `breadman`, and the `bakery` package manager.
+  (no network needed at install time): the `bread`/`breadd` automation daemon,
+  `breadbar` (status bar + notifications), `breadbox` (launcher), `breadclip`
+  (clipboard history), `breadcrumbs` (Wi-Fi profiles), `breadpad`/`breadman`
+  (notes), `breadpaper` (wallpaper + theme), `breadsearch` (system search),
+  `breadmon` (monitor layout TUI), `breadshot` (screenshots), `bread-theme`
+  (the shared palette engine), and the `bakery` package manager. `breadlock`
+  (lock screen + greeter) ships as its own pacman package alongside
+  `bos-settings`, not through bakery. See [below](#the-bread-ecosystem) for
+  what each one actually does.
 - **bos-settings**: a GTK4 control panel that configures every bread\* app's
   config from a GUI (non-destructively), plus snapshot rollback and bakery
   updates. See below.
@@ -162,18 +168,49 @@ cargo build --release -p bos-settings
 cargo test -p bos-settings        # includes config round-trip tests
 ```
 
-## The bread ecosystem at a glance
+## The bread ecosystem
+
+Everything below is a separate bakery-distributed project with its own repo
+and release cadence, baked into `/etc/skel` at ISO build time so a fresh
+install has them all with no network round-trip. Some ship more than one
+binary from a single package — that's noted where it applies. Most have a
+corresponding **bos-settings** panel for configuration; this table is about
+*using* the app directly.
+
+**Desktop shell**
 
 | Tool | Role | Launch |
 |------|------|--------|
-| `bread` / `breadd` | Reactive automation daemon — normalises hardware/compositor signals into events dispatched to Lua modules | runs at login |
-| `breadbar` | Top status bar (workspaces, clock, stats, tray) **and** the notification daemon | runs at login |
-| `breadbox` | Application launcher | `SUPER+Space` |
-| `breadpad` | Notes & reminders (AI-classified, optional CalDAV sync) | `SUPER+U` |
-| `breadman` | Package-manager UI | `SUPER+M` |
-| `breadcrumbs` | Wi-Fi profile state machine (location-aware) | CLI / BOS Settings |
-| `bakery` | CLI package manager for the ecosystem | `bakery` |
-| `bos-settings` | Unified GTK4 control panel for all of the above + snapshots + updates | `SUPER+,` |
+| `bread` / `breadd` | Reactive automation daemon — normalises hardware/compositor/power/network signals into events dispatched to Lua modules (`~/.config/bread/`). Everything else in the ecosystem can subscribe to its events. | runs at login (`breadd.service`) |
+| `breadbar` | Top status bar: workspaces, clock, system stats, tray, **and** the notification daemon — one process, not two | runs at login |
+| `breadbox` | Application launcher (fuzzy search, per-context results via `breadbox-sync`) | `SUPER+Space` |
+| `breadlock` | Idle lock screen. Also provides `breadgreet`, the login greeter hosted under `cage` via greetd — same project, two binaries, one visual identity from login to lock | `SUPER+L` (via `loginctl lock-session`, picked up by `hypridle`); `breadgreet` runs automatically at boot |
+| `bread-theme` | The shared palette engine every bread app renders through: fixed dark base colors, with only the accent slots following the current wallpaper's pywal palette. `bread-theme generate` regenerates the stylesheet; hyprland.lua calls it automatically on wallpaper change. | invoked automatically, rarely run by hand |
+
+**Productivity**
+
+| Tool | Role | Launch |
+|------|------|--------|
+| `breadpad` | Quick-capture scratchpad/notes popup with AI classification and optional CalDAV calendar sync | `SUPER+U` |
+| `breadman` | The fuller notes manager view (browse/organize) — ships from the same `breadpad` package as a second binary | `SUPER+M` |
+| `breadclip` | Clipboard history. `breadclipd` is the background daemon that actually records history; `breadclip` is the GTK4 popup that browses it | `SUPER+V` / `SUPER+Shift+V` |
+| `breadsearch` | Semantic system-wide search (indexes files/notes, embeds locally — CPU/ROCm/CUDA backend configurable). `breadmill` is its indexing daemon. | via breadbox, or BOS Settings → File Search |
+
+**System**
+
+| Tool | Role | Launch |
+|------|------|--------|
+| `breadcrumbs` | Location-aware Wi-Fi profile state machine, with optional Tailscale integration — switches network behavior based on which saved network you're on | CLI, or BOS Settings → Wi-Fi Profiles |
+| `breadpaper` | Wallpaper manager — sets the wallpaper via `awww`, generates the pywal accent palette from it, and reloads every bread-theme app | BOS Settings → Wallpaper |
+| `breadmon` | TUI monitor layout manager (resolution/position/scaling) — the interactive counterpart to BOS Settings' read-only Display panel | `breadmon` in a terminal |
+| `breadshot` | Screenshot utility wrapping `grim`/`slurp`/`wl-copy` with Hyprland-aware geometry (multi-monitor-safe region select) | `breadshot`, or `SUPER+Shift+S/C/P` |
+
+**Tooling**
+
+| Tool | Role | Launch |
+|------|------|--------|
+| `bakery` | CLI package manager for the whole ecosystem — install/update/list, tracks installed binaries + versions independently of pacman | `bakery` |
+| `bos-settings` | Unified GTK4 control panel: live system state + control (network, power, firewall, users, packages, firmware, AUR, snapshots) plus non-destructive config editing for every app above | `SUPER+,` |
 
 ## Keyboard shortcuts
 
@@ -185,12 +222,16 @@ cheatsheet in-session; first boot shows a short welcome (once).
 | `SUPER+Return` | Terminal (kitty) |
 | `SUPER+Space` | App launcher (breadbox) |
 | `SUPER+E` / `SUPER+B` | Files (nautilus) / Browser (zen) |
-| `SUPER+U` / `SUPER+M` | breadpad / breadman |
+| `SUPER+U` / `SUPER+M` | Notes (breadpad) / notes manager (breadman) |
 | `SUPER+,` / `SUPER+/` | BOS Settings / keybind cheatsheet |
 | `SUPER+L` / `SUPER+N` | Lock / log out |
 | `SUPER+Backspace` | Close window |
-| `SUPER+F` / `SUPER+V` / `SUPER+T` | Fullscreen / float / toggle split |
-| `SUPER+Shift+V` | Clipboard history |
+| `SUPER+F` | Fullscreen |
+| `SUPER+I` | Toggle floating |
+| `SUPER+P` | Toggle pseudotile |
+| `SUPER+R` | Resize mode |
+| `SUPER+T` | Toggle split direction |
+| `SUPER+V` / `SUPER+Shift+V` | Clipboard history (breadclip) |
 | `SUPER+Tab` | Last window |
 | `SUPER+Shift+S/C/P` | Screenshot region→file / region→clipboard / screen→file |
 | `SUPER+arrows` | Move focus |
@@ -199,7 +240,11 @@ cheatsheet in-session; first boot shows a short welcome (once).
 | `SUPER+1..0` | Switch to workspace 1–10 |
 | `SUPER+Shift+1..0` | Move window to workspace |
 | `SUPER+[ / ]` | Previous / next workspace |
+| `SUPER+Shift+[ / ]` | Move window to previous / next workspace |
+| `SUPER+scroll` | Cycle workspaces |
 | `SUPER+left/right-drag` | Move / resize window with the mouse |
+| Volume / brightness / play-pause / next / prev | Media keys — work even on the lock screen |
+| Calculator key | Opens gnome-calculator |
 
 ## Known limitations
 

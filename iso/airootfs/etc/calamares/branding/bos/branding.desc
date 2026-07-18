@@ -9,10 +9,10 @@ strings:
     versionedName:       "BOS (rolling)"
     shortVersionedName:  "BOS"
     bootloaderEntryName: "BOS"
-    productUrl:          "https://github.com/Breadway/bos"
-    supportUrl:          "https://github.com/Breadway/bos/issues"
-    knownIssuesUrl:      "https://github.com/Breadway/bos/issues"
-    releaseNotesUrl:     "https://github.com/Breadway/bos/releases"
+    productUrl:          "https://git.breadway.dev/Breadway/bos"
+    supportUrl:          "https://git.breadway.dev/Breadway/bos/issues"
+    knownIssuesUrl:      "https://git.breadway.dev/Breadway/bos/issues"
+    releaseNotesUrl:     "https://git.breadway.dev/Breadway/bos/releases"
 
 images:
     productLogo:         "logo.png"

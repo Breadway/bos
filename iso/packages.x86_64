@@ -187,9 +187,10 @@ yay-bin
 # networkmanager, openssl, zlib, systemd-libs) — keep those even though no bread
 # package depends on them.
 #
-# bos-settings is a BOS-specific pacman package (not part of the bakery index),
-# so it stays here, served from the [breadway] repo.
+# bos-settings and breadhelp are BOS-specific pacman packages (not part of the
+# bakery index), so they stay here, served from the [breadway] repo.
 bos-settings
+breadhelp
 
 # Input / screen utilities
 brightnessctl

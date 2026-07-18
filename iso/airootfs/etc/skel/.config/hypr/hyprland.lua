@@ -1,61 +1,30 @@
 -- BOS Hyprland configuration — native Lua config (Hyprland 0.55+).
 -- hyprlang (.conf) is deprecated; this uses the built-in `hl` API.
--- Single-file and non-modular by design. Reference: https://wiki.hypr.land/
+-- Mostly single-file by design (reference: https://wiki.hypr.land/) — the
+-- exceptions are keybinds, appearance settings, monitor layout, and the
+-- extra autostart list, each loaded from a JSON file (binds.json,
+-- settings.json, monitors.json, autostart.json) so bread* apps can read/edit
+-- them as structured data instead of parsing this Lua file.
+--
+-- Every loader below is wrapped in `pcall`: this file is loaded as a single
+-- Lua chunk, so an uncaught error partway through would abort everything
+-- *after* it too (no keybinds, no window rules, no autostart) — a bad or
+-- hand-edited JSON file must degrade to that one section's hardcoded
+-- defaults, never take down the rest of the session.
+local script_dir = os.getenv("HOME") .. "/.config/hypr/scripts/"
+local config_home = os.getenv("HOME") .. "/.config/hypr/"
 
-local mod = "SUPER"
+-- ---------------------------------------------------------------------------
+-- Monitors — from monitors.json, always falls back to a generic
+-- any-hardware default (see scripts/display/monitors.lua).
+-- ---------------------------------------------------------------------------
+pcall(dofile, script_dir .. "display/monitors.lua")
 
 -- ---------------------------------------------------------------------------
--- Monitors — generic default that works on any hardware.
+-- Core appearance/input settings — from settings.json (see
+-- scripts/ui/settings.lua).
 -- ---------------------------------------------------------------------------
-hl.monitor({ output = "", mode = "preferred", position = "auto", scale = "auto" })
-
--- ---------------------------------------------------------------------------
--- Core settings.
--- ---------------------------------------------------------------------------
-hl.config({
-    general = {
-        gaps_in          = 5,
-        gaps_out         = 10,
-        border_size      = 2,
-        col = {
-            active_border   = "rgba(88c0d0ff)",
-            inactive_border = "rgba(4c566aff)",
-        },
-        layout           = "dwindle",
-        resize_on_border = true,
-    },
-    decoration = {
-        rounding         = 8,
-        active_opacity   = 1.0,
-        inactive_opacity = 1.0,
-        blur = {
-            enabled           = true,
-            size              = 6,
-            passes            = 2,
-            new_optimizations = true,
-        },
-        shadow = {
-            enabled      = true,
-            range        = 12,
-            render_power = 3,
-        },
-    },
-    input = {
-        kb_layout    = "us",
-        follow_mouse = 1,
-        touchpad     = { natural_scroll = true },
-    },
-    dwindle = {
-        preserve_split = true,
-    },
-    animations = {
-        enabled = true,
-    },
-    misc = {
-        disable_hyprland_logo    = true,
-        disable_splash_rendering = true,
-    },
-})
+pcall(dofile, script_dir .. "ui/settings.lua")
 
 -- ---------------------------------------------------------------------------
 -- Animations — snappy curves + per-leaf speeds (matches the reference laptop;
@@ -86,10 +55,12 @@ for _, animation in ipairs(animations) do
 end
 
 -- ---------------------------------------------------------------------------
--- Window rules — float + centre the onboarding popups (kitty --class …).
+-- Window rules — float + centre the onboarding/help popups.
+-- breadhelp replaces the old bos-welcome/bos-keybinds kitty+less popups.
+-- bos-netsetup (nmtui, from bos-netcheck) is unrelated to breadhelp and
+-- still floats the same way.
 -- ---------------------------------------------------------------------------
-hl.window_rule({ name = "bos-keybinds", match = { class = "^(bos-keybinds)$" }, float = true, size = { 760, 720 } })
-hl.window_rule({ name = "bos-welcome",  match = { class = "^(bos-welcome)$" },  float = true, size = { 700, 560 } })
+hl.window_rule({ name = "breadhelp",    match = { class = "^(com\\.breadway\\.breadhelp)$" }, float = true, size = { 880, 600 } })
 hl.window_rule({ name = "bos-netsetup", match = { class = "^(bos-netsetup)$" }, float = true, size = { 700, 560 } })
 
 -- ---------------------------------------------------------------------------
@@ -110,94 +81,31 @@ hl.env("_JAVA_AWT_WM_NONREPARENTING", "1")
 -- above blurs behind the terminal while keeping text fully opaque.
 
 -- ---------------------------------------------------------------------------
--- Standard BOS keybinds (SUPER = mod).
--- ---------------------------------------------------------------------------
--- Apps / window management
-hl.bind(mod .. " + RETURN",    hl.dsp.exec_cmd("kitty"))
-hl.bind(mod .. " + BACKSPACE", hl.dsp.window.close())
-hl.bind(mod .. " + SPACE",     hl.dsp.exec_cmd("breadbox"))
-hl.bind(mod .. " + E",         hl.dsp.exec_cmd("nautilus"))
-hl.bind(mod .. " + B",         hl.dsp.exec_cmd("zen-browser"))
-hl.bind(mod .. " + U",         hl.dsp.exec_cmd("breadpad"))
-hl.bind(mod .. " + M",         hl.dsp.exec_cmd("breadman"))
-hl.bind(mod .. " + comma",     hl.dsp.exec_cmd("bos-settings"))
-hl.bind(mod .. " + slash",     hl.dsp.exec_cmd("bos-keybinds"))
-hl.bind(mod .. " + L",         hl.dsp.exec_cmd("loginctl lock-session"))
-hl.bind(mod .. " + F",         hl.dsp.window.fullscreen({ action = "toggle" }))
-hl.bind(mod .. " + I",         hl.dsp.window.float({ action = "toggle" }))
-hl.bind(mod .. " + P",         hl.dsp.window.pseudo({ action = "toggle" }))
-hl.bind(mod .. " + R",         hl.dsp.window.resize())
--- breadclip (its own gtk4-layer-shell popup — not a TUI, so no terminal
--- needed). Previously piped cliphist through fzf directly from the
--- compositor with no terminal attached, which was a silent no-op.
--- Bound on both V (breadclip's own suggested default, freed up now that
--- float toggle moved to I) and SHIFT+V (kept for muscle memory).
-hl.bind(mod .. " + V",         hl.dsp.exec_cmd("breadclip"))
-hl.bind(mod .. " + SHIFT + V", hl.dsp.exec_cmd("breadclip"))
-hl.bind(mod .. " + T",         hl.dsp.layout("togglesplit"))
-hl.bind(mod .. " + Tab",       hl.dsp.focus({ urgent_or_last = true }))
-hl.bind(mod .. " + N",         hl.dsp.exit())
-
--- Screenshots (grim + slurp + wl-clipboard)
-hl.bind(mod .. " + SHIFT + S", hl.dsp.exec_cmd([[bash -c 'mkdir -p ~/Pictures/Screenshots && grim -g "$(slurp)" ~/Pictures/Screenshots/$(date +%Y%m%d-%H%M%S).png']]))
-hl.bind(mod .. " + SHIFT + C", hl.dsp.exec_cmd([[bash -c 'grim -g "$(slurp)" - | wl-copy']]))
-hl.bind(mod .. " + SHIFT + P", hl.dsp.exec_cmd([[bash -c 'mkdir -p ~/Pictures/Screenshots && grim ~/Pictures/Screenshots/$(date +%Y%m%d-%H%M%S).png']]))
-
--- Focus (directional)
-hl.bind(mod .. " + left",  hl.dsp.focus({ direction = "left" }))
-hl.bind(mod .. " + right", hl.dsp.focus({ direction = "right" }))
-hl.bind(mod .. " + up",    hl.dsp.focus({ direction = "up" }))
-hl.bind(mod .. " + down",  hl.dsp.focus({ direction = "down" }))
-
--- Move window (directional, vim keys)
-hl.bind(mod .. " + SHIFT + h", hl.dsp.window.move({ direction = "left" }))
-hl.bind(mod .. " + SHIFT + j", hl.dsp.window.move({ direction = "down" }))
-hl.bind(mod .. " + SHIFT + k", hl.dsp.window.move({ direction = "up" }))
-hl.bind(mod .. " + SHIFT + l", hl.dsp.window.move({ direction = "right" }))
-
--- Resize active window (arrows)
-hl.bind(mod .. " + SHIFT + right", hl.dsp.window.resize({ x =  30, y =   0, relative = true }), { repeating = true })
-hl.bind(mod .. " + SHIFT + left",  hl.dsp.window.resize({ x = -30, y =   0, relative = true }), { repeating = true })
-hl.bind(mod .. " + SHIFT + up",    hl.dsp.window.resize({ x =   0, y = -30, relative = true }), { repeating = true })
-hl.bind(mod .. " + SHIFT + down",  hl.dsp.window.resize({ x =   0, y =  30, relative = true }), { repeating = true })
-
--- Workspaces 1–10 (0 = workspace 10)
-for i = 1, 10 do
-    local key = tostring(i % 10)
-    hl.bind(mod .. " + " .. key,           hl.dsp.focus({ workspace = i }))
-    hl.bind(mod .. " + SHIFT + " .. key,   hl.dsp.window.move({ workspace = i }))
-end
-
--- Workspace cycling
-hl.bind(mod .. " + bracketright",         hl.dsp.focus({ workspace = "e+1" }))
-hl.bind(mod .. " + bracketleft",          hl.dsp.focus({ workspace = "e-1" }))
-hl.bind(mod .. " + SHIFT + bracketright", hl.dsp.window.move({ workspace = "e+1" }))
-hl.bind(mod .. " + SHIFT + bracketleft",  hl.dsp.window.move({ workspace = "e-1" }))
-
--- Mouse
-hl.bind(mod .. " + mouse_down", hl.dsp.focus({ workspace = "e+1" }))
-hl.bind(mod .. " + mouse_up",   hl.dsp.focus({ workspace = "e-1" }))
-hl.bind(mod .. " + mouse:272",  hl.dsp.window.drag(),   { mouse = true })
-hl.bind(mod .. " + mouse:273",  hl.dsp.window.resize(), { mouse = true })
-
--- Media / hardware keys (work locked, i.e. on the lock screen too)
-hl.bind("XF86AudioRaiseVolume",  hl.dsp.exec_cmd("wpctl set-volume -l 1 @DEFAULT_AUDIO_SINK@ 5%+"), { locked = true, repeating = true })
-hl.bind("XF86AudioLowerVolume",  hl.dsp.exec_cmd("wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-"),       { locked = true, repeating = true })
-hl.bind("XF86AudioMute",         hl.dsp.exec_cmd("wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"),       { locked = true })
-hl.bind("XF86AudioMicMute",      hl.dsp.exec_cmd("wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle"),     { locked = true })
-hl.bind("XF86MonBrightnessUp",   hl.dsp.exec_cmd("brightnessctl -e4 -n2 set 5%+"),                    { locked = true, repeating = true })
-hl.bind("XF86MonBrightnessDown", hl.dsp.exec_cmd("brightnessctl -e4 -n2 set 5%-"),                    { locked = true, repeating = true })
-hl.bind("XF86AudioNext",         hl.dsp.exec_cmd("playerctl next"),                                   { locked = true })
-hl.bind("XF86AudioPrev",         hl.dsp.exec_cmd("playerctl previous"),                               { locked = true })
-hl.bind("XF86AudioPlay",         hl.dsp.exec_cmd("playerctl play-pause"),                             { locked = true })
-hl.bind("XF86Calculator",        hl.dsp.exec_cmd("gnome-calculator"))
+-- Standard BOS keybinds — data-driven from binds.json (apps, windows,
+-- screenshots, focus/move/resize, workspaces, mouse, media keys), loaded via
+-- scripts/input/{binds,keybinds}.lua. breadhelp's keybind viewer reads
+-- binds.json directly as its source of truth (no separately-maintained
+-- cheatsheet to keep in sync), and a future bos-settings editor can
+-- read/write the same file.
+pcall(function()
+    local binds = dofile(script_dir .. "input/binds.lua")(config_home .. "binds.json")
+    dofile(script_dir .. "input/keybinds.lua")({
+        default_mods = binds.default_mods,
+        bindings     = binds.bindings,
+    })
+end)
 
 -- ---------------------------------------------------------------------------
--- Autostart. polkit agent + the bread ecosystem + idle daemon + wallpaper.
+-- Autostart. Core bootstrap sequence (polkit agent, dark theme, wallpaper
+-- daemon, breadd's Wayland-env fix, breadclipd) stays hardcoded here — it's
+-- timing/order-sensitive infrastructure, not something a settings UI should
+-- expose for a user to disable or reorder. The extra, genuinely toggleable
+-- apps (breadbar, hypridle, bos-netcheck, breadhelp) come from
+-- autostart.json via scripts/system/autostart.lua, appended after.
 -- (bos-live-setup appends the live-installer launch below this on the ISO.)
 -- ---------------------------------------------------------------------------
 hl.on("hyprland.start", function()
-    local startup = {
+    local core_startup = {
         -- Generate the shared bread GUI stylesheet first, so breadbar/breadbox/
         -- bos-settings load it on start (they also live-reload if it changes).
         "bread-theme generate",
@@ -239,16 +147,24 @@ hl.on("hyprland.start", function()
         -- Start it directly instead. If more graphical-session.target
         -- services show up later, add them here too.
         "systemctl --user start breadclipd.service",
-        "breadbar",
-        -- breadbox-sync is a Type=oneshot systemd --user service
-        -- (WantedBy=default.target, no Hyprland IPC dependency) — it
-        -- already runs on login via the unit baked into skel; exec'ing it
-        -- again here would just start it twice.
-        "hypridle",
-        -- first-boot onboarding (self-gates after the first run)
-        "bos-welcome",
     }
-    for _, cmd in ipairs(startup) do
+    for _, cmd in ipairs(core_startup) do
+        hl.dispatch(hl.dsp.exec_cmd(cmd))
+    end
+
+    -- breadbox-sync is a Type=oneshot systemd --user service
+    -- (WantedBy=default.target, no Hyprland IPC dependency) — it already
+    -- runs on login via the unit baked into skel, independent of this list.
+    local ok, extra = pcall(function()
+        return dofile(script_dir .. "system/autostart.lua")()
+    end)
+    if not ok or type(extra) ~= "table" then
+        -- autostart.json/its loader broke — fall back to the same apps BOS
+        -- has always started, so a bad JSON edit degrades to "normal
+        -- desktop" rather than "no bar, no idle lock, no onboarding".
+        extra = { "breadbar", "hypridle", "bos-netcheck", "breadhelp --autostart" }
+    end
+    for _, cmd in ipairs(extra) do
         hl.dispatch(hl.dsp.exec_cmd(cmd))
     end
 end)
