@@ -371,12 +371,12 @@ if command -v ufw &>/dev/null; then
     ufw --force enable         || echo "WARN: ufw enable failed"
 fi
 
-# The bread ecosystem (bakery + bread, breadbar, breadbox, breadcrumbs, breadpad)
-# is bakery-managed, not pacman: the binaries and bakery manifest live in
-# /etc/skel/.local (baked in at ISO build time) and are copied into the user's
-# home below, so the install works fully offline with no DNS for bakery/GitHub.
-# bos-settings and breadhelp are the only pacman bread packages and were
-# installed by unpackfs.
+# The whole bread ecosystem (bakery, bread, breadbar, breadbox, breadcrumbs,
+# breadpad, bos-settings, breadhelp, ...) is bakery-managed, not pacman: the
+# binaries and bakery manifest live in /etc/skel/.local (baked in at ISO
+# build time via build-local.sh's BREAD_BINS array) and are copied into the
+# user's home below, so the install works fully offline with no DNS for
+# bakery/GitHub.
 
 # ---------------------------------------------------------------------------
 # Deploy dotfiles + the bakery bread ecosystem into the user's home (Calamares
