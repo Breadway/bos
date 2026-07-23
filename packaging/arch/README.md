@@ -1,39 +1,18 @@
 Arch packaging
 ==============
 
-`breadhelp/PKGBUILD` builds and installs `breadhelp` from source — BOS's
-onboarding + help center, and the only first-party pacman package still built
-from this repo.
+This directory only holds `PKGBUILD`s for third-party AUR packages BOS
+republishes to the `[breadway]` pacman repo (`calamares`, `bibata`,
+`powerlevel10k`, `yay-bin`) — not the user's own code. See each
+subdirectory's `.forgejo/workflows/<name>.yml` (in this repo) for how each
+one publishes on a push to `packaging/<name>/**`.
 
-`bos-settings` is also pacman-packaged and served from the same [breadway]
-repo, but its source lives in its own repo now (`~/Projects/bos-settings`,
-`git.breadway.dev/Breadway/bos-settings`) so a bos-settings release doesn't require
-a BOS ISO release.
-
-Everything else the bread ecosystem ships (breadbar, breadbox, breadpad, ...)
-is bakery-managed, not pacman-packaged — see `build-local.sh`.
-
-## Local build
-
-```bash
-cd breadhelp && makepkg -si
-```
-
-## Before publishing to [breadway] repo
-
-CI (`.forgejo/workflows/package.yml`) handles this on tag push (`vX.Y.Z`): it
-bumps `pkgver`, archives the repo into the expected tarball name, and runs
-`makepkg`. To do it by hand instead:
-
-1. Tag a release on GitHub (`vX.Y.Z`).
-2. Update `pkgver` in `breadhelp/PKGBUILD` to match the tag.
-3. Update `source` to the release tarball URL.
-4. Run `updpkgsums` (or manually set `sha256sums`).
-
-## Runtime dependencies
-
-| Package | Required | Notes |
-|---------|----------|-------|
-| `gtk4` | yes | UI toolkit |
-| `glib2` | yes | always |
-| `snapper` | optional | create-backup one-click fix |
+Every bread-ecosystem app (bakery, bread, breadbar, breadbox, breadcrumbs,
+breadpad, breadpaper, breadmon, breadsearch, breadclip, breadshot,
+bos-settings, breadhelp, ...) is bakery-managed, not pacman-packaged — see
+`build-local.sh`'s `BREAD_BINS` array, which bakes this laptop's
+bakery-installed binaries into the ISO's `/etc/skel` at build time.
+`breadlock` is the sole deliberate exception (it needs a root-owned
+`/etc/pam.d/breadlock` PAM service file, which bakery — by design — has no
+privileged-install path for) and stays on pacman only; see
+`bread-ecosystem/docs/release-channels.md` for the full policy.

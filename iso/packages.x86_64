@@ -104,6 +104,7 @@ gtk4
 gtk4-layer-shell
 librsvg
 libpulse
+hicolor-icon-theme
 # GTK3 dark theme (Adwaita-dark); without this package the gtk-theme-name in
 # skel settings.ini silently falls back to the light theme for GTK3 apps.
 gnome-themes-extra
@@ -178,19 +179,19 @@ yay-bin
 
 # Bread ecosystem.
 #
-# The bread apps themselves (bakery, bread, breadbar, breadbox, breadcrumbs,
-# breadpad) are NOT pacman packages here — they are bakery-managed binaries
-# baked into /etc/skel/.local/bin at build time (see build-local.sh), so every
-# user gets the exact versions from this laptop's bakery install with no
-# network/DNS needed at install or runtime. Their runtime system deps are pulled
-# in elsewhere in this list (gtk4, gtk4-layer-shell, iw, libpulse, librsvg,
-# networkmanager, openssl, zlib, systemd-libs) — keep those even though no bread
-# package depends on them.
-#
-# bos-settings and breadhelp are BOS-specific pacman packages (not part of the
-# bakery index), so they stay here, served from the [breadway] repo.
-bos-settings
-breadhelp
+# None of the bread apps (bakery, bread, breadbar, breadbox, breadcrumbs,
+# breadpad, bos-settings, breadhelp, ...) are pacman packages here anymore —
+# they are all bakery-managed binaries baked into /etc/skel/.local/bin at
+# build time (see build-local.sh's BREAD_BINS array), so every user gets the
+# exact versions from this laptop's bakery install with no network/DNS
+# needed at install or runtime. bos-settings/breadhelp's desktop entries are
+# hand-committed static files at
+# iso/airootfs/etc/skel/.local/share/applications/, matching the pattern
+# already used for breadclip/breadman/breadmon/breadsearch. Their runtime
+# system deps are pulled in elsewhere in this list (gtk4, gtk4-layer-shell,
+# iw, libpulse, librsvg, networkmanager, openssl, zlib, systemd-libs,
+# hicolor-icon-theme) — keep those even though no bread package depends on
+# them via pacman.
 
 # Input / screen utilities
 brightnessctl
