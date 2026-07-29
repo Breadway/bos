@@ -112,19 +112,6 @@ local function build_hl_config(v)
         dwindle = { preserve_split = true },
         animations = { enabled = true },
         misc = { disable_hyprland_logo = true, disable_splash_rendering = true },
-        -- 3-finger touchpad swipe switches workspaces (touchscreen/touchpad
-        -- gesture, native to Hyprland — no plugin needed).
-        gestures = {
-            workspace_swipe = true,
-            workspace_swipe_fingers = 3,
-            workspace_swipe_distance = 300,
-            workspace_swipe_invert = true,
-            workspace_swipe_min_speed_to_force = 30,
-            workspace_swipe_cancel_ratio = 0.5,
-            workspace_swipe_create_new = true,
-            workspace_swipe_direction_lock = true,
-            workspace_swipe_forever = false,
-        },
     }
 end
 
