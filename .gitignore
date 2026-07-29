@@ -42,3 +42,6 @@ logs/
 
 # Wallpaper source drop (baked copy lives in airootfs/usr/share/backgrounds)
 /Bread Background.png
+
+# Local hygiene notes (not for commit)
+CLAUDE.md
