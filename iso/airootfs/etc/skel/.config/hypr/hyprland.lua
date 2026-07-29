@@ -94,6 +94,12 @@ pcall(function()
         bindings     = binds.bindings,
     })
 end)
+-- 3-finger horizontal trackpad swipe → workspace switch (1:1 gesture)
+hl.gesture({
+    fingers   = 3,
+    direction = "horizontal",
+    action    = "workspace",
+})
 
 -- ---------------------------------------------------------------------------
 -- Autostart. Core bootstrap sequence (polkit agent, dark theme, wallpaper
