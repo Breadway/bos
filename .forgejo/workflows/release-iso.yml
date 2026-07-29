@@ -110,22 +110,25 @@ jobs:
       - name: Build bread-theme from source
         run: |
           set -euo pipefail
-          # bread-theme is not in the bakery index; build it at the tag pinned
+          # bread-theme is not in the bakery index; build it at the ref pinned
           # in bos-settings' Cargo.toml so the CLI matches the library version
           # the bos-settings package (and breadbar/breadbox/breadpad) were
           # built against. bos-settings used to live at bos-settings/Cargo.toml
           # inside this repo; it's since been split into its own repo
-          # (git.breadway.dev/Breadway/bos-settings), so fetch its Cargo.toml
-          # from there instead of a path that no longer exists in this
-          # checkout. Uses bos-settings' default branch (dev) — the branch its
-          # own CI actually publishes the `bos-settings` pacman package from.
+          # (git.breadway.dev/Breadway/bos-settings) and migrated to Tauri,
+          # which moved the Rust manifest to bos-settings/src/Cargo.toml, so
+          # fetch it from there. Uses bos-settings' default branch (dev) — the
+          # branch its own CI actually publishes the `bos-settings` pacman
+          # package from.
           REPO_OWNER="${GITHUB_REPOSITORY%%/*}"
-          curl -fsSL "https://git.breadway.dev/${REPO_OWNER}/bos-settings/raw/branch/dev/Cargo.toml" \
+          curl -fsSL "https://git.breadway.dev/${REPO_OWNER}/bos-settings/raw/branch/dev/src/Cargo.toml" \
             -o /tmp/bos-settings-Cargo.toml
-          THEME_TAG=$(grep 'bread-theme.*tag' /tmp/bos-settings-Cargo.toml \
-                      | grep -oP '"v[^"]+"' | tr -d '"')
-          echo "Building bread-theme @ $THEME_TAG"
-          git clone --branch "$THEME_TAG" --depth 1 \
+          # bread-theme is pinned by tag once a release ships the functions
+          # bos-settings needs, or by branch in the meantime — handle either.
+          THEME_REF=$(grep '^bread-theme' /tmp/bos-settings-Cargo.toml \
+                      | grep -oP '(tag|branch)\s*=\s*"\K[^"]+')
+          echo "Building bread-theme @ $THEME_REF"
+          git clone --branch "$THEME_REF" --depth 1 \
             https://github.com/Breadway/bread-ecosystem /bread-ecosystem
           cd /bread-ecosystem
           cargo build --release -p bread-theme
