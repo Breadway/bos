@@ -250,3 +250,19 @@ jobs:
             \
             --notes-file /tmp/gh-release-notes.md \
           2>/dev/null || echo "GitHub release already exists — skipping"
+
+      # `stable` is a marker branch only — CI fast-forwards it to whatever
+      # commit the latest real (non-RC) release tag points at. Never merged
+      # into by hand, so unlike the old dev/beta/main model it can't rot:
+      # nobody has to remember to move it, a bot always does. Lets you
+      # `git diff stable..main` before a build to see what's new since the
+      # last release, without a human-maintained promotion step.
+      - name: Fast-forward stable branch to this tag
+        if: ${{ !contains(steps.vars.outputs.tag, '-rc.') }}
+        env:
+          FORGEJO_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+        run: |
+          set -euo pipefail
+          cd /bos
+          git push "https://oauth2:${FORGEJO_TOKEN}@git.breadway.dev/${GITHUB_REPOSITORY}.git" \
+            "HEAD:refs/heads/stable" --force
