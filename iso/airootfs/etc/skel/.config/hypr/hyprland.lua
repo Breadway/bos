@@ -126,7 +126,10 @@ hl.on("hyprland.start", function()
         -- Clipboard history is breadclipd, a bakery-managed systemd --user
         -- service (auto-started from /usr/lib/systemd/user — see
         -- build-local.sh's service bake) rather than an exec-once here.
-        "/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1",
+        -- Prefer bread-polkit when bakery has published it; otherwise the
+        -- ISO's polkit-gnome agent. command -v so a missing binary does not
+        -- leave the session without an auth agent.
+        "sh -c 'if command -v bread-polkit >/dev/null; then exec bread-polkit; else exec /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1; fi'",
         "awww-daemon",
         -- Set the default wallpaper once the daemon is up (retry until ready).
         -- Raw `awww img`, NOT `breadpaper set` — breadpaper set also runs real
