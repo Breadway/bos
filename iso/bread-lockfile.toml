@@ -1,0 +1,36 @@
+# Bakery binaries that MUST be baked into the live/installed skel.
+#
+# build-local.sh derives BREAD_BINS from `bins` — this is the name list, not a
+# second hardcoded array. A missing binary fails the bake: a hollow ISO is
+# worse than a failed build.
+#
+# CI should populate the builder from the stable bakery index
+# (https://dl.breadway.dev/index.json). Local builds still snapshot whatever
+# is installed on the builder; this file only names what must be present.
+#
+# Not shipped (even if present on the builder): breadcast, breadarr.
+# breadlock is pacman (see packages.x86_64), not bakery.
+
+bins = [
+  "bakery",
+  "bread",
+  "breadd",
+  "bread-emit",
+  "bread-module-host",
+  "breadman",
+  "breadbar",
+  "breadbox",
+  "breadbox-sync",
+  "breadcrumbs",
+  "breadpad",
+  "breadpaper",
+  "bread-theme",
+  "breadmon",
+  "breadsearch",
+  "breadmill",
+  "breadclip",
+  "breadclipd",
+  "breadshot",
+  "bos-settings",
+  "breadhelp",
+]

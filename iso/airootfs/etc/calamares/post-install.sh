@@ -374,9 +374,8 @@ fi
 # The whole bread ecosystem (bakery, bread, breadbar, breadbox, breadcrumbs,
 # breadpad, bos-settings, breadhelp, ...) is bakery-managed, not pacman: the
 # binaries and bakery manifest live in /etc/skel/.local (baked in at ISO
-# build time via build-local.sh's BREAD_BINS array) and are copied into the
-# user's home below, so the install works fully offline with no DNS for
-# bakery/GitHub.
+# build time from iso/bread-lockfile.toml) and are copied into the user's
+# home below, so the install works fully offline with no DNS for bakery.
 
 # ---------------------------------------------------------------------------
 # Deploy dotfiles + the bakery bread ecosystem into the user's home (Calamares

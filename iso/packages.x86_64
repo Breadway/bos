@@ -99,12 +99,17 @@ bluez-utils
 # blueman: GUI Bluetooth manager (pair/connect devices; breadbar shows status only).
 blueman
 
-# GTK4 runtime
+# GTK4 runtime (breadbar, breadbox, breadclip, breadhelp, and other bakery apps)
 gtk4
 gtk4-layer-shell
 librsvg
 libpulse
 hicolor-icon-theme
+# Tauri 2 runtime for bakery-baked bos-settings. Arch's WebKitGTK 4.1 package
+# is webkit2gtk-4.1 (libwebkit2gtk-4.1.so); libsoup3 and JavaScriptCore 4.1
+# are pulled in as its dependencies. xdg-desktop-portal comes from the
+# Hyprland/GTK portal packages listed above.
+webkit2gtk-4.1
 # GTK3 dark theme (Adwaita-dark); without this package the gtk-theme-name in
 # skel settings.ini silently falls back to the light theme for GTK3 apps.
 gnome-themes-extra
@@ -179,19 +184,16 @@ yay-bin
 
 # Bread ecosystem.
 #
-# None of the bread apps (bakery, bread, breadbar, breadbox, breadcrumbs,
-# breadpad, bos-settings, breadhelp, ...) are pacman packages here anymore —
-# they are all bakery-managed binaries baked into /etc/skel/.local/bin at
-# build time (see build-local.sh's BREAD_BINS array), so every user gets the
-# exact versions from this laptop's bakery install with no network/DNS
-# needed at install or runtime. bos-settings/breadhelp's desktop entries are
-# hand-committed static files at
-# iso/airootfs/etc/skel/.local/share/applications/, matching the pattern
-# already used for breadclip/breadman/breadmon/breadsearch. Their runtime
-# system deps are pulled in elsewhere in this list (gtk4, gtk4-layer-shell,
-# iw, libpulse, librsvg, networkmanager, openssl, zlib, systemd-libs,
-# hicolor-icon-theme) — keep those even though no bread package depends on
-# them via pacman.
+# breadlock is the only bread* pacman package here (it needs a root-owned
+# /etc/pam.d/breadlock). Everything else — bakery, bread/breadd/bread-emit/
+# bread-module-host, breadbar, breadbox, breadcrumbs, breadpad, breadpaper,
+# bread-theme, breadmon, breadsearch, breadclip, breadshot, bos-settings,
+# breadhelp — is bakery-managed and baked into /etc/skel/.local at ISO build
+# time from iso/bread-lockfile.toml (see build-local.sh). breadcast and
+# breadarr are not shipped. bos-settings/breadhelp desktop entries are
+# committed under iso/airootfs/etc/skel/.local/share/applications/. Runtime
+# deps stay listed even though no bread package depends on them via pacman
+# (gtk4, gtk4-layer-shell, webkit2gtk-4.1, iw, libpulse, librsvg, …).
 
 # Input / screen utilities
 brightnessctl
@@ -324,6 +326,3 @@ qt6ct
 # hyprland.lua) needs these or Qt apps fall back to (blurry) XWayland.
 qt5-wayland
 qt6-wayland
-
-# Dev tools (for bos-settings standalone install)
-rustup

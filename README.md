@@ -5,36 +5,40 @@ ecosystem](https://git.breadway.dev/Breadway) preconfigured. One Calamares insta
 produces a themed, bootable Wayland desktop — no manual Arch bootstrap, no
 wiring up dotfiles, no per-tool bakery installs.
 
-> Design rationale and the btrfs/A-B roadmap live in [DESIGN.md](DESIGN.md).
-> This file is the practical overview: what's in the image, how to build it,
-> and how to test it.
+> This file is the product as the tree ships it. [DESIGN.md](DESIGN.md) is the
+> original plan, kept as history — several of its sections (in-tree GTK
+> bos-settings, bakery-at-post-install, A/B as if it were current) are not
+> how the ISO works today.
 
 ## What you get
 
 - **Compositor**: Hyprland with a native-Lua config (`hyprland.lua`), curated
   keybinds, snappy animations, blur, and pywal-driven colours on a black base.
 - **bread ecosystem**, baked into `/etc/skel` from bakery-managed binaries
-  (no network needed at install time): the `bread`/`breadd` automation daemon,
-  `breadbar` (status bar + notifications), `breadbox` (launcher), `breadclip`
-  (clipboard history), `breadcrumbs` (Wi-Fi profiles), `breadpad`/`breadman`
-  (notes), `breadpaper` (wallpaper + theme), `breadsearch` (system search),
-  `breadmon` (monitor layout TUI), `breadshot` (screenshots), `bread-theme`
-  (the shared palette engine), and the `bakery` package manager. `breadlock`
-  (lock screen + greeter) ships as its own pacman package alongside
-  `bos-settings`, not through bakery. See [below](#the-bread-ecosystem) for
-  what each one actually does.
-- **bos-settings**: a GTK4 control panel that configures every bread\* app's
-  config from a GUI (non-destructively), plus snapshot rollback and bakery
-  updates. See below.
-- **Login**: greetd + breadgreet (bread-ecosystem's own greeter, under `cage`)
-  → Hyprland session.
+  (no network needed at install time): the `bread`/`breadd` automation daemon
+  plus `bread-emit` / `bread-module-host`, `breadbar` (status bar +
+  notifications), `breadbox` (launcher), `breadclip` (clipboard history),
+  `breadcrumbs` (Wi-Fi profiles), `breadpad`/`breadman` (notes), `breadpaper`
+  (wallpaper + theme), `breadsearch` (system search), `breadmon` (monitor
+  layout TUI), `breadshot` (screenshots), `bread-theme` (the shared palette
+  engine), `breadhelp` (onboarding + cheatsheet), `bos-settings` (control
+  panel), and the `bakery` package manager. Most of those apps are
+  zero-config on first boot; breadcrumbs networks are user-filled after
+  install. See [below](#the-bread-ecosystem).
+- **breadlock** (lock screen + greeter) is the one bread\* app that ships as
+  **pacman**, not bakery — it needs a root-owned PAM service.
+- **bos-settings**: a **Tauri 2 + Svelte** control panel (standalone bakery
+  product, not a member of this repo). Configures every bread\* app
+  non-destructively, plus snapshots, bakery/pacman updates, and day-to-day
+  machine administration.
+- **Login**: greetd + breadgreet (under `cage`) → Hyprland session.
 - **Boot splash**: Plymouth `bos` theme (logo + spinner, black background).
 - **Theming**: global dark across GTK3 (Adwaita-dark), GTK4/libadwaita
   (`color-scheme: prefer-dark`), and Qt (qt5ct/qt6ct Fusion dark); Papirus-Dark
   icons; Bibata cursor.
 - **Apps**: kitty, nautilus (+ gvfs), Zen browser, VLC, loupe, gnome-text-editor,
   gnome-calculator, file-roller, with file associations wired in `mimeapps.list`.
-  `yay` ships for AUR access beyond bakery's bread ecosystem + `[breadway]`.
+  `yay` ships for AUR access beyond bakery + `[breadway]`.
 - **Hardware**: pipewire audio, NetworkManager, BlueZ + blueman, CUPS printing
   with avahi mDNS discovery, TLP power management, fwupd firmware updates.
 - **Resilience**: btrfs + snapper + snap-pac + grub-btrfs snapshots on every
@@ -44,35 +48,69 @@ wiring up dotfiles, no per-tool bakery installs.
   install actually boots) and self-signed Secure Boot (via `sbctl`, enrolled
   automatically at install time when the firmware is in Setup Mode).
 
+## What ships vs what does not
+
+| Channel | What |
+|---------|------|
+| **Bakery, baked into skel** | `bakery`, `bread` / `breadd` / `bread-emit` / `bread-module-host`, `breadbar`, `breadbox` / `breadbox-sync`, `breadcrumbs`, `breadpad` / `breadman`, `breadpaper`, `bread-theme`, `breadmon`, `breadsearch` / `breadmill`, `breadclip` / `breadclipd`, `breadshot`, `bos-settings`, `breadhelp` (+ breadhelp content under `~/.local/share/breadhelp/`) |
+| **pacman (`packages.x86_64`)** | `breadlock`, plus the rest of the distro (Hyprland, Calamares, Zen, …) |
+| **Not shipped** | `breadcast`, `breadarr` |
+
+The baked name list is [`iso/bread-lockfile.toml`](iso/bread-lockfile.toml).
+`build-local.sh` fails if any listed binary is missing on the builder.
+
 ## Repo layout
+
+This is an **ISO + Calamares + skel** repo. There is no Cargo workspace and
+no `bos-settings/` member — bos-settings and breadhelp live in their own
+repos and arrive via bakery.
 
 ```
 bos/
-├── Cargo.toml                     # workspace (members: bos-settings)
-├── bos-settings/                  # GTK4 unified settings app (Rust)
-│   └── src/
-│       ├── config/mod.rs          # non-destructive toml_edit config layer
-│       └── ui/{widgets,window,sidebar}.rs, ui/views/*.rs
 ├── iso/                           # archiso profile
+│   ├── bread-lockfile.toml        # bakery bins that MUST be baked
 │   ├── profiledef.sh
-│   ├── packages.x86_64            # live + installed package set
+│   ├── packages.x86_64            # live + installed pacman set
 │   └── airootfs/                  # files overlaid onto the image
 │       └── etc/
-│           ├── skel/              # default user dotfiles (hypr, kitty, gtk, …)
+│           ├── skel/              # live user defaults (hypr, kitty, gtk, …)
 │           └── calamares/         # installer config + post-install.sh
 ├── packaging/                     # in-house PKGBUILDs for AUR-only deps
-│   ├── arch/                      # bos-settings
 │   ├── calamares/
-│   └── bibata/
-├── .forgejo/workflows/            # CI: build + publish packages to [breadway]
+│   ├── bibata/
+│   ├── powerlevel10k/
+│   └── yay-bin/
+├── dotfiles/                      # STALE — not the live skel; see its README
+├── scripts/smoke-test.sh
+├── .forgejo/workflows/            # CI: AUR republish + tagged ISO release
 ├── build-local.sh                 # native ISO build for this machine
-└── DESIGN.md
+├── README.md
+└── DESIGN.md                      # historical plan
 ```
+
+Live binds are `iso/airootfs/etc/skel/.config/hypr/binds.json` (`Super+L` →
+`loginctl lock-session`, breadshot on `Super+Shift+S/C/P`, `Super+U`
+breadpad). Do not treat `dotfiles/hypr/keybinds.conf` as current.
+
+## Branches and remotes
+
+Single-trunk: work on **`main`** via short-lived `feature/*` / `fix/*`
+branches. **`stable`** is a marker branch CI fast-forwards to the latest
+non-RC release tag — do not land work there by hand.
+
+Dual remotes:
+
+- **`origin`** — Forgejo (`ssh://git@100.66.238.26:2222/Breadway/bos.git`),
+  authoritative
+- **`github`** — GitHub (`https://github.com/Breadway/bos.git`) mirror
+
+Push `origin` (and `github` when mirroring). Do not treat origin as GitHub.
 
 ## Building the ISO
 
 `build-local.sh` builds the image natively (no container) and bakes this
-machine's bakery-installed bread binaries into `/etc/skel`:
+machine's bakery-installed bread binaries + breadhelp content into
+`/etc/skel`:
 
 ```sh
 sudo ./build-local.sh              # release-quality (xz squashfs)
@@ -80,16 +118,20 @@ sudo FAST_BUILD=1 ./build-local.sh # fast dev iteration (zstd squashfs)
 ```
 
 The ISO lands in `out/bos-<date>-x86_64.iso`. The script pins
-`SOURCE_DATE_EPOCH` (reproducible UUIDs) and rewrites the `[breadway]` repo URL
-to the Tailscale-reachable Forgejo registry for the build.
+`SOURCE_DATE_EPOCH` (reproducible UUIDs), rewrites the `[breadway]` repo URL
+to the Tailscale-reachable Forgejo registry for the build, and **exits
+non-zero** if any lockfile binary (or breadhelp content) is missing.
+
+CI should populate the builder from the **stable** bakery index; local
+builds still snapshot the builder. The lockfile is names only.
 
 ### Why some packages are in-house
 
 `calamares`, `zen-browser-bin`, `bibata-cursor-theme`, and `yay-bin` are
-AUR-only. BOS keeps a PKGBUILD for each under `packaging/` and republishes the
-built package to the `[breadway]` repo via a Forgejo Actions workflow (built
-on the hestia self-hosted runner, published with a scoped registry token).
-`bos-settings` itself publishes the same way on a `v*` tag.
+AUR-only. BOS keeps a PKGBUILD for each under `packaging/` and republishes
+the built package to the `[breadway]` repo via a Forgejo Actions workflow
+(built on the hestia self-hosted runner, published with a scoped registry
+token). `[breadway]` is **not** where bakery/breadbar/bos-settings live.
 
 ### Verifying a release
 
@@ -124,19 +166,21 @@ It uses KVM + `-cpu host`, 8 GiB / 8 vCPU, and `virtio-vga-gl` with
 Hyprland session in QEMU. The disk lives on NVMe (not the tmpfs `/tmp`) to
 avoid memory pressure.
 
+Post-install, `scripts/smoke-test.sh` (run as the installed user) checks
+subvolumes, services, bakery bins, and breadhelp content under
+`~/.local/share/breadhelp/content`.
+
 ## bos-settings
 
-A GTK4 settings app aiming for GNOME-Settings-style parity: not just editing
-config files, but live system state and control, so day-to-day machine
-administration doesn't require a terminal.
+Standalone bakery product: **Tauri 2 + Svelte**, not GTK4, and not built
+from this repo. Install/update with `bakery`; the ISO just bakes whatever
+binary the builder has.
 
-Bread-ecosystem TOML configs are edited **non-destructively**: `toml_edit`
-parses the file, changes only the keys a view exposes, and writes it back —
-preserving comments and any keys the UI doesn't model (calendar passwords,
-saved-network passwords, model paths). Panels with a daemon behind them
-(bread, breadbox, breadcrumbs, breadsearch, breadclip) also get live
-systemd status + Start/Stop/Restart/Logs via a shared `service_control`
-widget, not just the config file.
+It aims for GNOME-Settings-style parity: live system state and control, so
+day-to-day administration doesn't require a terminal. Bread-ecosystem
+configs are edited **non-destructively** (comments and unmodeled keys stay).
+Panels with a daemon (bread, breadbox, breadcrumbs, breadsearch, breadclip)
+also get live systemd status + Start/Stop/Restart/Logs.
 
 | Panel | What it does |
 |-------|--------------|
@@ -161,12 +205,8 @@ widget, not just the config file.
 | Firmware | `fwupd` device list + updates |
 | Snapshots | `snapper` list / boot-into (grub-btrfs) / delete |
 
-Build standalone:
-
-```sh
-cargo build --release -p bos-settings
-cargo test -p bos-settings        # includes config round-trip tests
-```
+Source and build live in the [bos-settings](https://git.breadway.dev/Breadway/bos-settings)
+repo, not here.
 
 ## The bread ecosystem
 
@@ -174,17 +214,17 @@ Everything below is a separate bakery-distributed project with its own repo
 and release cadence, baked into `/etc/skel` at ISO build time so a fresh
 install has them all with no network round-trip. Some ship more than one
 binary from a single package — that's noted where it applies. Most have a
-corresponding **bos-settings** panel for configuration; this table is about
-*using* the app directly.
+corresponding **bos-settings** panel; this table is about *using* the app
+directly.
 
 **Desktop shell**
 
 | Tool | Role | Launch |
 |------|------|--------|
-| `bread` / `breadd` | Reactive automation daemon — normalises hardware/compositor/power/network signals into events dispatched to Lua modules (`~/.config/bread/`). Everything else in the ecosystem can subscribe to its events. | runs at login (`breadd.service`) |
+| `bread` / `breadd` | Reactive automation daemon — normalises hardware/compositor/power/network signals into events dispatched to Lua modules (`~/.config/bread/`). `bread-emit` is the fire-and-forget helper hooks/CLIs use; `bread-module-host` is the sandboxed out-of-process module runtime breadd spawns. | runs at login (`breadd.service`) |
 | `breadbar` | Top status bar: workspaces, clock, system stats, tray, **and** the notification daemon — one process, not two | runs at login |
 | `breadbox` | Application launcher (fuzzy search, per-context results via `breadbox-sync`) | `SUPER+Space` |
-| `breadlock` | Idle lock screen. Also provides `breadgreet`, the login greeter hosted under `cage` via greetd — same project, two binaries, one visual identity from login to lock | `SUPER+L` (via `loginctl lock-session`, picked up by `hypridle`); `breadgreet` runs automatically at boot |
+| `breadlock` | Idle lock screen. Also provides `breadgreet`, the login greeter hosted under `cage` via greetd — same project, two binaries, one visual identity from login to lock. **pacman**, not bakery. | `SUPER+L` (via `loginctl lock-session`, picked up by `hypridle`); `breadgreet` runs automatically at boot |
 | `bread-theme` | The shared palette engine every bread app renders through: fixed dark base colors, with only the accent slots following the current wallpaper's pywal palette. `bread-theme generate` regenerates the stylesheet; hyprland.lua calls it automatically on wallpaper change. | invoked automatically, rarely run by hand |
 
 **Productivity**
@@ -195,6 +235,7 @@ corresponding **bos-settings** panel for configuration; this table is about
 | `breadman` | The fuller notes manager view (browse/organize) — ships from the same `breadpad` package as a second binary | `SUPER+M` |
 | `breadclip` | Clipboard history. `breadclipd` is the background daemon that actually records history; `breadclip` is the GTK4 popup that browses it | `SUPER+V` / `SUPER+Shift+V` |
 | `breadsearch` | Semantic system-wide search (indexes files/notes, embeds locally — CPU/ROCm/CUDA backend configurable). `breadmill` is its indexing daemon. | via breadbox, or BOS Settings → File Search |
+| `breadhelp` | Onboarding + in-session help/cheatsheet. Content lives at `~/.local/share/breadhelp/content` (bakery `content.tar.gz`, baked into skel). | `SUPER+/` |
 
 **System**
 
@@ -210,7 +251,7 @@ corresponding **bos-settings** panel for configuration; this table is about
 | Tool | Role | Launch |
 |------|------|--------|
 | `bakery` | CLI package manager for the whole ecosystem — install/update/list, tracks installed binaries + versions independently of pacman | `bakery` |
-| `bos-settings` | Unified GTK4 control panel: live system state + control (network, power, firewall, users, packages, firmware, AUR, snapshots) plus non-destructive config editing for every app above | `SUPER+,` |
+| `bos-settings` | Unified Tauri 2 + Svelte control panel: live system state + control (network, power, firewall, users, packages, firmware, AUR, snapshots) plus non-destructive config editing for every app above | `SUPER+,` |
 
 ## Keyboard shortcuts
 
@@ -274,9 +315,16 @@ cheatsheet in-session; first boot shows a short welcome (once).
 ## Recovery
 
 **An update broke something (system still boots):** open BOS Settings →
-Snapshots and roll back, or pick a pre-update snapshot from the **GRUB
-“snapshots” submenu** at boot, then run `snapper rollback` from the booted
-snapshot.
+Snapshots and pick a snapshot to boot, **or** choose one from the **GRUB
+“snapshots” submenu** (grub-btrfs) at boot, then reboot into it.
+
+Do **not** run `snapper rollback` as the default recovery step. BOS GRUB
+pins `rootflags=subvol=@`, so a snapper-swapped default subvolume is not
+what the installed grub.cfg will boot next. Use the grub-btrfs entry so the
+kernel command line matches the snapshot you want.
+
+A/B root swapping (SteamOS-style) is a **future** idea in DESIGN.md — it is
+not shipped.
 
 **The system won't boot (broken GRUB / lost EFI entry):**
 
