@@ -174,6 +174,7 @@ hl.on("hyprland.start", function()
             "breadbar",
             "hypridle",
             "bos-netcheck",
+            "bash -c 'command -v bos-first-boot >/dev/null && exec bos-first-boot'",
             "breadhelp --autostart",
             "bash -c 'command -v breadpaper >/dev/null && exec breadpaper listen'",
             "bash -c 'command -v breadshot >/dev/null && exec breadshot listen'",
