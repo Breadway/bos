@@ -16,7 +16,13 @@ options=('!strip')
 source=("${pkgname%-bin}-$pkgver.tar.xz::$url/releases/download/v$pkgver/Bibata.tar.xz")
 sha256sums=('172e33c4ae415278384dcecc7d1a9b7a024266bc944bc751fd86532be1cc6251')
 
+# Upstream tarball has all 12 variants (~322 MiB). BOS only ever selects
+# Bibata-Modern-Ice (hyprland.lua XCURSOR_THEME, gsettings, gtk settings.ini).
+# Ship that plus its -Right sibling.
+_variants=(Bibata-Modern-Ice Bibata-Modern-Ice-Right)
 package() {
   install -d "$pkgdir/usr/share/icons"
-  cp -r Bibata* "$pkgdir/usr/share/icons"
+  for v in "${_variants[@]}"; do
+    cp -r "$v" "$pkgdir/usr/share/icons/"
+  done
 }
