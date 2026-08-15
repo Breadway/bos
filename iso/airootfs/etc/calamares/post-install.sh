@@ -33,6 +33,32 @@ rm -f /usr/local/bin/bos-live-setup /usr/local/bin/bos-launch-calamares
 rm -f /etc/sudoers.d/99-bos-live
 userdel -r liveuser 2>/dev/null || true
 
+# unpackfs copies the entire live squashfs onto the target. Remove live-only
+# packages (Calamares + archiso boot chain + memtest/EFI-shell payloads) so
+# they do not stay on disk forever. pacman -Rs (not -Rns) keeps /etc configs
+# and reaps newly-orphaned KF6/Qt6 deps. Each name is independent so one
+# missing package cannot abort the rest. Offline-safe: never touches the
+# network. qt6-declarative is NOT reaped — qt6-wayland still needs it.
+LIVE_ONLY_PKGS=(
+    calamares
+    squashfs-tools
+    mkinitcpio-archiso
+    mkinitcpio-nfs-utils
+    memtest86+
+    memtest86+-efi
+    edk2-shell
+    syslinux
+)
+for pkg in "${LIVE_ONLY_PKGS[@]}"; do
+    pacman -Qq "$pkg" &>/dev/null || continue
+    pacman -Rs --noconfirm "$pkg" &>/dev/null \
+        || echo "WARN: could not remove live-only package $pkg"
+done
+while orphans="$(pacman -Qtdq 2>/dev/null)" && [[ -n "$orphans" ]]; do
+    # shellcheck disable=SC2086
+    pacman -Rs --noconfirm $orphans &>/dev/null || break
+done
+
 # Root used a passwordless entry on the live medium; lock it (sudo model).
 passwd -l root || true
 
@@ -344,14 +370,38 @@ fi
 #   greetd       — graphical login (shipped disabled; live uses tty autologin)
 #   grub-btrfsd  — regenerates GRUB snapshot entries (the unit is grub-btrfsd.service,
 #                  NOT grub-btrfs.path, which no longer exists)
+# avahi-daemon.service → avahi-daemon.socket: the package ships both; socket
+# activation still answers nss-mdns and CUPS discovery but stays off the idle
+# RSS until something asks. The host stops announcing itself over mDNS until
+# the socket is first touched.
 # ---------------------------------------------------------------------------
 for unit in NetworkManager.service bluetooth.service systemd-timesyncd.service \
             tlp.service greetd.service snapper-cleanup.timer grub-btrfsd.service \
-            fstrim.timer cups.socket avahi-daemon.service ufw.service \
+            fstrim.timer cups.socket avahi-daemon.socket ufw.service \
             fwupd-refresh.timer reflector.timer; do
     systemctl enable "$unit" || echo "WARN: failed to enable $unit"
 done
 systemctl set-default graphical.target || echo "WARN: set-default graphical failed"
+
+# Arch's 90-systemd.preset enables systemd-homed / userdbd / nsresourced.
+# BOS creates classic /etc/passwd accounts and never calls homectl. Mask
+# (not disable) so preset-all or a systemd upgrade cannot re-enable them.
+for unit in systemd-homed.service systemd-homed-activate.service \
+            systemd-userdbd.service systemd-userdbd.socket \
+            systemd-nsresourced.service systemd-nsresourced.socket; do
+    systemctl mask "$unit" || echo "WARN: failed to mask $unit"
+done
+
+# journald defaults SystemMaxUse to 10% of the filesystem holding /var/log.
+# /var/log is the @log subvolume of the root pool, so that ceiling is tens
+# of GB. Cap it; less history for postmortems.
+install -d -m 0755 /etc/systemd/journald.conf.d
+cat >/etc/systemd/journald.conf.d/90-bos-journal.conf <<'JOURNALEOF'
+[Journal]
+SystemMaxUse=256M
+SystemMaxFileSize=32M
+RuntimeMaxUse=32M
+JOURNALEOF
 
 # ---------------------------------------------------------------------------
 # mDNS resolution (nss-mdns): insert mdns_minimal into the hosts: line so the
