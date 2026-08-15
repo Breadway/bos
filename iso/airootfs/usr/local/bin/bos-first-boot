@@ -1,0 +1,187 @@
+#!/bin/bash
+# bos-first-boot — one-shot hardware probe after the first graphical login.
+#
+# Detects NVIDIA (offer file + notify; never auto-installs a driver), a VM
+# without GL, and HiDPI (hint file only — never rewrites monitors.json).
+#
+# Non-fatal: missing tools, notify-send, or hyprctl must not block login.
+# Guarded with `command -v`. Flag: ~/.local/state/bos/first-boot-done.
+set -u
+
+STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/bos"
+FLAG="$STATE_DIR/first-boot-done"
+NVIDIA_OFFER="$STATE_DIR/nvidia-offer.json"
+HIDPI_HINT="$STATE_DIR/hidpi-hint.json"
+VM_HINT="$STATE_DIR/vm-gl-hint.json"
+
+# Never run on the live/installer session — only on an installed system.
+[[ "$(id -un)" == "liveuser" ]] && exit 0
+
+# Already probed this home.
+[[ -f "$FLAG" ]] && exit 0
+
+notify() {
+    local msg="$1"
+    local urgency="${2:-normal}"
+    command -v notify-send >/dev/null 2>&1 || return 0
+    notify-send -u "$urgency" "BOS" "$msg" 2>/dev/null || true
+}
+
+json_escape() {
+    printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'
+}
+
+iso_now() {
+    date -Iseconds 2>/dev/null || date -u +%Y-%m-%dT%H:%M:%SZ
+}
+
+# Best-effort: hyprland.start can beat the notification daemon by a beat.
+if [[ -z "${WAYLAND_DISPLAY:-}${DISPLAY:-}" ]]; then
+    sleep 1
+fi
+
+mkdir -p "$STATE_DIR" 2>/dev/null || exit 0
+
+# ---------------------------------------------------------------------------
+# NVIDIA — hardware only. Do not install nvidia / nvidia-utils.
+# ---------------------------------------------------------------------------
+nvidia_present=0
+nvidia_pci=""
+if command -v lspci >/dev/null 2>&1; then
+    nvidia_pci="$(lspci -d 10de: -nn 2>/dev/null | grep -iE 'VGA|3D|Display' || true)"
+    [[ -n "$nvidia_pci" ]] && nvidia_present=1
+fi
+if [[ "$nvidia_present" != "1" ]]; then
+    if [[ -d /proc/driver/nvidia || -d /sys/module/nvidia ]]; then
+        nvidia_present=1
+        nvidia_pci="${nvidia_pci:-module}"
+    fi
+fi
+if [[ "$nvidia_present" == "1" ]]; then
+    cat >"$NVIDIA_OFFER" <<EOF
+{
+  "detected": true,
+  "pci": "$(json_escape "$nvidia_pci")",
+  "driver_on_iso": false,
+  "auto_install": false,
+  "message": "NVIDIA GPU detected. The proprietary driver is not on the ISO.",
+  "offered_at": "$(iso_now)"
+}
+EOF
+    notify "NVIDIA GPU detected. The proprietary driver is not on the ISO — open BOS Settings later. Nothing was installed." normal
+fi
+
+# ---------------------------------------------------------------------------
+# VM without GL (no /dev/dri). Notify only when both are true.
+# ---------------------------------------------------------------------------
+virt="none"
+if command -v systemd-detect-virt >/dev/null 2>&1; then
+    virt="$(systemd-detect-virt 2>/dev/null || true)"
+    [[ -n "$virt" ]] || virt="none"
+fi
+has_gl=0
+shopt -s nullglob
+dri_nodes=(/dev/dri/card* /dev/dri/renderD*)
+(( ${#dri_nodes[@]} > 0 )) && has_gl=1
+shopt -u nullglob
+
+if [[ "$virt" != "none" && "$has_gl" != "1" ]]; then
+    cat >"$VM_HINT" <<EOF
+{
+  "virt": "$(json_escape "$virt")",
+  "gl": false,
+  "dri": false,
+  "noted_at": "$(iso_now)"
+}
+EOF
+    notify "This looks like a virtual machine without hardware GL. Hyprland may use software rendering." normal
+fi
+
+# ---------------------------------------------------------------------------
+# HiDPI — hint file for bos-settings. Do not rewrite monitors.json.
+# scale > 1 from hyprctl, or computed DPI >= 140.
+# ---------------------------------------------------------------------------
+if command -v hyprctl >/dev/null 2>&1 && command -v python3 >/dev/null 2>&1; then
+    # Compositor may still be settling when autostart fires.
+    mon_json=""
+    tries=0
+    while [[ -z "$mon_json" && "$tries" -lt 5 ]]; do
+        mon_json="$(hyprctl -j monitors 2>/dev/null || true)"
+        if [[ -z "$mon_json" || "$mon_json" == "[]" ]]; then
+            mon_json=""
+            sleep 1
+        fi
+        tries=$((tries + 1))
+    done
+    if [[ -n "$mon_json" ]]; then
+        BOS_HYPR_MONITORS="$mon_json" python3 - "$HIDPI_HINT" "$(iso_now)" <<'PY' || true
+import json, os, sys
+hint_path, noted_at = sys.argv[1], sys.argv[2]
+try:
+    monitors = json.loads(os.environ.get("BOS_HYPR_MONITORS") or "")
+except Exception:
+    sys.exit(0)
+if not isinstance(monitors, list):
+    sys.exit(0)
+
+hits = []
+for m in monitors:
+    if not isinstance(m, dict):
+        continue
+    name = m.get("name") or m.get("output") or ""
+    try:
+        scale = float(m.get("scale") or 1)
+    except (TypeError, ValueError):
+        scale = 1.0
+    try:
+        w = int(m.get("width") or 0)
+        h = int(m.get("height") or 0)
+    except (TypeError, ValueError):
+        w = h = 0
+    mm_w = mm_h = 0
+    phys = m.get("physicalSize")
+    if isinstance(phys, dict):
+        mm_w = phys.get("x") or phys.get("width") or 0
+        mm_h = phys.get("y") or phys.get("height") or 0
+    elif isinstance(phys, (list, tuple)) and len(phys) >= 2:
+        mm_w, mm_h = phys[0], phys[1]
+    else:
+        mm_w = m.get("physicalWidth") or 0
+        mm_h = m.get("physicalHeight") or 0
+    try:
+        mm_w = float(mm_w or 0)
+        mm_h = float(mm_h or 0)
+    except (TypeError, ValueError):
+        mm_w = mm_h = 0.0
+    dpi = round(w / (mm_w / 25.4), 1) if mm_w and w else 0.0
+    px_per_mm = round(w / mm_w, 3) if mm_w and w else 0.0
+    # High px/mm (dense panel) or Hyprland already chose scale > 1.
+    hidpi = scale > 1.01 or dpi >= 140
+    if hidpi:
+        hits.append({
+            "name": name,
+            "width": w,
+            "height": h,
+            "scale": scale,
+            "dpi": dpi,
+            "px_per_mm": px_per_mm,
+        })
+
+if not hits:
+    sys.exit(0)
+with open(hint_path, "w") as f:
+    json.dump({
+        "suggested": True,
+        "rewrote_monitors_json": False,
+        "reason": "scale > 1 or DPI >= 140",
+        "monitors": hits,
+        "noted_at": noted_at,
+    }, f, indent=2)
+    f.write("\n")
+PY
+    fi
+fi
+
+# Mark done even if every probe was a no-op — do not nag next login.
+printf '%s\n' "$(iso_now)" >"$FLAG" 2>/dev/null || true
+exit 0

@@ -1,0 +1,598 @@
+#!/bin/bash
+# bos-rescue — live-ISO helper for an installed BOS that will not boot.
+#
+# Finds the installed btrfs `@` and the ESP, mounts them, then offers to
+# arch-chroot and/or reinstall GRUB using the same sequence as
+# post-install.sh / README Recovery:
+#   UEFI: grub-install NVRAM + --removable, then grub-mkconfig
+#   BIOS: grub-install i386-pc onto the disk hosting /
+#
+# Recovery is this script or the GRUB "snapshots" submenu (grub-btrfs).
+# GRUB pins rootflags=subvol=@ — a snapper-swapped default subvolume is
+# not what the installed grub.cfg will boot. Never snapper-rollback.
+#
+# Safe: prints the devices it will use and requires YES before writing.
+# Best-effort: do not use `set -e`; a failed probe must not abort the rest.
+set -uo pipefail
+
+MNT="${BOS_RESCUE_MNT:-}"
+MOUNTED_ROOT=0
+MOUNTED_ESP=0
+ROOT_DEV=""
+ESP_DEV=""
+ROOT_ENCRYPTED=0
+
+bold() { printf '\033[1m%s\033[0m\n' "$1" >&2; }
+info() { printf '  %s\n' "$1" >&2; }
+warn() { printf 'WARN: %s\n' "$1" >&2; }
+
+usage() {
+    cat <<'EOF'
+Usage: bos-rescue
+
+Live-ISO helper: find the installed BOS btrfs @ and ESP, mount them,
+then arch-chroot and/or reinstall GRUB.
+
+  UEFI: grub-install (NVRAM) + grub-install --removable + grub-mkconfig
+  BIOS: grub-install --target=i386-pc onto the disk hosting /
+
+Prints the devices it will use and asks YES before writing anything.
+
+Do not snapper-rollback. GRUB pins rootflags=subvol=@. Pick a grub-btrfs
+snapshot entry, or reinstall GRUB with this script.
+
+Must be run as root. Intended from the live ISO (SUPER+Return).
+EOF
+}
+
+need_root() {
+    if [[ "$(id -u)" -ne 0 ]]; then
+        echo "bos-rescue must run as root (sudo bos-rescue)." >&2
+        exit 1
+    fi
+}
+
+confirm_yes() {
+    local prompt="$1"
+    local reply=""
+    printf '%s [type YES]: ' "$prompt" >&2
+    read -r reply || return 1
+    [[ "$reply" == "YES" ]]
+}
+
+is_live_iso() {
+    [[ -d /run/archiso ]] || [[ -x /usr/local/bin/bos-live-setup ]]
+}
+
+already_on_installed() {
+    # Installed BOS: / is the @ subvolume and this is not the live medium.
+    is_live_iso && return 1
+    local src opts
+    src="$(findmnt -no SOURCE / 2>/dev/null | sed 's/\[.*\]//')"
+    opts="$(findmnt -no OPTIONS / 2>/dev/null || true)"
+    [[ -n "$src" ]] || return 1
+    [[ "$opts" == *subvol=/@* || "$opts" == *subvol=@* ]] || return 1
+    [[ -f /etc/os-release ]] && grep -qE '^ID=bos$' /etc/os-release
+}
+
+pick_mnt() {
+    if [[ -n "$MNT" ]]; then
+        return
+    fi
+    if findmnt -n /mnt >/dev/null 2>&1; then
+        MNT=/mnt/bos-rescue
+        info "/mnt is already a mountpoint — using $MNT"
+    else
+        MNT=/mnt
+    fi
+}
+
+lsblk_line() {
+    lsblk -pnlo NAME,FSTYPE,SIZE,LABEL,UUID,PARTTYPENAME "$1" 2>/dev/null | head -n1
+}
+
+# Open LUKS containers so a later btrfs scan can see @.
+offer_luks() {
+    command -v cryptsetup >/dev/null || return 0
+    local dev name reply
+    while read -r dev; do
+        [[ -n "$dev" ]] || continue
+        [[ -e "$dev" ]] || continue
+        if lsblk -no TYPE "$dev" 2>/dev/null | grep -qx crypt; then
+            continue
+        fi
+        # Skip already-mapped parents.
+        if lsblk -nlo TYPE "$dev" 2>/dev/null | grep -qx crypt; then
+            continue
+        fi
+        printf '\nLUKS container: %s\n  %s\n' "$dev" "$(lsblk_line "$dev")" >&2
+        printf 'Unlock this container? [y/N]: ' >&2
+        read -r reply || reply=""
+        if [[ "$reply" == [yY] ]]; then
+            name="bos-rescue-$(basename "$dev")"
+            if cryptsetup open "$dev" "$name"; then
+                info "opened $dev as /dev/mapper/$name"
+            else
+                warn "cryptsetup open failed for $dev"
+            fi
+        fi
+    done < <(lsblk -pnlo NAME,FSTYPE | awk '$2 == "crypto_LUKS" { print $1 }')
+}
+
+# Probe a btrfs device for an @ subvolume that looks like BOS (or any @).
+# Prints: DEVICE<TAB>KIND<TAB>PRETTY  where KIND is bos|other
+probe_btrfs_dev() {
+    local dev="$1"
+    local tmp pretty kind id
+    tmp="$(mktemp -d /tmp/bos-rescue.XXXXXX)" || return 1
+    kind="other"
+    pretty=""
+    if mount -o ro,subvol=@ "$dev" "$tmp" 2>/dev/null; then
+        if [[ -f "$tmp/etc/os-release" ]]; then
+            id="$(grep -E '^ID=' "$tmp/etc/os-release" | head -n1 | cut -d= -f2- | tr -d '"')"
+            pretty="$(grep -E '^PRETTY_NAME=' "$tmp/etc/os-release" | head -n1 | cut -d= -f2- | tr -d '"')"
+            [[ "$id" == "bos" ]] && kind="bos"
+        fi
+        umount "$tmp" 2>/dev/null || umount -l "$tmp" 2>/dev/null || true
+        rmdir "$tmp" 2>/dev/null || true
+        printf '%s\t%s\t%s\n' "$dev" "$kind" "${pretty:-btrfs @}"
+        return 0
+    fi
+    # Some volumes only accept a top-level probe first.
+    if mount -o ro,subvolid=5 "$dev" "$tmp" 2>/dev/null; then
+        if [[ -d "$tmp/@" ]] || btrfs subvolume show "$tmp/@" &>/dev/null; then
+            umount "$tmp" 2>/dev/null || umount -l "$tmp" 2>/dev/null || true
+            rmdir "$tmp" 2>/dev/null || true
+            printf '%s\t%s\t%s\n' "$dev" "other" "btrfs @ (unreadable os-release)"
+            return 0
+        fi
+        umount "$tmp" 2>/dev/null || umount -l "$tmp" 2>/dev/null || true
+    fi
+    rmdir "$tmp" 2>/dev/null || true
+    return 1
+}
+
+find_root_candidates() {
+    local dev
+    while read -r dev; do
+        [[ -n "$dev" ]] || continue
+        probe_btrfs_dev "$dev" || true
+    done < <(lsblk -pnlo NAME,FSTYPE | awk '$2 == "btrfs" { print $1 }')
+}
+
+# Prefer the ESP named in the installed fstab; else EFI type / BOS bits.
+find_esp_for_root() {
+    local root="$1"
+    local tmp fstab_uuid fstab_dev dev fstype parttype label
+    tmp="$(mktemp -d /tmp/bos-rescue.XXXXXX)" || return 1
+    if mount -o ro,subvol=@ "$root" "$tmp" 2>/dev/null; then
+        if [[ -f "$tmp/etc/fstab" ]]; then
+            fstab_uuid="$(awk '$2 == "/boot/efi" {
+                if ($1 ~ /^UUID=/) { sub(/^UUID=/, "", $1); print $1; exit }
+            }' "$tmp/etc/fstab")"
+        fi
+        umount "$tmp" 2>/dev/null || umount -l "$tmp" 2>/dev/null || true
+    fi
+    rmdir "$tmp" 2>/dev/null || true
+
+    if [[ -n "${fstab_uuid:-}" ]]; then
+        fstab_dev="$(blkid -U "$fstab_uuid" 2>/dev/null || true)"
+        if [[ -n "$fstab_dev" ]]; then
+            printf '%s\n' "$fstab_dev"
+            return 0
+        fi
+    fi
+
+    local best="" scored=0 score
+    # PARTTYPE is the GPT GUID — no spaces, unlike PARTTYPENAME ("EFI System").
+    local efi_guid="c12a7328-f81f-11d2-ba4b-00a716dde993"
+    while read -r dev fstype parttype; do
+        [[ -n "$dev" ]] || continue
+        score=0
+        [[ "$fstype" == "vfat" || "$fstype" == "fat32" || "$fstype" == "FAT-32" ]] && score=$((score + 1))
+        [[ "${parttype,,}" == "$efi_guid" ]] && score=$((score + 3))
+        if (( score > scored )); then
+            best="$dev"
+            scored=$score
+        fi
+    done < <(lsblk -pnlo NAME,FSTYPE,PARTTYPE)
+
+    # Prefer an ESP that already has BOS or removable fallback bits.
+    local probe mp
+    for dev in $best $(lsblk -pnlo NAME,FSTYPE | awk '$2 == "vfat" { print $1 }'); do
+        [[ -n "$dev" ]] || continue
+        mp="$(mktemp -d /tmp/bos-rescue.XXXXXX)" || continue
+        if mount -o ro "$dev" "$mp" 2>/dev/null; then
+            if [[ -f "$mp/EFI/BOS/grubx64.efi" || -f "$mp/EFI/BOOT/BOOTX64.EFI" ]]; then
+                umount "$mp" 2>/dev/null || true
+                rmdir "$mp" 2>/dev/null || true
+                printf '%s\n' "$dev"
+                return 0
+            fi
+            umount "$mp" 2>/dev/null || true
+        fi
+        rmdir "$mp" 2>/dev/null || true
+    done
+
+    [[ -n "$best" ]] && printf '%s\n' "$best"
+}
+
+select_from_list() {
+    local title="$1"
+    shift
+    local -a items=("$@")
+    local i choice
+    if (( ${#items[@]} == 0 )); then
+        return 1
+    fi
+    if (( ${#items[@]} == 1 )); then
+        printf '%s\n' "${items[0]}"
+        return 0
+    fi
+    bold "$title"
+    for i in "${!items[@]}"; do
+        printf '  %d) %s\n' "$((i + 1))" "${items[$i]}" >&2
+    done
+    printf 'Select [1-%d]: ' "${#items[@]}" >&2
+    read -r choice || return 1
+    if [[ "$choice" =~ ^[0-9]+$ ]] && (( choice >= 1 && choice <= ${#items[@]} )); then
+        printf '%s\n' "${items[$((choice - 1))]}"
+        return 0
+    fi
+    return 1
+}
+
+discover_and_choose() {
+    bold "Scanning for an installed BOS (btrfs @) …"
+    offer_luks
+
+    local -a bos_devs=() other_devs=()
+    local dev kind pretty line
+    while IFS=$'\t' read -r dev kind pretty; do
+        [[ -n "$dev" ]] || continue
+        line="$dev  (${pretty:-$kind})"
+        if [[ "$kind" == "bos" ]]; then
+            bos_devs+=("$dev")
+        else
+            other_devs+=("$dev")
+        fi
+        info "found $line"
+    done < <(find_root_candidates)
+
+    if (( ${#bos_devs[@]} == 0 && ${#other_devs[@]} == 0 )); then
+        echo "No btrfs @ subvolume found. Unlock LUKS first if the install is encrypted." >&2
+        return 1
+    fi
+
+    if (( ${#bos_devs[@]} == 1 )); then
+        ROOT_DEV="${bos_devs[0]}"
+        info "Using BOS root $ROOT_DEV"
+    elif (( ${#bos_devs[@]} > 1 )); then
+        ROOT_DEV="$(select_from_list "More than one BOS @ found:" "${bos_devs[@]}")" || return 1
+    else
+        warn "No ID=bos os-release on @ — offering every btrfs @ found"
+        ROOT_DEV="$(select_from_list "Select the installed root device:" "${other_devs[@]}")" || return 1
+    fi
+
+    ESP_DEV="$(find_esp_for_root "$ROOT_DEV" || true)"
+    if [[ -n "$ESP_DEV" ]]; then
+        info "Using ESP $ESP_DEV"
+    fi
+    if [[ -z "$ESP_DEV" ]]; then
+        local -a esps=()
+        while read -r dev; do
+            [[ -n "$dev" ]] && esps+=("$dev")
+        done < <(lsblk -pnlo NAME,FSTYPE,PARTTYPE | awk '
+            $2 == "vfat" || tolower($3) == "c12a7328-f81f-11d2-ba4b-00a716dde993" { print $1 }
+        ')
+        if (( ${#esps[@]} == 0 )); then
+            warn "No ESP found. GRUB reinstall on UEFI will fail; chroot is still available."
+        else
+            ESP_DEV="$(select_from_list "Select the EFI System Partition:" "${esps[@]}")" || true
+        fi
+    fi
+}
+
+mount_install() {
+    pick_mnt
+    mkdir -p "$MNT"
+    if ! findmnt -n "$MNT" >/dev/null 2>&1; then
+        if ! mount -o subvol=@ "$ROOT_DEV" "$MNT"; then
+            warn "failed to mount $ROOT_DEV subvol=@ at $MNT"
+            return 1
+        fi
+        MOUNTED_ROOT=1
+    fi
+    if [[ -n "$ESP_DEV" ]]; then
+        mkdir -p "$MNT/boot/efi"
+        if ! findmnt -n "$MNT/boot/efi" >/dev/null 2>&1; then
+            if mount "$ESP_DEV" "$MNT/boot/efi"; then
+                MOUNTED_ESP=1
+            else
+                warn "failed to mount ESP $ESP_DEV at $MNT/boot/efi"
+            fi
+        fi
+    fi
+    if [[ "$(lsblk -no TYPE "$ROOT_DEV" 2>/dev/null)" == "crypt" ]]; then
+        ROOT_ENCRYPTED=1
+    fi
+}
+
+unmount_install() {
+    if [[ "$MOUNTED_ESP" == "1" ]]; then
+        umount "$MNT/boot/efi" 2>/dev/null || umount -l "$MNT/boot/efi" 2>/dev/null || true
+        MOUNTED_ESP=0
+    fi
+    if [[ "$MOUNTED_ROOT" == "1" ]]; then
+        umount "$MNT" 2>/dev/null || umount -l "$MNT" 2>/dev/null || true
+        MOUNTED_ROOT=0
+    fi
+}
+
+print_plan() {
+    echo >&2
+    bold "Devices"
+    info "root: ${ROOT_DEV:-unset}  $([[ -n "$ROOT_DEV" ]] && lsblk_line "$ROOT_DEV")"
+    info "ESP:  ${ESP_DEV:-none}  $([[ -n "$ESP_DEV" ]] && lsblk_line "$ESP_DEV")"
+    info "mount: ${MNT:-unset}"
+    if [[ -d /sys/firmware/efi ]]; then
+        info "firmware: UEFI"
+    else
+        info "firmware: BIOS"
+    fi
+    if [[ "$ROOT_ENCRYPTED" == "1" ]]; then
+        info "root is LUKS (grub-install will include cryptodisk modules)"
+    fi
+    echo >&2
+    info "Recovery is grub-btrfs (GRUB snapshots submenu) or this GRUB reinstall."
+    info "GRUB pins rootflags=subvol=@ — do not swap the default subvolume."
+}
+
+run_in_target() {
+    local cmd="$1"
+    if command -v arch-chroot >/dev/null; then
+        arch-chroot "$MNT" bash -c "$cmd"
+        return $?
+    fi
+    # arch-install-scripts is not guaranteed on the ISO — bind the API
+    # filesystems the same way arch-chroot would, then chroot.
+    mount --bind /proc "$MNT/proc" 2>/dev/null || mount -t proc proc "$MNT/proc"
+    mount --bind /sys "$MNT/sys" 2>/dev/null || mount -t sysfs sys "$MNT/sys"
+    mount --bind /dev "$MNT/dev" 2>/dev/null || mount -t devtmpfs udev "$MNT/dev"
+    mkdir -p "$MNT/run"
+    mount --bind /run "$MNT/run" 2>/dev/null || mount -t tmpfs tmpfs "$MNT/run"
+    if [[ -d /sys/firmware/efi ]]; then
+        mkdir -p "$MNT/sys/firmware/efi/efivars"
+        mount -t efivarfs efivarfs "$MNT/sys/firmware/efi/efivars" 2>/dev/null || true
+    fi
+    chroot "$MNT" bash -c "$cmd"
+    local rc=$?
+    umount "$MNT/sys/firmware/efi/efivars" 2>/dev/null || true
+    umount "$MNT/run" 2>/dev/null || true
+    umount "$MNT/dev" 2>/dev/null || true
+    umount "$MNT/sys" 2>/dev/null || true
+    umount "$MNT/proc" 2>/dev/null || true
+    return "$rc"
+}
+
+grub_commands_preview() {
+    if [[ -d /sys/firmware/efi ]]; then
+        cat <<'EOF' >&2
+  grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=BOS --recheck
+  grub-install --target=x86_64-efi --efi-directory=/boot/efi --removable --recheck
+  grub-mkconfig -o /boot/grub/grub.cfg
+EOF
+    else
+        cat <<'EOF' >&2
+  grub-install --target=i386-pc --recheck <disk-hosting-root>
+  grub-mkconfig -o /boot/grub/grub.cfg
+EOF
+    fi
+}
+
+reinstall_grub() {
+    if [[ ! -d "$MNT/boot" ]]; then
+        warn "target $MNT/boot missing — mount the installed @ first"
+        return 1
+    fi
+    echo >&2
+    bold "This will write a bootloader using:"
+    info "root ${ROOT_DEV:-/}   ESP ${ESP_DEV:-n/a}   chroot $MNT"
+    grub_commands_preview
+    echo >&2
+    if ! confirm_yes "Reinstall GRUB now?"; then
+        info "skipped"
+        return 0
+    fi
+
+    # Same sequence as post-install.sh (UEFI NVRAM + --removable, or BIOS MBR).
+    local script
+    script="$(cat <<'EOS'
+set -uo pipefail
+ROOT_SRC="$(findmnt -no SOURCE / | sed 's/\[.*\]//')"
+if [[ "$(lsblk -no TYPE "$ROOT_SRC" 2>/dev/null)" == "crypt" ]]; then
+    ROOT_ENCRYPTED=1
+else
+    ROOT_ENCRYPTED=0
+fi
+if [[ "$ROOT_ENCRYPTED" == "1" ]] && [[ -f /etc/default/grub ]] \
+   && ! grep -q '^GRUB_ENABLE_CRYPTODISK=' /etc/default/grub; then
+    echo 'GRUB_ENABLE_CRYPTODISK=y' >> /etc/default/grub \
+        || echo "WARN: adding GRUB_ENABLE_CRYPTODISK failed"
+fi
+if ! command -v grub-install >/dev/null; then
+    echo "ERROR: grub-install not found in the installed system" >&2
+    exit 1
+fi
+CRYPT_MODULES=()
+[[ "$ROOT_ENCRYPTED" == "1" ]] && CRYPT_MODULES=(--modules="cryptodisk luks luks2")
+if [[ -d /sys/firmware/efi ]]; then
+    grub-install --target=x86_64-efi --efi-directory=/boot/efi \
+        --bootloader-id=BOS --recheck "${CRYPT_MODULES[@]}" \
+        || echo "WARN: grub-install (nvram) failed"
+    grub-install --target=x86_64-efi --efi-directory=/boot/efi \
+        --removable --recheck "${CRYPT_MODULES[@]}" \
+        || echo "WARN: grub-install (removable) failed"
+else
+    ROOT_DEV="$(findmnt -no SOURCE / | sed 's/\[.*\]//')"
+    ROOT_DISK="$(lsblk -no pkname "$ROOT_DEV" 2>/dev/null)"
+    if [[ -n "$ROOT_DISK" ]]; then
+        grub-install --target=i386-pc --recheck "${CRYPT_MODULES[@]}" "/dev/$ROOT_DISK" \
+            || echo "WARN: grub-install (BIOS) failed"
+    else
+        echo "WARN: could not determine the disk hosting / — BIOS grub-install skipped"
+    fi
+fi
+if command -v grub-mkconfig >/dev/null; then
+    grub-mkconfig -o /boot/grub/grub.cfg || echo "WARN: grub-mkconfig failed"
+else
+    echo "WARN: grub-mkconfig not found"
+fi
+EOS
+)"
+    if run_in_target "$script"; then
+        bold "GRUB reinstall finished."
+        info "Firmware that lost its NVRAM entry can still boot EFI/BOOT/BOOTX64.EFI."
+    else
+        warn "GRUB reinstall returned non-zero — see messages above"
+        return 1
+    fi
+}
+
+do_chroot() {
+    if [[ ! -d "$MNT/etc" ]]; then
+        warn "target $MNT is not a mounted system"
+        return 1
+    fi
+    bold "Entering chroot at $MNT (exit to return)."
+    if command -v arch-chroot >/dev/null; then
+        arch-chroot "$MNT"
+    else
+        run_in_target "exec bash -l"
+    fi
+}
+
+menu_live() {
+    local choice
+    while true; do
+        echo
+        bold "bos-rescue"
+        print_plan
+        cat <<'EOF' >&2
+  1) arch-chroot into the installed system
+  2) Reinstall GRUB (NVRAM + --removable + grub-mkconfig)
+  3) Reinstall GRUB, then chroot
+  4) Unmount and quit
+  q) Quit (leave mounts)
+EOF
+        printf 'Choice: ' >&2
+        read -r choice || choice="q"
+        case "$choice" in
+            1) do_chroot ;;
+            2) reinstall_grub ;;
+            3) reinstall_grub; do_chroot ;;
+            4) unmount_install; bold "Unmounted."; return 0 ;;
+            q|Q) info "Leaving mounts in place at $MNT"; return 0 ;;
+            *) info "unknown choice" ;;
+        esac
+    done
+}
+
+menu_installed() {
+    ROOT_DEV="$(findmnt -no SOURCE / | sed 's/\[.*\]//')"
+    ESP_DEV="$(findmnt -no SOURCE /boot/efi 2>/dev/null || true)"
+    MNT="/"
+    if [[ "$(lsblk -no TYPE "$ROOT_DEV" 2>/dev/null)" == "crypt" ]]; then
+        ROOT_ENCRYPTED=1
+    fi
+    echo
+    bold "Already running the installed BOS (not the live ISO)."
+    info "Root and ESP are already mounted — chroot is not needed."
+    print_plan
+    if confirm_yes "Reinstall GRUB on this running system?"; then
+        # Running on the installed root: no extra mount/chroot.
+        local old_mnt="$MNT"
+        MNT="/"
+        # run_in_target would chroot into / — just run locally.
+        if [[ -d /sys/firmware/efi && -z "$ESP_DEV" ]]; then
+            warn " /boot/efi is not mounted — refusing to write"
+            return 1
+        fi
+        bash -c "$(cat <<'EOS'
+set -uo pipefail
+ROOT_SRC="$(findmnt -no SOURCE / | sed 's/\[.*\]//')"
+if [[ "$(lsblk -no TYPE "$ROOT_SRC" 2>/dev/null)" == "crypt" ]]; then
+    ROOT_ENCRYPTED=1
+else
+    ROOT_ENCRYPTED=0
+fi
+if [[ "$ROOT_ENCRYPTED" == "1" ]] && [[ -f /etc/default/grub ]] \
+   && ! grep -q '^GRUB_ENABLE_CRYPTODISK=' /etc/default/grub; then
+    echo 'GRUB_ENABLE_CRYPTODISK=y' >> /etc/default/grub \
+        || echo "WARN: adding GRUB_ENABLE_CRYPTODISK failed"
+fi
+CRYPT_MODULES=()
+[[ "$ROOT_ENCRYPTED" == "1" ]] && CRYPT_MODULES=(--modules="cryptodisk luks luks2")
+if [[ -d /sys/firmware/efi ]]; then
+    grub-install --target=x86_64-efi --efi-directory=/boot/efi \
+        --bootloader-id=BOS --recheck "${CRYPT_MODULES[@]}" \
+        || echo "WARN: grub-install (nvram) failed"
+    grub-install --target=x86_64-efi --efi-directory=/boot/efi \
+        --removable --recheck "${CRYPT_MODULES[@]}" \
+        || echo "WARN: grub-install (removable) failed"
+else
+    ROOT_DISK="$(lsblk -no pkname "$ROOT_SRC" 2>/dev/null)"
+    if [[ -n "$ROOT_DISK" ]]; then
+        grub-install --target=i386-pc --recheck "${CRYPT_MODULES[@]}" "/dev/$ROOT_DISK" \
+            || echo "WARN: grub-install (BIOS) failed"
+    fi
+fi
+grub-mkconfig -o /boot/grub/grub.cfg || echo "WARN: grub-mkconfig failed"
+EOS
+)"
+        MNT="$old_mnt"
+    else
+        info "skipped"
+    fi
+}
+
+main() {
+    if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
+        usage
+        exit 0
+    fi
+    need_root
+    local req
+    for req in mount lsblk blkid findmnt; do
+        if ! command -v "$req" >/dev/null; then
+            echo "bos-rescue: missing required tool '$req'" >&2
+            exit 1
+        fi
+    done
+    bold "bos-rescue"
+    info "Live-ISO recovery helper. Prints devices and asks YES before writing."
+    info "Use grub-btrfs (GRUB snapshots submenu) for a bootable snapshot."
+    info "Do not snapper-rollback — GRUB pins rootflags=subvol=@."
+    echo
+
+    if already_on_installed; then
+        menu_installed
+        return 0
+    fi
+
+    if ! is_live_iso; then
+        warn "This does not look like the BOS live ISO (/run/archiso missing)."
+        info "Continuing anyway — will scan disks for a BOS @."
+    fi
+
+    discover_and_choose || exit 1
+    print_plan
+    if ! confirm_yes "Mount these devices and continue?"; then
+        info "nothing mounted"
+        exit 0
+    fi
+    mount_install || exit 1
+    menu_live
+}
+
+main "$@"

@@ -3,6 +3,7 @@
     { "command": "breadbar", "label": "Bar (breadbar)", "enabled": true },
     { "command": "hypridle", "label": "Idle / lock daemon (hypridle)", "enabled": true },
     { "command": "bos-netcheck", "label": "Network connectivity check", "enabled": true },
+    { "command": "bash -c 'command -v bos-first-boot >/dev/null && exec bos-first-boot'", "label": "First-boot hardware probe", "enabled": true },
     { "command": "breadhelp --autostart", "label": "BOS Help (first-run onboarding)", "enabled": true },
     { "command": "bash -c 'command -v breadpaper >/dev/null && exec breadpaper listen'", "label": "Wallpaper command bus (breadpaper listen)", "enabled": true },
     { "command": "bash -c 'command -v breadshot >/dev/null && exec breadshot listen'", "label": "Screenshot command bus (breadshot listen)", "enabled": true },

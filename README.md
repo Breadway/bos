@@ -360,14 +360,15 @@ not shipped.
 **The system won't boot (broken GRUB / lost EFI entry):**
 
 1. Boot the BOS ISO and open a terminal (`SUPER+Return`).
-2. Mount the installed root and EFI, then chroot:
+2. Run `sudo bos-rescue`. It finds the installed btrfs `@` and the ESP,
+   prints the devices it will use, and asks `YES` before writing. It can
+   `arch-chroot` and/or reinstall GRUB with the same sequence the
+   installer uses (NVRAM + `--removable` + `grub-mkconfig`).
+3. Manual equivalent, if you would rather type it:
    ```sh
    mount -o subvol=@ /dev/sdXN /mnt
    mount /dev/sdXP /mnt/boot/efi      # the EFI partition
    arch-chroot /mnt
-   ```
-3. Reinstall the bootloader (the same sequence the installer uses):
-   ```sh
    grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=BOS --recheck
    grub-install --target=x86_64-efi --efi-directory=/boot/efi --removable --recheck
    grub-mkconfig -o /boot/grub/grub.cfg

@@ -18,6 +18,7 @@ local DEFAULT_EXTRA = {
     { command = "breadbar", enabled = true },
     { command = "hypridle", enabled = true },
     { command = "bos-netcheck", enabled = true },
+    { command = "bash -c 'command -v bos-first-boot >/dev/null && exec bos-first-boot'", enabled = true },
     { command = "breadhelp --autostart", enabled = true },
     { command = "bash -c 'command -v breadpaper >/dev/null && exec breadpaper listen'", enabled = true },
     { command = "bash -c 'command -v breadshot >/dev/null && exec breadshot listen'", enabled = true },
