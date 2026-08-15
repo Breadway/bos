@@ -8,7 +8,12 @@ iso_application="Bread Operating System"
 iso_version="$(date +%Y.%m.%d)"
 install_dir="arch"
 buildmodes=('iso')
-bootmodes=('bios.syslinux' 'uefi.systemd-boot')
+# systemd-boot can only read files from the ESP it was launched from, so
+# mkarchiso's _make_bootmode_uefi.systemd-boot copies vmlinuz + initramfs
+# INTO the FAT efiboot.img on top of the copy already on ISO9660 (~244 MiB
+# duplicate). uefi.grub's ESP is only EFI + shell*.efi — GRUB reads ISO9660
+# directly. iso/grub/{grub,loopback}.cfg are already BOS-branded.
+bootmodes=('bios.syslinux' 'uefi.grub')
 arch="x86_64"
 pacman_conf="pacman.conf"
 airootfs_image_type="squashfs"
