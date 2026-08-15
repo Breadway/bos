@@ -47,6 +47,11 @@ PY
 
 echo "== lockfile $LOCKFILE =="
 echo "   ${#REQUIRED_BINS[@]} required, ${#OPTIONAL_BINS[@]} optional"
+if grep -qE '^nvidia(-utils|-dkms|-open)?$' "$REPO/iso/packages.x86_64"; then
+  bad "iso/packages.x86_64 lists an nvidia driver package"
+else
+  ok "iso/packages.x86_64 has no nvidia driver package"
+fi
 echo "== host tools =="
 if command -v grub-install >/dev/null 2>&1; then
   ok "grub-install (uefi.grub bootmode)"
@@ -140,6 +145,7 @@ if [[ -n "$AIROOTFS" || -n "$SKEL" ]]; then
     for b in "${REQUIRED_BINS[@]}"; do
       check_exec "$AIROOTFS/usr/local/bin/$b" "image required bin $b"
     done
+    check_exec "$AIROOTFS/usr/local/bin/bos-nvidia-setup" "image bos-nvidia-setup"
     check_dir "$AIROOTFS/usr/local/share/breadhelp/content" "image breadhelp content"
   fi
   if [[ -n "$SKEL" ]]; then
@@ -152,6 +158,11 @@ if [[ -n "$AIROOTFS" || -n "$SKEL" ]]; then
       fi
     done
     check_file "$SKEL/.config/hypr/hyprland.lua" "skel hyprland.lua"
+    if grep -q 'nvidia.lua' "$SKEL/.config/hypr/hyprland.lua"; then
+      ok "skel hyprland.lua includes nvidia.lua only if present"
+    else
+      bad "skel hyprland.lua does not mention nvidia.lua"
+    fi
   fi
   image_units_json=""
   if [[ -n "$SKEL" && -f "$SKEL/.local/state/bakery/installed.json" ]]; then

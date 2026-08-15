@@ -1,0 +1,150 @@
+#!/bin/bash
+# bos-nvidia-setup — optional proprietary NVIDIA driver + Hyprland env.
+#
+# Installs nvidia + nvidia-utils only (never cuda). Writes
+# ~/.config/hypr/nvidia.lua, which skel hyprland.lua dofiles only when
+# the file exists — Mesa machines stay unchanged. Existing installs get
+# the same include patched in if it is missing.
+#
+# Click-to-install from Settings, or run by hand. Not invoked from
+# bos-first-boot. Idempotent. Prints "reboot required".
+#
+# Must run on an installed system. Elevates via pkexec, then sudo.
+set -uo pipefail
+
+usage() {
+    cat <<'EOF'
+Usage: bos-nvidia-setup [--home DIR]
+
+Install nvidia + nvidia-utils (not cuda) and write the Hyprland NVIDIA
+env drop-in for this user. Reboot after.
+
+  --home DIR   user home that owns ~/.config/hypr (required under pkexec
+               if PKEXEC_UID / SUDO_USER cannot be resolved)
+EOF
+}
+
+TARGET_HOME=""
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --home)
+            TARGET_HOME="${2:-}"
+            shift 2
+            ;;
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        *)
+            echo "bos-nvidia-setup: unknown argument: $1" >&2
+            usage >&2
+            exit 2
+            ;;
+    esac
+done
+
+if [[ "$(id -un)" == "liveuser" || -d /run/archiso ]]; then
+    echo "bos-nvidia-setup is for an installed system, not the live ISO." >&2
+    exit 1
+fi
+
+if [[ "$(id -u)" -ne 0 ]]; then
+    home="${TARGET_HOME:-${HOME:-}}"
+    if [[ -z "$home" ]]; then
+        echo "bos-nvidia-setup: cannot determine home; pass --home" >&2
+        exit 1
+    fi
+    self="$(command -v bos-nvidia-setup 2>/dev/null || true)"
+    [[ -n "$self" ]] || self="$(readlink -f "$0" 2>/dev/null || printf '%s' "$0")"
+    if command -v pkexec >/dev/null 2>&1; then
+        exec pkexec "$self" --home "$home"
+    fi
+    if command -v sudo >/dev/null 2>&1; then
+        exec sudo "$self" --home "$home"
+    fi
+    echo "bos-nvidia-setup: need root (pkexec or sudo)" >&2
+    exit 1
+fi
+
+if [[ -z "$TARGET_HOME" ]]; then
+    if [[ -n "${PKEXEC_UID:-}" ]]; then
+        TARGET_HOME="$(getent passwd "$PKEXEC_UID" | cut -d: -f6 || true)"
+    elif [[ -n "${SUDO_USER:-}" && "${SUDO_USER}" != root ]]; then
+        TARGET_HOME="$(getent passwd "$SUDO_USER" | cut -d: -f6 || true)"
+    fi
+fi
+
+if [[ -z "$TARGET_HOME" || "$TARGET_HOME" == /root || ! -d "$TARGET_HOME" ]]; then
+    echo "bos-nvidia-setup: cannot determine user home (pass --home)" >&2
+    exit 1
+fi
+
+HYPR_DIR="$TARGET_HOME/.config/hypr"
+NVIDIA_LUA="$HYPR_DIR/nvidia.lua"
+HYPR_LUA="$HYPR_DIR/hyprland.lua"
+
+# Hyprland 0.56 (Aquamarine). Wiki (https://wiki.hypr.land/Nvidia/):
+# LIBVA_DRIVER_NAME + __GLX_VENDOR_LIBRARY_NAME. NVD_BACKEND is the
+# current VA-API hint. No WLR_* (not wlroots). No GBM_BACKEND (not
+# required; older docs cargo-culted it and it can break Firefox).
+NVIDIA_LUA_BODY='-- Written by bos-nvidia-setup. hyprland.lua dofiles this only when it exists.
+-- Hyprland 0.56 (Aquamarine) — no WLR_* variables.
+-- https://wiki.hypr.land/Nvidia/
+hl.env("LIBVA_DRIVER_NAME", "nvidia")
+hl.env("__GLX_VENDOR_LIBRARY_NAME", "nvidia")
+hl.env("NVD_BACKEND", "direct")
+'
+
+# Self-contained so it is safe to append to a hand-edited hyprland.lua.
+HYPR_INCLUDE='-- bos-nvidia-setup: optional proprietary env; no-op when the file is absent
+do
+    local nvidia = (os.getenv("HOME") or "") .. "/.config/hypr/nvidia.lua"
+    local f = io.open(nvidia, "r")
+    if f then
+        f:close()
+        pcall(dofile, nvidia)
+    end
+end
+'
+
+own_as_user() {
+    local path="$1"
+    [[ -e "$path" ]] || return 0
+    local owner
+    owner="$(stat -c '%u:%g' "$TARGET_HOME" 2>/dev/null || true)"
+    [[ -n "$owner" ]] || return 0
+    chown "$owner" "$path" 2>/dev/null || true
+}
+
+echo "==> Installing nvidia + nvidia-utils (not cuda)"
+if ! command -v pacman >/dev/null 2>&1; then
+    echo "bos-nvidia-setup: pacman not found" >&2
+    exit 1
+fi
+if ! pacman -S --needed --noconfirm -- nvidia nvidia-utils; then
+    echo "bos-nvidia-setup: pacman install failed" >&2
+    exit 1
+fi
+
+echo "==> Writing $NVIDIA_LUA"
+mkdir -p "$HYPR_DIR" || {
+    echo "bos-nvidia-setup: cannot create $HYPR_DIR" >&2
+    exit 1
+}
+printf '%s' "$NVIDIA_LUA_BODY" >"$NVIDIA_LUA" || {
+    echo "bos-nvidia-setup: cannot write $NVIDIA_LUA" >&2
+    exit 1
+}
+own_as_user "$NVIDIA_LUA"
+
+if [[ -f "$HYPR_LUA" ]] && ! grep -q 'nvidia\.lua' "$HYPR_LUA"; then
+    echo "==> Including nvidia.lua from $HYPR_LUA"
+    if [[ -n "$(tail -c1 "$HYPR_LUA" 2>/dev/null || true)" ]]; then
+        printf '\n' >>"$HYPR_LUA"
+    fi
+    printf '%s\n' "$HYPR_INCLUDE" >>"$HYPR_LUA"
+    own_as_user "$HYPR_LUA"
+fi
+
+echo "reboot required"
+exit 0

@@ -77,6 +77,17 @@ hl.env("SDL_VIDEODRIVER", "wayland")
 hl.env("ELECTRON_OZONE_PLATFORM_HINT", "auto")
 hl.env("_JAVA_AWT_WM_NONREPARENTING", "1")
 
+-- Optional NVIDIA env from bos-nvidia-setup. Mesa machines have no file.
+-- bos-nvidia-setup: optional proprietary env; no-op when the file is absent
+do
+    local nvidia = (os.getenv("HOME") or "") .. "/.config/hypr/nvidia.lua"
+    local f = io.open(nvidia, "r")
+    if f then
+        f:close()
+        pcall(dofile, nvidia)
+    end
+end
+
 -- kitty sets its own background_opacity (see kitty.conf), so the global blur
 -- above blurs behind the terminal while keeping text fully opaque.
 
