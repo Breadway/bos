@@ -67,6 +67,13 @@ check "breadhelp content installed" \
 check "bos-netcheck present" "command -v bos-netcheck"
 check "bos-rescue present" "command -v bos-rescue"
 check "bos-first-boot present" "command -v bos-first-boot"
+check "bos-nvidia-setup present" "command -v bos-nvidia-setup"
+if pacman -Qq nvidia >/dev/null 2>&1; then
+    note "nvidia installed (optional proprietary path)"
+    check "nvidia env drop-in present" "[ -f \"\$HOME/.config/hypr/nvidia.lua\" ]"
+else
+    check "nvidia not on the default image" "! pacman -Qq nvidia"
+fi
 
 echo "== bakery user units (global enable) =="
 # A later useradd does not enable --user units unless they were enabled
@@ -98,6 +105,8 @@ check "useradd SKEL is /etc/skel" \
 
 echo "== default dotfiles =="
 check "hyprland.lua present"  "[ -f \"\$HOME/.config/hypr/hyprland.lua\" ]"
+check "hyprland.lua includes nvidia.lua only if present" \
+    "grep -q 'nvidia.lua' \"\$HOME/.config/hypr/hyprland.lua\""
 check "binds.json present" "[ -f \"\$HOME/.config/hypr/binds.json\" ]"
 check "monitors.json present" "[ -f \"\$HOME/.config/hypr/monitors.json\" ]"
 check "settings.json present" "[ -f \"\$HOME/.config/hypr/settings.json\" ]"

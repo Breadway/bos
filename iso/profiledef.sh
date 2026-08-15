@@ -31,5 +31,6 @@ file_permissions=(
     ["/usr/local/bin/bos-update"]="0:0:755"
     ["/usr/local/bin/bos-rescue"]="0:0:755"
     ["/usr/local/bin/bos-first-boot"]="0:0:755"
+    ["/usr/local/bin/bos-nvidia-setup"]="0:0:755"
     ["/usr/local/bin/bos-enable-bakery-user-units"]="0:0:755"
 )

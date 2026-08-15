@@ -4,14 +4,21 @@
 
 BOS ships the generic **Mesa** stack. AMD and Intel work out of the box.
 
-**NVIDIA is unsupported.** The proprietary driver is not included, NVIDIA
-firmware is not on the image, and there is no Hyprland NVIDIA env wiring.
-Installing `nvidia` / `nvidia-utils` after the fact is not a product path.
+The proprietary NVIDIA driver is **not on the ISO**. NVIDIA firmware is
+not on the image either (`linux-firmware-nvidia` stays commented out in
+`packages.x86_64`). Default Hyprland env is vendor-neutral.
 
 On first graphical login, `bos-first-boot` probes `lspci` / `/proc` and,
 if an NVIDIA GPU is present, writes `~/.local/state/bos/nvidia-offer.json`
 and notifies that the proprietary driver is not on the ISO. It does **not**
-install anything. bos-settings can grow a panel that reads that file later.
+install anything.
+
+The optional proprietary path is `bos-nvidia-setup` or the Settings →
+Updates NVIDIA button. That installs `nvidia` + `nvidia-utils` (never
+cuda) and writes `~/.config/hypr/nvidia.lua`. `hyprland.lua` dofiles that
+drop-in **only if the file exists**, so Mesa machines stay unchanged.
+Reboot after. Installing the packages by hand without the drop-in is not
+enough for a working Hyprland session.
 
 The same probe leaves a HiDPI hint at `~/.local/state/bos/hidpi-hint.json`
 when scale > 1 or the panel is dense; it never rewrites `monitors.json`.
