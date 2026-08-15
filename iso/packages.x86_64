@@ -1,9 +1,26 @@
 # Base system
 base
-base-devel
 linux
-linux-firmware
-linux-headers
+# linux-firmware metapackage pulls every mandatory vendor blob (incl. nvidia).
+# List the subpackages we actually need so nvidia (~103 MiB, nouveau-only —
+# BOS ships no NVIDIA driver) can stay off the image. Turing+ nouveau needs
+# the GSP blobs; reinstall linux-firmware-nvidia when lspci sees NVIDIA.
+# linux-firmware
+linux-firmware-amdgpu
+linux-firmware-atheros
+linux-firmware-broadcom
+linux-firmware-cirrus
+linux-firmware-intel
+linux-firmware-mediatek
+linux-firmware-realtek
+linux-firmware-radeon
+linux-firmware-other
+# linux-firmware-nvidia
+# base-devel + linux-headers are for AUR/DKMS builds. yay needs base-devel,
+# but those builds need network anyway — pacman -S base-devel at that point.
+# linux-headers is DKMS-only and BOS ships no DKMS packages.
+# base-devel
+# linux-headers
 # CPU microcode — applied early by GRUB on the installed system (picked up by
 # the bootloader module). amd-ucode for the dev laptop's Ryzen; intel-ucode for
 # Intel targets. bos-copy-kernel also stages these into the live target /boot.
@@ -44,7 +61,7 @@ sbctl
 squashfs-tools
 # rsync: unpackfs copies the unpacked rootfs onto the target with rsync.
 rsync
-# Live-ISO boot (archiso bootmodes: bios.syslinux + uefi.systemd-boot)
+# Live-ISO boot (archiso bootmodes: bios.syslinux + uefi.grub)
 # mkinitcpio-archiso provides the initramfs hooks that find and mount
 # airootfs.sfs and switch root into it — without it the live ISO drops
 # to emergency mode on boot.
@@ -131,7 +148,9 @@ wayland-protocols
 
 # Fonts
 noto-fonts
-noto-fonts-cjk
+# noto-fonts-cjk is ~299 MiB installed / ~196 MiB on the ISO and only useful
+# to CJK-locale users. Install on first run for zh/ja/ko.
+# noto-fonts-cjk
 noto-fonts-emoji
 ttf-jetbrains-mono
 # Nerd font variant — icons in terminal tools (eza --icons, fastfetch, yazi)
@@ -157,13 +176,12 @@ file-roller
 
 # GUI applications a general desktop is expected to have out of the box.
 # gnome-text-editor: graphical editor (terminal editors aside); gnome-calculator:
-# calculator; loupe: Wayland-native image viewer (default for image files);
-# zathura(+pdf-mupdf): lightweight Wayland PDF viewer (BOS had no PDF reader).
+# calculator; loupe: Wayland-native image viewer (default for image files).
+# PDF is handled by Zen (skel mimeapps.list maps application/pdf to zen.desktop);
+# zathura+zathura-pdf-mupdf would pull libmupdf (~56 MiB) as a never-default viewer.
 gnome-text-editor
 gnome-calculator
 loupe
-zathura
-zathura-pdf-mupdf
 # Media player — BOS ships gstreamer codecs but otherwise has no player app.
 vlc
 # Web browser (served from the [Breadway] repo; AUR zen-browser-bin republished
