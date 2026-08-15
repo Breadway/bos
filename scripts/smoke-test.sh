@@ -63,7 +63,7 @@ check "bos-settings installed" "command -v bos-settings"
 echo "== breadhelp =="
 check "breadhelp installed" "command -v breadhelp"
 check "breadhelp content installed" \
-    "[ -d \"\$HOME/.local/share/breadhelp/content\" ] || [ -d /etc/skel/.local/share/breadhelp/content ]"
+    "[ -d /usr/local/share/breadhelp/content ] || [ -d \"\$HOME/.local/share/breadhelp/content\" ]"
 check "bos-netcheck present" "command -v bos-netcheck"
 check "bos-rescue present" "command -v bos-rescue"
 check "bos-first-boot present" "command -v bos-first-boot"

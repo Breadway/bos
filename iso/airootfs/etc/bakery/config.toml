@@ -1,0 +1,2 @@
+# Bakery desktop apps live under /usr/local so they ride snapper @ snapshots.
+prefix = "/usr/local"

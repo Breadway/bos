@@ -1,15 +1,20 @@
 #!/usr/bin/env bash
-# Read-only checks that a builder home (and optionally a staged skel) has
+# Read-only checks that a builder home (and optionally a staged image) has
 # everything build-local.sh needs before mkarchiso. Exit non-zero on failure.
+#
+# Builder home stays user-layout (~/.local). The image is system-prefix
+# /usr/local; pass SKEL and/or AIROOTFS to check those destinations.
 #
 #   LAPTOP_HOME=/build-home ./scripts/ci-verify-bake.sh
 #   SKEL=/tmp/bos-iso-stage/airootfs/etc/skel ./scripts/ci-verify-bake.sh
+#   AIROOTFS=/tmp/bos-iso-stage/airootfs ./scripts/ci-verify-bake.sh
 set -euo pipefail
 
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 LOCKFILE="${LOCKFILE:-$REPO/iso/bread-lockfile.toml}"
 LAPTOP_HOME="${LAPTOP_HOME:-/build-home}"
 SKEL="${SKEL:-}"
+AIROOTFS="${AIROOTFS:-}"
 
 pass=0
 fail=0
@@ -112,21 +117,73 @@ else
   done
 fi
 
-if [[ -n "$SKEL" ]]; then
-  echo "== staged skel $SKEL =="
-  for b in "${REQUIRED_BINS[@]}"; do
-    check_exec "$SKEL/.local/bin/$b" "skel required bin $b"
-  done
-  check_dir "$SKEL/.local/share/breadhelp/content" "skel breadhelp content"
-  check_file "$SKEL/.cache/bakery/index.json" "skel bakery index cache"
-  for unit in "${UNITS[@]}"; do
-    [[ -n "$unit" ]] || continue
-    if [[ -f "$SKEL/.config/systemd/user/$unit" ]]; then
-      ok "skel unit $unit"
+if [[ -n "$SKEL" && -z "$AIROOTFS" ]]; then
+  if [[ -d "$SKEL/usr/local/bin" ]]; then
+    AIROOTFS="$SKEL"
+    SKEL="$AIROOTFS/etc/skel"
+  elif [[ -d "$SKEL/../../usr/local" ]]; then
+    AIROOTFS="$(cd "$SKEL/../.." && pwd)"
+  fi
+elif [[ -n "$AIROOTFS" && -z "$SKEL" ]]; then
+  SKEL="$AIROOTFS/etc/skel"
+fi
+
+if [[ -n "$AIROOTFS" || -n "$SKEL" ]]; then
+  if [[ -n "$AIROOTFS" ]]; then
+    echo "== staged image $AIROOTFS =="
+    check_file "$AIROOTFS/etc/bakery/config.toml" "bakery prefix config"
+    if [[ -f "$AIROOTFS/etc/bakery/config.toml" ]] && grep -q 'prefix[[:space:]]*=[[:space:]]*"/usr/local"' "$AIROOTFS/etc/bakery/config.toml"; then
+      ok "bakery prefix = /usr/local"
     else
-      bad "skel unit missing: $SKEL/.config/systemd/user/$unit"
+      bad "bakery prefix is not /usr/local in $AIROOTFS/etc/bakery/config.toml"
     fi
-  done
+    for b in "${REQUIRED_BINS[@]}"; do
+      check_exec "$AIROOTFS/usr/local/bin/$b" "image required bin $b"
+    done
+    check_dir "$AIROOTFS/usr/local/share/breadhelp/content" "image breadhelp content"
+  fi
+  if [[ -n "$SKEL" ]]; then
+    echo "== staged skel $SKEL =="
+    check_file "$SKEL/.cache/bakery/index.json" "skel bakery index cache"
+    check_file "$SKEL/.local/state/bakery/installed.json" "skel bakery installed.json"
+    for b in "${REQUIRED_BINS[@]}"; do
+      if [[ -e "$SKEL/.local/bin/$b" ]]; then
+        bad "skel still has bakery bin $b (belongs in /usr/local/bin)"
+      fi
+    done
+  fi
+  image_units_json=""
+  if [[ -n "$SKEL" && -f "$SKEL/.local/state/bakery/installed.json" ]]; then
+    image_units_json="$SKEL/.local/state/bakery/installed.json"
+  fi
+  if [[ -n "$image_units_json" ]]; then
+    mapfile -t IMAGE_UNITS < <(python3 - "$image_units_json" <<'PY'
+import json, sys
+path = sys.argv[1]
+with open(path) as f:
+    data = json.load(f)
+pkgs = data.get("packages", data)
+for pkg in pkgs.values():
+    for s in pkg.get("services", []):
+        print(s["unit"] if isinstance(s, dict) else s)
+PY
+)
+  else
+    IMAGE_UNITS=("${UNITS[@]}")
+  fi
+  if [[ -n "$AIROOTFS" ]]; then
+    for unit in "${IMAGE_UNITS[@]}"; do
+      [[ -n "$unit" ]] || continue
+      check_file "$AIROOTFS/usr/lib/systemd/user/$unit" "image unit $unit"
+      if [[ -f "$AIROOTFS/usr/lib/systemd/user/$unit" ]]; then
+        if grep -q '^ExecStart=/usr/local/bin/' "$AIROOTFS/usr/lib/systemd/user/$unit"; then
+          ok "image unit $unit ExecStart uses /usr/local/bin"
+        elif grep -q '^ExecStart=' "$AIROOTFS/usr/lib/systemd/user/$unit"; then
+          bad "image unit $unit ExecStart is not /usr/local/bin: $(grep '^ExecStart=' "$AIROOTFS/usr/lib/systemd/user/$unit")"
+        fi
+      fi
+    done
+  fi
 fi
 
 echo

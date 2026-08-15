@@ -206,10 +206,10 @@ yay-bin
 # /etc/pam.d/breadlock). Everything else — bakery, bread/breadd/bread-emit/
 # bread-module-host, breadbar, breadbox, breadcrumbs, breadpad, breadpaper,
 # bread-theme, breadmon, breadsearch, breadclip, breadshot, bos-settings,
-# breadhelp — is bakery-managed and baked into /etc/skel/.local at ISO build
+# breadhelp — is bakery-managed and baked into /usr/local at ISO build
 # time from iso/bread-lockfile.toml (see build-local.sh). breadcast and
 # breadarr are not shipped. bos-settings/breadhelp desktop entries are
-# committed under iso/airootfs/etc/skel/.local/share/applications/. Runtime
+# also committed under iso/airootfs/etc/skel/.local/share/applications/. Runtime
 # deps stay listed even though no bread package depends on them via pacman
 # (gtk4, gtk4-layer-shell, webkit2gtk-4.1, iw, libpulse, librsvg, …).
 

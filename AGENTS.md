@@ -52,4 +52,7 @@ There is no `dev` integration branch.
 - Don't bake an ISO (`sudo ./build-local.sh`) unless asked — lockfile/docs
   work does not require it.
 - Don't tell users to `snapper rollback` blindly; GRUB pins
-  `rootflags=subvol=@`. Recovery is grub-btrfs reboot.
+  `rootflags=subvol=@`. Recovery is grub-btrfs reboot. Bakery desktop
+  apps on BOS are system-prefix `/usr/local` (`/etc/bakery/config.toml`);
+  snapper `@` snapshots include them. Do not move those bits back to
+  `~/.local` on the image (hermes / default bakery stay user-layout).

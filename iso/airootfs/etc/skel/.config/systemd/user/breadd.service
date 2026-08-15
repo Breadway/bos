@@ -3,8 +3,8 @@ Description=Bread Runtime Daemon
 
 [Service]
 Type=simple
-# %h = the user's home — works for any account created from this skel.
-ExecStart=%h/.local/bin/breadd
+# System-prefix bakery install — same path for every account.
+ExecStart=/usr/local/bin/breadd
 Restart=on-failure
 RestartSec=2
 UMask=0077

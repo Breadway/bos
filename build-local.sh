@@ -41,13 +41,15 @@ if [ "${FAST_BUILD:-0}" = "1" ]; then
 fi
 grep airootfs_image_tool_options "$STAGE/profiledef.sh"
 
-# --- Bake this machine's bakery-installed bread ecosystem into /etc/skel ------
+# --- Bake this machine's bakery-installed bread ecosystem into the image ------
 # The bread desktop apps are bakery-managed (release binaries from
 # dl.breadway.dev / GitHub), not pacman. bakery needs DNS at install time,
 # which the live/installed image doesn't have — so instead of running bakery
 # on the target, we copy the binaries + bakery manifest this builder already
-# has into skel. Every user created from skel then gets those versions fully
-# offline. Copied at build time so the binaries never bloat the git repo.
+# has. Builder home stays user-layout (~/.local); the *image* is system-prefix
+# /usr/local so apps live on @ and ride snapper/grub-btrfs snapshots.
+# installed.json + index cache stay per-user in skel. Copied at build time
+# so the binaries never bloat the git repo.
 #
 # CI should prefer the stable bakery index when populating the builder home.
 # Local builds still snapshot the builder. required_bins fail the bake if
@@ -97,9 +99,14 @@ BAKERY_BIN="$LAPTOP_HOME/.local/bin"
 BAKERY_STATE="$LAPTOP_HOME/.local/state/bakery"
 BAKERY_CACHE="$LAPTOP_HOME/.cache/bakery"
 BAKERY_SHARE="$LAPTOP_HOME/.local/share"
-SKEL="$STAGE/airootfs/etc/skel"
+AIROOTFS="$STAGE/airootfs"
+IMAGE_BIN="$AIROOTFS/usr/local/bin"
+IMAGE_SHARE="$AIROOTFS/usr/local/share"
+IMAGE_UNITS="$AIROOTFS/usr/lib/systemd/user"
+SKEL="$AIROOTFS/etc/skel"
 echo "=== baking bakery bread ecosystem from $LAPTOP_HOME ==="
 echo "lockfile: $LOCKFILE (${#REQUIRED_BINS[@]} required, ${#OPTIONAL_BINS[@]} optional)"
+echo "image prefix: /usr/local  (bins $IMAGE_BIN, share $IMAGE_SHARE, units $IMAGE_UNITS)"
 
 missing=()
 for b in "${REQUIRED_BINS[@]}"; do
@@ -124,9 +131,9 @@ for b in "${OPTIONAL_BINS[@]}"; do
   fi
 done
 
-install -d -m 0755 "$SKEL/.local/bin" "$SKEL/.local/state/bakery" "$SKEL/.cache/bakery"
+install -d -m 0755 "$IMAGE_BIN" "$SKEL/.local/state/bakery" "$SKEL/.cache/bakery"
 for b in "${BREAD_BINS[@]}"; do
-  install -m 0755 "$BAKERY_BIN/$b" "$SKEL/.local/bin/$b"
+  install -m 0755 "$BAKERY_BIN/$b" "$IMAGE_BIN/$b"
 done
 
 # Drop packages that are not in the lockfile (breadcast/breadarr must not
@@ -164,26 +171,27 @@ if [[ ! -f "$BAKERY_CACHE/index.json" ]]; then
   exit 1
 fi
 install -m 0644 "$BAKERY_CACHE/index.json" "$SKEL/.cache/bakery/index.json"
-echo "baked bins: $(ls "$SKEL/.local/bin")"
+echo "baked bins: $(ls "$IMAGE_BIN")"
 
 # --- Bake bakery data dirs the apps need offline ------------------------------
 # bakery extracts data_archive (breadhelp's content.tar.gz) to
-# ~/.local/share/<pkg>/ and writes desktop entries + licenses next to it.
-# Copy those — never laptop-local state (clipboard history, WebKit cache,
-# bread sync-repo, models).
-echo "=== baking bakery share/data into skel ==="
+# $prefix/share/<pkg>/ and writes desktop entries + licenses next to it.
+# Builder home is still ~/.local/share; copy into the image at
+# /usr/local/share. Never laptop-local state (clipboard history, WebKit
+# cache, bread sync-repo, models).
+echo "=== baking bakery share/data into /usr/local/share ==="
 BREADHELP_CONTENT="$BAKERY_SHARE/breadhelp/content"
 if [[ ! -d "$BREADHELP_CONTENT" ]]; then
   echo "ERROR: breadhelp content missing: $BREADHELP_CONTENT" >&2
-  echo "bakery installs this from content.tar.gz into ~/.local/share/breadhelp/content" >&2
+  echo "bakery installs this from content.tar.gz into ~/.local/share/breadhelp/content on the builder" >&2
   echo "A breadhelp binary without content is a hollow ISO." >&2
   exit 1
 fi
-install -d -m 0755 "$SKEL/.local/share"
-cp -a "$BAKERY_SHARE/breadhelp" "$SKEL/.local/share/breadhelp"
-echo "  baked $SKEL/.local/share/breadhelp/content"
+install -d -m 0755 "$IMAGE_SHARE"
+cp -a "$BAKERY_SHARE/breadhelp" "$IMAGE_SHARE/breadhelp"
+echo "  baked $IMAGE_SHARE/breadhelp/content"
 
-python3 - "$BAKERY_CACHE/index.json" "$BAKERY_SHARE" "$SKEL/.local/share" "${BREAD_BINS[@]}" <<'PY'
+python3 - "$BAKERY_CACHE/index.json" "$BAKERY_SHARE" "$IMAGE_SHARE" "${BREAD_BINS[@]}" <<'PY'
 import json, os, shutil, sys
 index_path, src_share, dest_share, *bins = sys.argv[1:]
 wanted = set(bins)
@@ -242,14 +250,16 @@ PY
 # silently left out, so those daemons never start on a fresh install/live
 # boot until the user re-runs `bakery install` (which needs network).
 # Source of truth is the *filtered* installed.json we just wrote: only
-# lockfile packages. Copy each unit with ExecStart rewritten from this
-# laptop's literal home path to the portable `%h` specifier, and recreate
-# whichever *.target.wants enable symlink bakery created locally. Units
-# already committed by hand (breadd.service carries a
-# RuntimeDirectoryPreserve=yes fix not yet upstreamed) are left alone.
-echo "=== baking bakery service units into skel ==="
+# lockfile packages. Units go to /usr/lib/systemd/user with ExecStart
+# rewritten to /usr/local/bin (not %h/.local/bin). Recreate whichever
+# *.target.wants enable symlink bakery created locally (or that skel
+# already ships). Hand-committed skel units (breadd.service carries a
+# RuntimeDirectoryPreserve=yes fix not yet upstreamed) are the source
+# for that unit and also get their ExecStart rewritten in skel.
+echo "=== baking bakery service units into /usr/lib/systemd/user ==="
 SYSTEMD_USER_DIR="$LAPTOP_HOME/.config/systemd/user"
 SKEL_SYSTEMD="$SKEL/.config/systemd/user"
+install -d -m 0755 "$IMAGE_UNITS"
 mapfile -t SERVICE_UNITS < <(python3 - "$SKEL/.local/state/bakery/installed.json" <<'PY'
 import json, sys
 with open(sys.argv[1]) as f:
@@ -259,40 +269,72 @@ for pkg in d.get("packages", d).values():
         print(s["unit"] if isinstance(s, dict) else s)
 PY
 )
+rewrite_exec_start() {
+  local src="$1" dest="$2"
+  python3 - "$src" "$dest" <<'PY'
+import os, sys
+src, dest = sys.argv[1], sys.argv[2]
+text = open(src).read()
+lines = []
+for line in text.splitlines():
+    if line.lstrip().startswith("ExecStart="):
+        key, rest = line.split("=", 1)
+        argv = rest.split()
+        if argv:
+            name = os.path.basename(argv[0])
+            argv[0] = "/usr/local/bin/" + name
+            line = key + "=" + " ".join(argv)
+    lines.append(line)
+out = "\n".join(lines)
+if text.endswith("\n"):
+    out += "\n"
+os.makedirs(os.path.dirname(dest), exist_ok=True)
+with open(dest, "w") as f:
+    f.write(out)
+PY
+}
 for unit in "${SERVICE_UNITS[@]}"; do
   [[ -n "$unit" ]] || continue
   if [[ -f "$SKEL_SYSTEMD/$unit" ]]; then
-    echo "  $unit already committed in skel, leaving as-is"
-    continue
+    src="$SKEL_SYSTEMD/$unit"
+    echo "  $unit using committed skel unit as source"
+  else
+    src="$SYSTEMD_USER_DIR/$unit"
+    if [[ ! -f "$src" ]]; then
+      echo "ERROR: $unit listed in bakery installed.json but not found at $src" >&2
+      echo "Refusing to bake an image whose daemons will never start." >&2
+      exit 1
+    fi
   fi
-  src="$SYSTEMD_USER_DIR/$unit"
-  if [[ ! -f "$src" ]]; then
-    echo "ERROR: $unit listed in bakery installed.json but not found at $src" >&2
-    echo "Refusing to bake a skel whose daemons will never start." >&2
-    exit 1
+  rewrite_exec_start "$src" "$IMAGE_UNITS/$unit"
+  if [[ -f "$SKEL_SYSTEMD/$unit" ]]; then
+    rewrite_exec_start "$src" "$SKEL_SYSTEMD/$unit"
   fi
-  install -d -m 0755 "$SKEL_SYSTEMD"
-  sed "s#ExecStart=$LAPTOP_HOME/.local/bin/#ExecStart=%h/.local/bin/#" "$src" > "$SKEL_SYSTEMD/$unit"
-  for wants_dir in "$SYSTEMD_USER_DIR"/*.target.wants; do
-    [[ -L "$wants_dir/$unit" ]] || continue
-    target_name="$(basename "$wants_dir")"
-    install -d -m 0755 "$SKEL_SYSTEMD/$target_name"
-    ln -sf "../$unit" "$SKEL_SYSTEMD/$target_name/$unit"
+  for base in "$SYSTEMD_USER_DIR" "$SKEL_SYSTEMD"; do
+    [[ -d "$base" ]] || continue
+    for wants_dir in "$base"/*.target.wants; do
+      [[ -e "$wants_dir" || -L "$wants_dir" ]] || continue
+      [[ -L "$wants_dir/$unit" ]] || continue
+      target_name="$(basename "$wants_dir")"
+      install -d -m 0755 "$IMAGE_UNITS/$target_name"
+      ln -sf "../$unit" "$IMAGE_UNITS/$target_name/$unit"
+    done
   done
-  echo "  baked $unit"
+  echo "  baked $unit -> $IMAGE_UNITS/$unit"
 done
 
 # mkarchiso resets every airootfs file to 0644, so executables must be declared
 # in profiledef.sh's file_permissions array or they ship non-executable and the
 # exec-once launches fail with "permission denied". Inject a 0755 entry for each
-# baked binary right after the array opener (keeps the binary list in one place).
+# baked bakery binary right after the array opener (bos-* bins are already
+# listed; keeps the bakery list in one place — the lockfile).
 perm_file="$(mktemp)"
 for b in "${BREAD_BINS[@]}"; do
-  printf '    ["/etc/skel/.local/bin/%s"]="0:0:755"\n' "$b" >>"$perm_file"
+  printf '    ["/usr/local/bin/%s"]="0:0:755"\n' "$b" >>"$perm_file"
 done
 sed -i "/^file_permissions=(/r $perm_file" "$STAGE/profiledef.sh"
 rm -f "$perm_file"
-echo "=== file_permissions after injection ==="; grep -A14 '^file_permissions=(' "$STAGE/profiledef.sh"
+echo "=== file_permissions after injection ==="; grep -A40 '^file_permissions=(' "$STAGE/profiledef.sh"
 
 # Pin one timestamp for the whole build. Without this, mkarchiso derives the
 # boot-config UUID (%ARCHISO_UUID%) when it starts and the iso9660 volume UUID

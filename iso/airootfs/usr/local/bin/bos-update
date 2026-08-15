@@ -8,11 +8,12 @@
 #                 or other bakery desktop apps. Every transaction is
 #                 snapshotted by snap-pac; recover via the GRUB "snapshots"
 #                 submenu (grub-btrfs), not `snapper rollback`.
-#   2. bakery   — the bread ecosystem apps in ~/.local/bin (whatever `bakery list`
+#   2. bakery   — the bread ecosystem apps in /usr/local (whatever `bakery list`
 #                 reports as installed — bakery, bread, breadbar, breadbox,
 #                 breadcrumbs, breadpad, breadman, bread-theme, breadpaper,
 #                 breadmon, breadsearch, breadclip, breadshot, bos-settings,
-#                 breadhelp, ...).
+#                 breadhelp, ...). Those bits live on @ and ride snapper
+#                 root snapshots; recover via grub-btrfs, not `snapper rollback`.
 #
 # Best-effort: a failure in one channel doesn't abort the other.
 set -uo pipefail
@@ -20,12 +21,11 @@ set -uo pipefail
 bold() { printf '\033[1m%s\033[0m\n' "$1"; }
 
 # Timed snapper pre snapshot before either channel. snap-pac already
-# snapshots root around pacman; bakery writes ~/.local/bin ($HOME / @home),
-# which is outside that root snapshot. This extra snapshot is still
-# best-effort and covers bakery $HOME updates as well as possible — a
-# home config if the installer created one, otherwise the root timeline
-# around the whole update. Never fail the update if snapper is missing
-# or the create errors.
+# snapshots root around pacman; bakery now writes /usr/local (on @), so
+# that root snapshot includes the desktop apps. This extra snapshot is
+# still best-effort — a home config if the installer created one (user
+# bakery state), plus a root timeline around the whole update. Never
+# fail the update if snapper is missing or the create errors.
 if command -v snapper >/dev/null; then
     if snapper -c home list >/dev/null 2>&1; then
         snapper -c home create -t pre -c number \

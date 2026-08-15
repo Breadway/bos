@@ -89,7 +89,7 @@ alias alt-install='yay -S'
 alias alt-uninstall='yay -R'
 alias alt-srchpkg='yay -Ss'
 
-# ~/.local/bin holds the bread* binaries baked in at build time.
+# Per-user tools. Bakery desktop apps live in /usr/local/bin (already on PATH).
 export PATH="$HOME/.local/bin:$PATH"
 
 # Powerlevel10k prompt configuration.
