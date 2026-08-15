@@ -44,3 +44,8 @@ logs/
 /Bread Background.png
 
 # Local hygiene notes (not for commit)
+CLAUDE.md
+
+# Python
+__pycache__/
+*.pyc

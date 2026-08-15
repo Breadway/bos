@@ -1,22 +1,24 @@
-# Bakery binaries that MUST be baked into the live/installed skel.
+# Bakery binaries baked into the live/installed skel.
 #
-# build-local.sh derives BREAD_BINS from `bins` — this is the name list, not a
-# second hardcoded array. A missing binary fails the bake: a hollow ISO is
-# worse than a failed build.
+# build-local.sh and CI (scripts/ci-stage-bakery.py) read this file. A missing
+# *required* binary fails the bake: a hollow ISO is worse than a failed build.
+# optional_bins are baked when the verified stable index publishes them, and
+# skipped with a warning when it does not (today: bread 0.7.0 has no
+# bread-emit / bread-module-host).
 #
-# CI should populate the builder from the stable bakery index
+# A flat `bins` list is still accepted and treated as required_bins.
+#
+# CI populates the builder from the minisign-verified stable bakery index
 # (https://dl.breadway.dev/index.json). Local builds still snapshot whatever
-# is installed on the builder; this file only names what must be present.
+# is installed on the builder; this file only names what must / may be present.
 #
-# Not shipped (even if present on the builder): breadcast, breadarr.
+# Not shipped (even if they appear in the index): breadcast, breadarr.
 # breadlock is pacman (see packages.x86_64), not bakery.
 
-bins = [
+required_bins = [
   "bakery",
   "bread",
   "breadd",
-  "bread-emit",
-  "bread-module-host",
   "breadman",
   "breadbar",
   "breadbox",
@@ -33,4 +35,10 @@ bins = [
   "breadshot",
   "bos-settings",
   "breadhelp",
+]
+
+# Bake if the verified index publishes them; do not fail the ISO if absent.
+optional_bins = [
+  "bread-emit",
+  "bread-module-host",
 ]

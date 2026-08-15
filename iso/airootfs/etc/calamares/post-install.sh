@@ -41,8 +41,11 @@ passwd -l root || true
 # over to the target (unpackfs may skip it / perms differ), leaving the installed
 # system unable to verify package signatures — the first `pacman -Syu` then dies
 # with "keyring is not writable / required key missing". Initialise it here so a
-# fresh install can update out of the box. archlinux-keyring is already present;
-# [breadway] is SigLevel=Never so it needs no key.
+# fresh install can update out of the box. archlinux-keyring is already present
+# and is the only keyring populated — it verifies official Arch packages.
+# [breadway] stays SigLevel=Never (Forgejo does not serve pacman-compatible
+# db signatures). Do not import KEYS.asc here: that key signs ISO SHA256SUMS,
+# not the pacman repo; treating it as a repo key would be a lie.
 # ---------------------------------------------------------------------------
 if command -v pacman-key &>/dev/null; then
     pacman-key --init || echo "WARN: pacman-key --init failed"

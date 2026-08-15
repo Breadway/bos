@@ -50,29 +50,45 @@ grep airootfs_image_tool_options "$STAGE/profiledef.sh"
 # offline. Copied at build time so the binaries never bloat the git repo.
 #
 # CI should prefer the stable bakery index when populating the builder home.
-# Local builds still snapshot the builder. The lockfile is the name list;
-# missing bins fail the bake (a hollow ISO is worse than a failed build).
+# Local builds still snapshot the builder. required_bins fail the bake if
+# missing; optional_bins are skipped with a warning (a hollow ISO is worse
+# than a failed build). A flat `bins` list is treated as all-required.
 LOCKFILE="$REPO/iso/bread-lockfile.toml"
 if [[ ! -f "$LOCKFILE" ]]; then
   echo "ERROR: bakery lockfile missing: $LOCKFILE" >&2
   exit 1
 fi
-mapfile -t BREAD_BINS < <(python3 - "$LOCKFILE" <<'PY'
+eval "$(python3 - "$LOCKFILE" <<'PY'
 import sys, tomllib
 path = sys.argv[1]
 with open(path, "rb") as f:
     data = tomllib.load(f)
-bins = data.get("bins") or data.get("binaries")
-if not isinstance(bins, list) or not bins:
-    sys.exit(f"{path}: missing non-empty bins list")
-for b in bins:
-    if not isinstance(b, str) or not b or "/" in b or b in (".", ".."):
-        sys.exit(f"{path}: invalid bin name {b!r}")
-    print(b)
+required = data.get("required_bins")
+optional = data.get("optional_bins") or []
+if required is None:
+    required = data.get("bins") or data.get("binaries")
+if not isinstance(required, list) or not required:
+    sys.exit(f"{path}: missing non-empty required_bins (or bins) list")
+if not isinstance(optional, list):
+    sys.exit(f"{path}: optional_bins must be a list")
+blocked = {"breadcast", "breadarr"}
+for label, names in (("required_bins", required), ("optional_bins", optional)):
+    for b in names:
+        if not isinstance(b, str) or not b or "/" in b or b in (".", ".."):
+            sys.exit(f"{path}: invalid {label} name {b!r}")
+        if b in blocked:
+            sys.exit(f"{path}: {b} is not shipped on the ISO")
+def emit(name, values):
+    print(f"{name}=(")
+    for v in values:
+        print(f"  {v!r}")
+    print(")")
+emit("REQUIRED_BINS", required)
+emit("OPTIONAL_BINS", optional)
 PY
-)
-if [[ ${#BREAD_BINS[@]} -eq 0 ]]; then
-  echo "ERROR: $LOCKFILE produced an empty bins list" >&2
+)"
+if [[ ${#REQUIRED_BINS[@]} -eq 0 ]]; then
+  echo "ERROR: $LOCKFILE produced an empty required bins list" >&2
   exit 1
 fi
 
@@ -83,10 +99,10 @@ BAKERY_CACHE="$LAPTOP_HOME/.cache/bakery"
 BAKERY_SHARE="$LAPTOP_HOME/.local/share"
 SKEL="$STAGE/airootfs/etc/skel"
 echo "=== baking bakery bread ecosystem from $LAPTOP_HOME ==="
-echo "lockfile: $LOCKFILE (${#BREAD_BINS[@]} bins)"
+echo "lockfile: $LOCKFILE (${#REQUIRED_BINS[@]} required, ${#OPTIONAL_BINS[@]} optional)"
 
 missing=()
-for b in "${BREAD_BINS[@]}"; do
+for b in "${REQUIRED_BINS[@]}"; do
   if [[ ! -x "$BAKERY_BIN/$b" ]]; then
     missing+=("$BAKERY_BIN/$b")
   fi
@@ -98,6 +114,15 @@ if [[ ${#missing[@]} -gt 0 ]]; then
   echo "A hollow ISO is worse than a failed build." >&2
   exit 1
 fi
+
+BREAD_BINS=("${REQUIRED_BINS[@]}")
+for b in "${OPTIONAL_BINS[@]}"; do
+  if [[ -x "$BAKERY_BIN/$b" ]]; then
+    BREAD_BINS+=("$b")
+  else
+    echo "WARN: optional lockfile bin missing, skipping: $BAKERY_BIN/$b" >&2
+  fi
+done
 
 install -d -m 0755 "$SKEL/.local/bin" "$SKEL/.local/state/bakery" "$SKEL/.cache/bakery"
 for b in "${BREAD_BINS[@]}"; do
