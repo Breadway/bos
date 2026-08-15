@@ -18,6 +18,7 @@
 
     { "action": "exec", "command": "breadclip", "key": "V", "label": "Clipboard history (breadclip)", "category": "apps", "demo_cmd": "breadclip" },
     { "action": "exec", "command": "breadclip", "key": "V", "mods": ["SUPER", "SHIFT"], "label": "Clipboard history (breadclip) — same as SUPER + V", "category": "apps" },
+    { "action": "exec", "command": "breadbar --history", "key": "N", "mods": ["SUPER", "SHIFT"], "label": "Notification history (breadbar)", "category": "apps", "demo_cmd": "breadbar --history" },
 
     { "action": "layout", "layout": "togglesplit", "key": "T", "label": "Toggle split direction", "category": "windows" },
     { "action": "focus_last", "key": "Tab", "label": "Focus last window", "category": "windows" },

@@ -177,6 +177,10 @@ hl.on("hyprland.start", function()
             "breadhelp --autostart",
             "bash -c 'command -v breadpaper >/dev/null && exec breadpaper listen'",
             "bash -c 'command -v breadshot >/dev/null && exec breadshot listen'",
+            "bash -c 'command -v breadbox >/dev/null && exec breadbox listen'",
+            "bash -c 'command -v breadhelp >/dev/null && exec breadhelp listen'",
+            "bash -c 'command -v breadsearch >/dev/null && exec breadsearch listen'",
+            "bash -c 'command -v breadpad >/dev/null && exec breadpad listen'",
         }
     end
     for _, cmd in ipairs(extra) do
