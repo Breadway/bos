@@ -10,8 +10,8 @@ one publishes on a push to `packaging/<name>/**`.
 Every bread-ecosystem app (bakery, bread, breadbar, breadbox, breadcrumbs,
 breadpad, breadpaper, breadmon, breadsearch, breadclip, breadshot,
 bos-settings, breadhelp, ...) is bakery-managed, not pacman-packaged — see
-`build-local.sh`'s `BREAD_BINS` array, which bakes this laptop's
-bakery-installed binaries into the ISO's `/etc/skel` at build time.
+`iso/bread-lockfile.toml`, which `build-local.sh` uses as the name list
+when baking this machine's bakery install into the ISO's `/etc/skel`.
 `breadlock` is the sole deliberate exception (it needs a root-owned
 `/etc/pam.d/breadlock` PAM service file, which bakery — by design — has no
 privileged-install path for) and stays on pacman only; see

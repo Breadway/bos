@@ -46,7 +46,7 @@ done
 check "graphical.target is default" "[ \"\$(systemctl get-default)\" = graphical.target ]"
 
 echo "== bread ecosystem on PATH =="
-for bin in bakery bread breadd breadbar breadbox breadbox-sync breadcrumbs breadpad breadman; do
+for bin in bakery bread breadd bread-emit bread-module-host breadbar breadbox breadbox-sync breadcrumbs breadpad breadman; do
     check "$bin found" "command -v $bin"
 done
 
@@ -55,7 +55,8 @@ check "bos-settings installed" "command -v bos-settings"
 
 echo "== breadhelp =="
 check "breadhelp installed" "command -v breadhelp"
-check "breadhelp content installed" "[ -d /usr/share/breadhelp/content ]"
+check "breadhelp content installed" \
+    "[ -d \"\$HOME/.local/share/breadhelp/content\" ] || [ -d /etc/skel/.local/share/breadhelp/content ]"
 check "bos-netcheck present" "command -v bos-netcheck"
 
 echo "== default dotfiles =="

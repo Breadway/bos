@@ -41,66 +41,210 @@ if [ "${FAST_BUILD:-0}" = "1" ]; then
 fi
 grep airootfs_image_tool_options "$STAGE/profiledef.sh"
 
-# --- Bake this laptop's bakery-installed bread ecosystem into /etc/skel -------
-# The bread apps are managed by bakery (which fetches release binaries from
-# GitHub), not pacman. bakery needs DNS at install time, which the live/installed
-# image doesn't have — so instead of running bakery on the target, we copy the
-# exact binaries + bakery manifest this laptop already has into skel. Every user
-# created from skel (the live user and the installed user) then gets the same
-# versions `bakery list` reports here, fully offline. Copied at build time so the
-# binaries never bloat the git repo and always track the current bakery state.
-BREAD_BINS=(bakery bread breadd breadman breadbar breadbox breadbox-sync breadcrumbs breadpad breadpaper bread-theme breadmon breadsearch breadmill breadclip breadclipd breadshot bos-settings breadhelp)
+# --- Bake this machine's bakery-installed bread ecosystem into /etc/skel ------
+# The bread desktop apps are bakery-managed (release binaries from
+# dl.breadway.dev / GitHub), not pacman. bakery needs DNS at install time,
+# which the live/installed image doesn't have — so instead of running bakery
+# on the target, we copy the binaries + bakery manifest this builder already
+# has into skel. Every user created from skel then gets those versions fully
+# offline. Copied at build time so the binaries never bloat the git repo.
+#
+# CI should prefer the stable bakery index when populating the builder home.
+# Local builds still snapshot the builder. The lockfile is the name list;
+# missing bins fail the bake (a hollow ISO is worse than a failed build).
+LOCKFILE="$REPO/iso/bread-lockfile.toml"
+if [[ ! -f "$LOCKFILE" ]]; then
+  echo "ERROR: bakery lockfile missing: $LOCKFILE" >&2
+  exit 1
+fi
+mapfile -t BREAD_BINS < <(python3 - "$LOCKFILE" <<'PY'
+import sys, tomllib
+path = sys.argv[1]
+with open(path, "rb") as f:
+    data = tomllib.load(f)
+bins = data.get("bins") or data.get("binaries")
+if not isinstance(bins, list) or not bins:
+    sys.exit(f"{path}: missing non-empty bins list")
+for b in bins:
+    if not isinstance(b, str) or not b or "/" in b or b in (".", ".."):
+        sys.exit(f"{path}: invalid bin name {b!r}")
+    print(b)
+PY
+)
+if [[ ${#BREAD_BINS[@]} -eq 0 ]]; then
+  echo "ERROR: $LOCKFILE produced an empty bins list" >&2
+  exit 1
+fi
+
 LAPTOP_HOME="${LAPTOP_HOME:-$(getent passwd "${SUDO_USER:-$USER}" | cut -d: -f6)}"
 BAKERY_BIN="$LAPTOP_HOME/.local/bin"
 BAKERY_STATE="$LAPTOP_HOME/.local/state/bakery"
 BAKERY_CACHE="$LAPTOP_HOME/.cache/bakery"
+BAKERY_SHARE="$LAPTOP_HOME/.local/share"
 SKEL="$STAGE/airootfs/etc/skel"
 echo "=== baking bakery bread ecosystem from $LAPTOP_HOME ==="
+echo "lockfile: $LOCKFILE (${#BREAD_BINS[@]} bins)"
+
+missing=()
+for b in "${BREAD_BINS[@]}"; do
+  if [[ ! -x "$BAKERY_BIN/$b" ]]; then
+    missing+=("$BAKERY_BIN/$b")
+  fi
+done
+if [[ ${#missing[@]} -gt 0 ]]; then
+  echo "ERROR: bakery lockfile requires binaries that are missing on the builder:" >&2
+  printf '  %s\n' "${missing[@]}" >&2
+  echo "Install them with bakery (or stage them under $BAKERY_BIN) before baking." >&2
+  echo "A hollow ISO is worse than a failed build." >&2
+  exit 1
+fi
+
 install -d -m 0755 "$SKEL/.local/bin" "$SKEL/.local/state/bakery" "$SKEL/.cache/bakery"
 for b in "${BREAD_BINS[@]}"; do
   install -m 0755 "$BAKERY_BIN/$b" "$SKEL/.local/bin/$b"
 done
-install -m 0644 "$BAKERY_STATE/installed.json" "$SKEL/.local/state/bakery/installed.json"
+
+# Drop packages that are not in the lockfile (breadcast/breadarr must not
+# appear installed when their binaries were deliberately left out).
+python3 - "$BAKERY_STATE/installed.json" "$SKEL/.local/state/bakery/installed.json" "${BREAD_BINS[@]}" <<'PY'
+import json, sys
+src, dest, *bins = sys.argv[1:]
+wanted = set(bins)
+with open(src) as f:
+    data = json.load(f)
+pkgs = data.get("packages", data)
+if not isinstance(pkgs, dict):
+    sys.exit(f"{src}: expected packages object")
+kept = {}
+for name, pkg in pkgs.items():
+    pbins = pkg.get("binaries") or []
+    if name in wanted or any(b in wanted for b in pbins):
+        kept[name] = pkg
+out = {"packages": kept}
+if "track" in data:
+    out["track"] = data["track"]
+with open(dest, "w") as f:
+    json.dump(out, f, indent=2)
+    f.write("\n")
+print("installed.json packages:", ", ".join(sorted(kept)) or "(none)")
+PY
+
 # bakery fetches its package index from dl.breadway.dev (then a GitHub fallback),
 # but falls back to a cached index when both are unreachable. With no network/DNS
 # in the live/installed image, even `bakery list` errors unless that cache exists,
 # so bake it in too — then bakery works fully offline (list/info from cache;
 # install/update still need network, as expected).
+if [[ ! -f "$BAKERY_CACHE/index.json" ]]; then
+  echo "ERROR: bakery index cache missing: $BAKERY_CACHE/index.json" >&2
+  exit 1
+fi
 install -m 0644 "$BAKERY_CACHE/index.json" "$SKEL/.cache/bakery/index.json"
-echo "baked: $(ls "$SKEL/.local/bin")"
+echo "baked bins: $(ls "$SKEL/.local/bin")"
+
+# --- Bake bakery data dirs the apps need offline ------------------------------
+# bakery extracts data_archive (breadhelp's content.tar.gz) to
+# ~/.local/share/<pkg>/ and writes desktop entries + licenses next to it.
+# Copy those — never laptop-local state (clipboard history, WebKit cache,
+# bread sync-repo, models).
+echo "=== baking bakery share/data into skel ==="
+BREADHELP_CONTENT="$BAKERY_SHARE/breadhelp/content"
+if [[ ! -d "$BREADHELP_CONTENT" ]]; then
+  echo "ERROR: breadhelp content missing: $BREADHELP_CONTENT" >&2
+  echo "bakery installs this from content.tar.gz into ~/.local/share/breadhelp/content" >&2
+  echo "A breadhelp binary without content is a hollow ISO." >&2
+  exit 1
+fi
+install -d -m 0755 "$SKEL/.local/share"
+cp -a "$BAKERY_SHARE/breadhelp" "$SKEL/.local/share/breadhelp"
+echo "  baked $SKEL/.local/share/breadhelp/content"
+
+python3 - "$BAKERY_CACHE/index.json" "$BAKERY_SHARE" "$SKEL/.local/share" "${BREAD_BINS[@]}" <<'PY'
+import json, os, shutil, sys
+index_path, src_share, dest_share, *bins = sys.argv[1:]
+wanted = set(bins)
+try:
+    with open(index_path) as f:
+        idx = json.load(f)
+    packages = idx.get("packages", {})
+except (OSError, json.JSONDecodeError):
+    packages = {}
+
+# Package names we ship: lockfile bin names plus index packages that
+# publish at least one of those bins.
+pkg_names = set(wanted)
+for name, pkg in packages.items():
+    pbins = []
+    for b in pkg.get("binaries") or []:
+        n = b["name"] if isinstance(b, dict) else b
+        pbins.append(str(n).removesuffix("-x86_64"))
+    if name in wanted or any(b in wanted for b in pbins):
+        pkg_names.add(name)
+
+os.makedirs(os.path.join(dest_share, "applications"), exist_ok=True)
+os.makedirs(os.path.join(dest_share, "licenses"), exist_ok=True)
+
+for name in sorted(pkg_names):
+    pkg = packages.get(name) or {}
+    if pkg.get("data_archive"):
+        src = os.path.join(src_share, name)
+        dest = os.path.join(dest_share, name)
+        if name == "breadhelp":
+            continue  # already copied above, required
+        if os.path.isdir(src):
+            if os.path.exists(dest):
+                shutil.rmtree(dest)
+            shutil.copytree(src, dest, symlinks=True)
+            print(f"  baked data dir {dest}")
+        else:
+            sys.exit(f"ERROR: bakery data_archive for {name} missing at {src}")
+
+    desktop_src = os.path.join(src_share, "applications", f"{name}.desktop")
+    desktop_dest = os.path.join(dest_share, "applications", f"{name}.desktop")
+    if os.path.isfile(desktop_src) and not os.path.isfile(desktop_dest):
+        shutil.copy2(desktop_src, desktop_dest)
+        print(f"  baked desktop {desktop_dest}")
+
+    lic_src = os.path.join(src_share, "licenses", name)
+    lic_dest = os.path.join(dest_share, "licenses", name)
+    if os.path.isdir(lic_src) and not os.path.isdir(lic_dest):
+        shutil.copytree(lic_src, lic_dest, symlinks=True)
+        print(f"  baked license {lic_dest}")
+PY
 
 # --- Bake systemd user services for bakery-managed bread packages -----------
 # Historically only breadd.service was hand-committed to skel; every other
 # bakery package's service (breadbox-sync, breadmill, breadclipd, ...) was
 # silently left out, so those daemons never start on a fresh install/live
 # boot until the user re-runs `bakery install` (which needs network).
-# Generalize from the same source of truth as the binary bake above: read
-# the services this laptop's bakery actually installed, copy each unit file
-# into skel with ExecStart rewritten from this laptop's literal home path to
-# the portable `%h` specifier, and recreate whichever *.target.wants enable
-# symlink bakery created locally. Units already committed by hand (breadd.service
-# carries a RuntimeDirectoryPreserve=yes fix not yet upstreamed — see bread-release-build
-# notes) are left alone rather than overwritten.
+# Source of truth is the *filtered* installed.json we just wrote: only
+# lockfile packages. Copy each unit with ExecStart rewritten from this
+# laptop's literal home path to the portable `%h` specifier, and recreate
+# whichever *.target.wants enable symlink bakery created locally. Units
+# already committed by hand (breadd.service carries a
+# RuntimeDirectoryPreserve=yes fix not yet upstreamed) are left alone.
 echo "=== baking bakery service units into skel ==="
 SYSTEMD_USER_DIR="$LAPTOP_HOME/.config/systemd/user"
 SKEL_SYSTEMD="$SKEL/.config/systemd/user"
-mapfile -t SERVICE_UNITS < <(python3 -c "
-import json
-with open('$BAKERY_STATE/installed.json') as f:
+mapfile -t SERVICE_UNITS < <(python3 - "$SKEL/.local/state/bakery/installed.json" <<'PY'
+import json, sys
+with open(sys.argv[1]) as f:
     d = json.load(f)
-for pkg in d.get('packages', d).values():
-    for s in pkg.get('services', []):
-        print(s)
-")
+for pkg in d.get("packages", d).values():
+    for s in pkg.get("services", []):
+        print(s["unit"] if isinstance(s, dict) else s)
+PY
+)
 for unit in "${SERVICE_UNITS[@]}"; do
+  [[ -n "$unit" ]] || continue
   if [[ -f "$SKEL_SYSTEMD/$unit" ]]; then
     echo "  $unit already committed in skel, leaving as-is"
     continue
   fi
   src="$SYSTEMD_USER_DIR/$unit"
   if [[ ! -f "$src" ]]; then
-    echo "  warning: $unit not found at $src, skipping"
-    continue
+    echo "ERROR: $unit listed in bakery installed.json but not found at $src" >&2
+    echo "Refusing to bake a skel whose daemons will never start." >&2
+    exit 1
   fi
   install -d -m 0755 "$SKEL_SYSTEMD"
   sed "s#ExecStart=$LAPTOP_HOME/.local/bin/#ExecStart=%h/.local/bin/#" "$src" > "$SKEL_SYSTEMD/$unit"
