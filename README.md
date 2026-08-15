@@ -96,11 +96,12 @@ bos/
 ├── scripts/
 │   ├── ci-stage-bakery.py     # CI: minisign-verified index → $LAPTOP_HOME
 │   ├── ci-verify-bake.sh      # CI: read-only checks before mkarchiso
+│   ├── ci-publish-signed-repo.sh  # CI: signed [breadway] repo → /srv/breadway-dl/arch
 │   └── smoke-test.sh
 ├── docs/
 │   ├── hardware.md                # Mesa only, NVIDIA, grub-btrfs recovery
-│   └── signed-repo.md             # future dl.breadway.dev/arch signing
-├── .forgejo/workflows/            # CI: AUR republish + tagged ISO release
+│   └── signed-repo.md             # dl.breadway.dev/arch signing
+├── .forgejo/workflows/            # CI: AUR republish + signed repo + tagged ISO
 ├── build-local.sh                 # native ISO build for this machine
 ├── README.md
 └── DESIGN.md                      # historical plan

@@ -12,8 +12,8 @@ name: Build and release ISO
 #   MIRROR_TOKEN     — GitHub personal access token with repo scope
 #   GPG_PRIVATE_KEY  — armoured secret key for the dedicated "BOS Release Signing"
 #                      identity (releases@breadway.dev); public half is committed
-#                      at KEYS.asc for verifying ISO SHA256SUMS only. That key
-#                      does not sign the [breadway] pacman repo. No passphrase
+#                      at KEYS.asc. Signs ISO SHA256SUMS here; the same secret
+#                      signs the [breadway] repo in signed-repo.yml. No passphrase
 #                      (CI-only key, access controlled via the Forgejo secret
 #                      store).
 
