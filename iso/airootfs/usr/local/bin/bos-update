@@ -54,3 +54,7 @@ fi
 
 echo
 bold "==> BOS is up to date."
+echo
+bold "Recovery"
+echo "If this update goes badly: reboot → GRUB “snapshots” submenu."
+echo "snapper rollback will not change what GRUB boots (rootflags=subvol=@)."
