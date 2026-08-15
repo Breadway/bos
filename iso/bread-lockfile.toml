@@ -1,4 +1,4 @@
-# Bakery binaries baked into the live/installed skel.
+# Bakery binaries baked into the live/installed image at /usr/local.
 #
 # build-local.sh and CI (scripts/ci-stage-bakery.py) read this file. A missing
 # *required* binary fails the bake: a hollow ISO is worse than a failed build.

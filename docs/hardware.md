@@ -24,7 +24,9 @@ submenu** (grub-btrfs), not `snapper rollback`.
 
 BOS GRUB pins `rootflags=subvol=@`. `snapper rollback` swaps the default
 subvolume; the installed `grub.cfg` will still boot `@`. Pick the grub-btrfs
-entry so the kernel command line matches the snapshot you want.
+entry so the kernel command line matches the snapshot you want. Bakery
+desktop apps live under `/usr/local` on `@`, so those same snapshots
+include them.
 
 If the system will not boot (lost EFI entry / broken GRUB), boot the live
 ISO and run `sudo bos-rescue`. It mounts `@` + the ESP and offers the same

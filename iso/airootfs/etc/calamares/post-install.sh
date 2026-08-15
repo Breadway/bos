@@ -425,9 +425,10 @@ if command -v ufw &>/dev/null; then
 fi
 
 # The whole bread ecosystem (bakery, bread, breadbar, breadbox, breadcrumbs,
-# breadpad, bos-settings, breadhelp, ...) is bakery-managed, not pacman: the
-# binaries and bakery manifest live in /etc/skel/.local (baked in at ISO
-# build time from iso/bread-lockfile.toml) and are copied into the user's
+# breadpad, bos-settings, breadhelp, ...) is bakery-managed, not pacman:
+# binaries, share/data, and user units are baked into /usr/local and
+# /usr/lib/systemd/user (system prefix). Per-user bakery state (installed.json
+# + index cache) is seeded from /etc/skel/.local and copied into the user's
 # home below, so the install works fully offline with no DNS for bakery.
 
 # ---------------------------------------------------------------------------

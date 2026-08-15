@@ -14,8 +14,9 @@ wiring up dotfiles, no per-tool bakery installs.
 
 - **Compositor**: Hyprland with a native-Lua config (`hyprland.lua`), curated
   keybinds, snappy animations, blur, and pywal-driven colours on a black base.
-- **bread ecosystem**, baked into `/etc/skel` from bakery-managed binaries
-  (no network needed at install time): the `bread`/`breadd` automation daemon
+- **bread ecosystem**, baked into `/usr/local` from bakery-managed binaries
+  (no network needed at install time; per-user bakery state is seeded in
+  `/etc/skel`): the `bread`/`breadd` automation daemon
   (`bread-emit` / `bread-module-host` when the stable bread release publishes
   them), `breadbar` (status bar + notifications), `breadbox` (launcher),
   `breadclip` (clipboard history), `breadcrumbs` (Wi-Fi profiles),
@@ -58,7 +59,7 @@ wiring up dotfiles, no per-tool bakery installs.
 
 | Channel | What |
 |---------|------|
-| **Bakery, required** | `bakery`, `bread` / `breadd`, `breadbar`, `breadbox` / `breadbox-sync`, `breadcrumbs`, `breadpad` / `breadman`, `breadpaper`, `bread-theme`, `breadmon`, `breadsearch` / `breadmill`, `breadclip` / `breadclipd`, `breadshot`, `bos-settings`, `breadhelp` (+ breadhelp content under `~/.local/share/breadhelp/`) |
+| **Bakery, required** | `bakery`, `bread` / `breadd`, `breadbar`, `breadbox` / `breadbox-sync`, `breadcrumbs`, `breadpad` / `breadman`, `breadpaper`, `bread-theme`, `breadmon`, `breadsearch` / `breadmill`, `breadclip` / `breadclipd`, `breadshot`, `bos-settings`, `breadhelp` (+ breadhelp content under `/usr/local/share/breadhelp/`) |
 | **Bakery, optional** | `bread-emit`, `bread-module-host` — baked when the verified stable index publishes them; skipped (not a failed bake) until bread ships them |
 | **pacman (`packages.x86_64`)** | `breadlock`, plus the rest of the distro (Hyprland, Calamares, Zen, …) |
 | **Not shipped** | `breadcast`, `breadarr` |
@@ -123,9 +124,15 @@ Push `origin` (and `github` when mirroring). Do not treat origin as GitHub.
 
 ## Building the ISO
 
-`build-local.sh` builds the image natively (no container) and bakes this
-machine's bakery-installed bread binaries + breadhelp content into
-`/etc/skel`:
+`build-local.sh` builds the image natively (no container) and copies this
+machine's bakery-installed bread binaries + breadhelp content from the
+builder's `~/.local` into the image at `/usr/local` (bins, share/data,
+desktop files, licenses) and `/usr/lib/systemd/user` (units). Per-user
+bakery state (`installed.json` + index cache) is seeded in `/etc/skel`.
+BOS opts in via `/etc/bakery/config.toml` (`prefix = "/usr/local"`);
+default bakery without that file is still `~/.local`. Snapper `@`
+snapshots include `/usr/local`; recovery is still grub-btrfs, not
+`snapper rollback`.
 
 ```sh
 sudo ./build-local.sh              # release-quality (xz squashfs)
@@ -190,8 +197,8 @@ Hyprland session in QEMU. The disk lives on NVMe (not the tmpfs `/tmp`) to
 avoid memory pressure.
 
 Post-install, `scripts/smoke-test.sh` (run as the installed user) checks
-subvolumes, services, bakery bins, and breadhelp content under
-`~/.local/share/breadhelp/content`.
+subvolumes, services, bakery bins on PATH, and breadhelp content under
+`/usr/local/share/breadhelp/content`.
 
 ## bos-settings
 
@@ -234,7 +241,7 @@ repo, not here.
 ## The bread ecosystem
 
 Everything below is a separate bakery-distributed project with its own repo
-and release cadence, baked into `/etc/skel` at ISO build time so a fresh
+and release cadence, baked into `/usr/local` at ISO build time so a fresh
 install has them all with no network round-trip. Some ship more than one
 binary from a single package — that's noted where it applies. Most have a
 corresponding **bos-settings** panel; this table is about *using* the app
@@ -258,7 +265,7 @@ directly.
 | `breadman` | The fuller notes manager view (browse/organize) — ships from the same `breadpad` package as a second binary | `SUPER+M` |
 | `breadclip` | Clipboard history. `breadclipd` is the background daemon that actually records history; `breadclip` is the GTK4 popup that browses it | `SUPER+V` / `SUPER+Shift+V` |
 | `breadsearch` | Semantic system-wide search (indexes files/notes, embeds locally — CPU/ROCm/CUDA backend configurable). `breadmill` is its indexing daemon. | via breadbox, or BOS Settings → File Search |
-| `breadhelp` | Onboarding + in-session help/cheatsheet. Content lives at `~/.local/share/breadhelp/content` (bakery `content.tar.gz`, baked into skel). | `SUPER+/` |
+| `breadhelp` | Onboarding + in-session help/cheatsheet. Content lives at `/usr/local/share/breadhelp/content` (bakery `content.tar.gz`, baked into the image). | `SUPER+/` |
 
 **System**
 

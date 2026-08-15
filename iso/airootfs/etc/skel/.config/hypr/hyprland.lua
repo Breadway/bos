@@ -124,8 +124,8 @@ hl.on("hyprland.start", function()
         "gsettings set org.gnome.desktop.interface cursor-theme Bibata-Modern-Ice",
         "gsettings set org.gnome.desktop.interface cursor-size 24",
         -- Clipboard history is breadclipd, a bakery-managed systemd --user
-        -- service (auto-started via skel — see build-local.sh's service bake)
-        -- rather than an exec-once here.
+        -- service (auto-started from /usr/lib/systemd/user — see
+        -- build-local.sh's service bake) rather than an exec-once here.
         "/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1",
         "awww-daemon",
         -- Set the default wallpaper once the daemon is up (retry until ready).
@@ -140,8 +140,8 @@ hl.on("hyprland.start", function()
         -- breadpaper reads) is baked into skel too, right beside colors.json.
         -- pywal only runs for real once the user picks a wallpaper themselves.
         [[bash -c 'until awww img /usr/share/backgrounds/bos/bread-background.png 2>/dev/null; do sleep 0.3; done']],
-        -- breadd runs as a systemd user service (~/.config/systemd/user/breadd.service,
-        -- enabled in skel). It autostarts at login but before Hyprland exists, so
+        -- breadd runs as a systemd user service (/usr/lib/systemd/user/breadd.service,
+        -- plus a skel copy). It autostarts at login but before Hyprland exists, so
         -- push the compositor's Wayland env into the user manager and restart breadd
         -- to pick it up — that's how it gets HYPRLAND_INSTANCE_SIGNATURE to talk to Hyprland.
         "dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP HYPRLAND_INSTANCE_SIGNATURE",
@@ -162,7 +162,8 @@ hl.on("hyprland.start", function()
 
     -- breadbox-sync is a Type=oneshot systemd --user service
     -- (WantedBy=default.target, no Hyprland IPC dependency) — it already
-    -- runs on login via the unit baked into skel, independent of this list.
+    -- runs on login via the unit baked into /usr/lib/systemd/user,
+    -- independent of this list.
     local ok, extra = pcall(function()
         return dofile(script_dir .. "system/autostart.lua")()
     end)
