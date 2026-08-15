@@ -249,26 +249,87 @@ PY
 # bakery package's service (breadbox-sync, breadmill, breadclipd, ...) was
 # silently left out, so those daemons never start on a fresh install/live
 # boot until the user re-runs `bakery install` (which needs network).
-# Source of truth is the *filtered* installed.json we just wrote: only
-# lockfile packages. Units go to /usr/lib/systemd/user with ExecStart
-# rewritten to /usr/local/bin (not %h/.local/bin). Recreate whichever
+# Units come from installed.json + the bakery index + local unit files
+# whose ExecStart is a lockfile binary (installed.json has omitted
+# breadcrumbs.service before). Units go to /usr/lib/systemd/user with
+# ExecStart rewritten to /usr/local/bin. Recreate whichever
 # *.target.wants enable symlink bakery created locally (or that skel
-# already ships). Hand-committed skel units (breadd.service carries a
+# already ships), and write /etc/systemd/user/*.wants/ (--global).
+# Hand-committed skel units (breadd.service carries a
 # RuntimeDirectoryPreserve=yes fix not yet upstreamed) are the source
 # for that unit and also get their ExecStart rewritten in skel.
 echo "=== baking bakery service units into /usr/lib/systemd/user ==="
 SYSTEMD_USER_DIR="$LAPTOP_HOME/.config/systemd/user"
 SKEL_SYSTEMD="$SKEL/.config/systemd/user"
 install -d -m 0755 "$IMAGE_UNITS"
-mapfile -t SERVICE_UNITS < <(python3 - "$SKEL/.local/state/bakery/installed.json" <<'PY'
-import json, sys
-with open(sys.argv[1]) as f:
-    d = json.load(f)
-for pkg in d.get("packages", d).values():
-    for s in pkg.get("services", []):
-        print(s["unit"] if isinstance(s, dict) else s)
+# installed.json on the builder can omit a service even when the index and
+# the local unit file exist (breadcrumbs has done this). Merge all three
+# so every lockfile daemon is baked and can be --global enabled.
+mapfile -t SERVICE_UNITS < <(python3 - \
+  "$SKEL/.local/state/bakery/installed.json" \
+  "$BAKERY_CACHE/index.json" \
+  "$SYSTEMD_USER_DIR" \
+  "${BREAD_BINS[@]}" <<'PY'
+import json, os, sys
+
+installed_path, index_path, user_dir, *bins = sys.argv[1:]
+wanted = set(bins)
+units = set()
+
+def add_svc(svc):
+    name = svc["unit"] if isinstance(svc, dict) else svc
+    if not name or str(name).startswith(("breadcast", "breadarr")):
+        return
+    units.add(str(name))
+
+if os.path.isfile(installed_path):
+    with open(installed_path) as f:
+        data = json.load(f)
+    for pkg in data.get("packages", data).values():
+        if isinstance(pkg, dict):
+            for svc in pkg.get("services") or []:
+                add_svc(svc)
+
+if os.path.isfile(index_path):
+    with open(index_path) as f:
+        idx = json.load(f)
+    for name, pkg in (idx.get("packages") or {}).items():
+        if not isinstance(pkg, dict):
+            continue
+        pbins = []
+        for b in pkg.get("binaries") or []:
+            n = b["name"] if isinstance(b, dict) else b
+            pbins.append(str(n).removesuffix("-x86_64"))
+        if name in wanted or any(b in wanted for b in pbins):
+            for svc in pkg.get("services") or []:
+                add_svc(svc)
+
+if os.path.isdir(user_dir):
+    for fn in os.listdir(user_dir):
+        if not fn.endswith(".service"):
+            continue
+        path = os.path.join(user_dir, fn)
+        if not os.path.isfile(path):
+            continue
+        try:
+            text = open(path).read()
+        except OSError:
+            continue
+        for line in text.splitlines():
+            if line.lstrip().startswith("ExecStart="):
+                argv0 = line.split("=", 1)[1].split()
+                if argv0 and os.path.basename(argv0[0]) in wanted:
+                    add_svc(fn)
+                break
+
+for unit in sorted(units):
+    print(unit)
 PY
 )
+if [[ ! " ${SERVICE_UNITS[*]} " =~ " breadd.service " ]]; then
+  echo "ERROR: breadd.service not in the bakery unit list — refusing to bake" >&2
+  exit 1
+fi
 rewrite_exec_start() {
   local src="$1" dest="$2"
   python3 - "$src" "$dest" <<'PY'
@@ -301,7 +362,7 @@ for unit in "${SERVICE_UNITS[@]}"; do
   else
     src="$SYSTEMD_USER_DIR/$unit"
     if [[ ! -f "$src" ]]; then
-      echo "ERROR: $unit listed in bakery installed.json but not found at $src" >&2
+      echo "ERROR: $unit listed as a bakery service but not found at $src" >&2
       echo "Refusing to bake an image whose daemons will never start." >&2
       exit 1
     fi
@@ -320,8 +381,49 @@ for unit in "${SERVICE_UNITS[@]}"; do
       ln -sf "../$unit" "$IMAGE_UNITS/$target_name/$unit"
     done
   done
+  # systemctl --global enable equivalent: /etc/systemd/user/<WantedBy>.wants/
+  # so the live image and a later useradd inherit the unit without a per-home
+  # enable. Vendor wants above are extra; this is what --global writes.
+  python3 - "$IMAGE_UNITS/$unit" "$AIROOTFS/etc/systemd/user" "$unit" <<'PY'
+import os, sys
+unit_path, etc_user, unit = sys.argv[1:]
+in_install = False
+targets = []
+for line in open(unit_path):
+    s = line.strip()
+    if s.startswith("[") and s.endswith("]"):
+        in_install = s == "[Install]"
+        continue
+    if in_install and s.startswith("WantedBy="):
+        targets.extend(t for t in s.split("=", 1)[1].split() if t)
+for target in targets:
+    wants = os.path.join(etc_user, f"{target}.wants")
+    os.makedirs(wants, exist_ok=True)
+    dest = os.path.join(wants, unit)
+    if os.path.lexists(dest):
+        os.remove(dest)
+    os.symlink(f"/usr/lib/systemd/user/{unit}", dest)
+    print(f"  global enable {unit} -> {dest}")
+PY
   echo "  baked $unit -> $IMAGE_UNITS/$unit"
 done
+
+# Document the baked set. The committed preset is the fallback; the staged
+# copy lists whatever this bake actually shipped.
+preset_dest="$AIROOTFS/usr/lib/systemd/user-preset/90-bos-bakery.preset"
+install -d -m 0755 "$(dirname "$preset_dest")"
+{
+  echo "# Bakery systemd --user units baked into this image."
+  echo "# Applied by systemctl --global enable (post-install + live setup)"
+  echo "# so a later useradd starts them on first login."
+  echo "# breadclipd is also started from hyprland.lua: WantedBy="
+  echo "# graphical-session.target is not reached on BOS (no uwsm)."
+  for unit in "${SERVICE_UNITS[@]}"; do
+    [[ -n "$unit" ]] || continue
+    printf 'enable %s\n' "$unit"
+  done
+} >"$preset_dest"
+echo "  wrote $preset_dest"
 
 # mkarchiso resets every airootfs file to 0644, so executables must be declared
 # in profiledef.sh's file_permissions array or they ship non-executable and the

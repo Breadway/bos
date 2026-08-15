@@ -129,10 +129,11 @@ machine's bakery-installed bread binaries + breadhelp content from the
 builder's `~/.local` into the image at `/usr/local` (bins, share/data,
 desktop files, licenses) and `/usr/lib/systemd/user` (units). Per-user
 bakery state (`installed.json` + index cache) is seeded in `/etc/skel`.
-BOS opts in via `/etc/bakery/config.toml` (`prefix = "/usr/local"`);
-default bakery without that file is still `~/.local`. Snapper `@`
-snapshots include `/usr/local`; recovery is still grub-btrfs, not
-`snapper rollback`.
+User units are `systemctl --global enable`'d so a later `useradd -m`
+starts them on first login. BOS opts in via `/etc/bakery/config.toml`
+(`prefix = "/usr/local"`); default bakery without that file is still
+`~/.local`. Snapper `@` snapshots include `/usr/local`; recovery is
+still grub-btrfs, not `snapper rollback`.
 
 ```sh
 sudo ./build-local.sh              # release-quality (xz squashfs)
@@ -197,8 +198,38 @@ Hyprland session in QEMU. The disk lives on NVMe (not the tmpfs `/tmp`) to
 avoid memory pressure.
 
 Post-install, `scripts/smoke-test.sh` (run as the installed user) checks
-subvolumes, services, bakery bins on PATH, and breadhelp content under
-`/usr/local/share/breadhelp/content`.
+subvolumes, services, bakery bins on PATH, breadhelp content under
+`/usr/local/share/breadhelp/content`, and that bakery user units are
+`--global` enabled (or the preset / wants files exist).
+
+## Second account
+
+Bakery desktop apps live in `/usr/local` — shared, already on PATH. A later
+account does **not** get a private copy of those binaries.
+
+`/etc/default/useradd` keeps `SKEL=/etc/skel`. Stock `useradd -m` is enough:
+
+```sh
+sudo useradd -m alice
+sudo passwd alice
+```
+
+- **Apps**: `/usr/local/bin` (and `/usr/local/share`) — already there.
+- **Session files**: `useradd -m` copies `/etc/skel` (Hyprland, bread
+  config, bakery `installed.json` + index cache) so first login has a
+  session. Skel does not contain bakery binaries.
+- **Daemons**: `breadd`, `breadbox-sync`, `breadclipd`, `breadcrumbs`,
+  `breadmill`, … are `systemctl --global enable`'d at install (and on
+  the live image). Creating a user starts them on first login.
+- **Login**: greetd/breadgreet lists any local user with a login shell
+  (`SHELL=/usr/bin/zsh` is the useradd default).
+
+`breadclipd` is WantedBy=`graphical-session.target`. BOS does not activate
+that target (no uwsm), so Hyprland still `systemctl --user start`s it after
+the compositor is up. `--global enable` still records it for every account.
+
+Rollback is still the GRUB snapshots submenu (grub-btrfs), not
+`snapper rollback`. `/usr/local` rides the `@` snapshot.
 
 ## bos-settings
 

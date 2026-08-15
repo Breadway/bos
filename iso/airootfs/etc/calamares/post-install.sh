@@ -430,6 +430,15 @@ fi
 # /usr/lib/systemd/user (system prefix). Per-user bakery state (installed.json
 # + index cache) is seeded from /etc/skel/.local and copied into the user's
 # home below, so the install works fully offline with no DNS for bakery.
+#
+# systemd --user units in /usr/lib/systemd/user are not enabled for new
+# accounts unless enabled --global (or the user enables them). Do that here
+# so a later `useradd -m` starts breadd / breadbox-sync / breadclipd /
+# breadcrumbs / breadmill on first login. Safe if the helper is missing.
+if [[ -x /usr/local/bin/bos-enable-bakery-user-units ]]; then
+    /usr/local/bin/bos-enable-bakery-user-units \
+        || echo "WARN: enabling bakery user units globally failed"
+fi
 
 # ---------------------------------------------------------------------------
 # Deploy dotfiles + the bakery bread ecosystem into the user's home (Calamares

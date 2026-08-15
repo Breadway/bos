@@ -1,0 +1,12 @@
+# Bakery systemd --user units. `systemctl --global enable` (post-install and
+# live setup) applies these so a later `useradd -m` starts them on first login.
+# Bake rewrites this list from the units actually copied into the image.
+#
+# breadclipd is WantedBy=graphical-session.target. BOS does not activate that
+# target (no uwsm); Hyprland still `systemctl --user start`s it after the
+# compositor is up. --global enable still records it for every account.
+enable breadd.service
+enable breadbox-sync.service
+enable breadclipd.service
+enable breadcrumbs.service
+enable breadmill.service

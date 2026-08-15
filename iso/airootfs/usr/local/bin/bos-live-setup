@@ -7,9 +7,17 @@
 # bos-launch-calamares). Runs once at boot, before the tty1 autologin getty.
 set -e
 
+# Bakery user units live in /usr/lib/systemd/user. --global enable writes
+# /etc/systemd/user/*.wants/ so liveuser (and any later account) starts
+# them on first login. Idempotent; bins are already in /usr/local.
+if [[ -x /usr/local/bin/bos-enable-bakery-user-units ]]; then
+    /usr/local/bin/bos-enable-bakery-user-units \
+        || echo "WARN: enabling bakery user units globally failed"
+fi
+
 # useradd -m copies /etc/skel, so the live user gets the real BOS desktop
-# (breadd + breadbar + breadbox + keybinds) — proper live-media functionality,
-# not an installer kiosk.
+# (hypr + bread config + bakery state) — proper live-media functionality,
+# not an installer kiosk. Binaries are /usr/local, not skel.
 if ! id liveuser &>/dev/null; then
     useradd -m -s /usr/bin/zsh liveuser
     for g in wheel video input audio storage power; do

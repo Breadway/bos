@@ -1,0 +1,90 @@
+#!/bin/bash
+# Enable bakery systemd --user units for every account (current and future).
+#
+# `systemctl --global enable` writes /etc/systemd/user/<target>.wants/ so a
+# later `useradd -m` does not need per-home enablement. Bins live in
+# /usr/local; only per-user state comes from skel.
+#
+# Safe on the live image and in the Calamares post-install chroot.
+# Idempotent. Does not start units (no user session required).
+#
+# breadclipd is WantedBy=graphical-session.target. BOS does not activate
+# that target (no uwsm), so Hyprland still `systemctl --user start`s it.
+# --global enable still records it for every account / bos-settings.
+set -uo pipefail
+
+UNITS_DIR=/usr/lib/systemd/user
+PRESET=/usr/lib/systemd/user-preset/90-bos-bakery.preset
+
+is_blocked() {
+    case "$1" in
+        breadcast*|breadarr*) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+is_bakery_unit() {
+    local unit="$1" path="$UNITS_DIR/$unit"
+    [[ -f "$path" ]] || return 1
+    is_blocked "$unit" && return 1
+    grep -qE '^ExecStart=/usr/local/bin/' "$path"
+}
+
+list_from_preset() {
+    [[ -f "$PRESET" ]] || return 0
+    awk '/^enable[[:space:]]/ { print $2 }' "$PRESET"
+}
+
+list_from_units_dir() {
+    [[ -d "$UNITS_DIR" ]] || return 0
+    local path unit
+    for path in "$UNITS_DIR"/*.service; do
+        [[ -f "$path" ]] || continue
+        unit="$(basename "$path")"
+        is_bakery_unit "$unit" && printf '%s\n' "$unit"
+    done
+}
+
+list_from_installed_json() {
+    local json=/etc/skel/.local/state/bakery/installed.json
+    [[ -f "$json" ]] || return 0
+    command -v python3 >/dev/null 2>&1 || return 0
+    python3 - "$json" <<'PY'
+import json, sys
+with open(sys.argv[1]) as f:
+    data = json.load(f)
+for pkg in data.get("packages", data).values():
+    if not isinstance(pkg, dict):
+        continue
+    for svc in pkg.get("services") or []:
+        name = svc["unit"] if isinstance(svc, dict) else svc
+        if name and not str(name).startswith(("breadcast", "breadarr")):
+            print(name)
+PY
+}
+
+mapfile -t units < <(
+    { list_from_preset; list_from_units_dir; list_from_installed_json; } \
+        | sed '/^$/d' | sort -u
+)
+
+if [[ ${#units[@]} -eq 0 ]]; then
+    echo "WARN: no bakery user units found to enable globally"
+    exit 0
+fi
+
+if ! command -v systemctl >/dev/null 2>&1; then
+    echo "WARN: systemctl missing — cannot --global enable bakery user units"
+    exit 0
+fi
+
+for unit in "${units[@]}"; do
+    [[ -f "$UNITS_DIR/$unit" ]] || continue
+    is_blocked "$unit" && continue
+    if ! grep -q '^\[Install\]' "$UNITS_DIR/$unit"; then
+        echo "WARN: $unit has no [Install] section — skip --global enable"
+        continue
+    fi
+    systemctl --global enable "$unit" \
+        || echo "WARN: systemctl --global enable $unit failed"
+done
