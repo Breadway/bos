@@ -243,8 +243,10 @@ publish_tree() {
   parent="$(dirname "$DEST")"
   dest_name="$(basename "$DEST")"
   mkdir -p "$parent"
-  chmod a+rX "$STAGE"
-  find "$STAGE" -type f -exec chmod a+r {} +
+  chmod a+rX "$STAGE" || true
+  # gpg --detach-sign often writes 0600 files the runner cannot chmod;
+  # do not fail the publish after repo-add -s already succeeded.
+  find "$STAGE" -type f -exec chmod a+r {} + || true
   prev="$parent/${dest_name}.prev"
   rm -rf "$prev"
   if [[ -e "$DEST" ]]; then
