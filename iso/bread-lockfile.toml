@@ -9,8 +9,12 @@
 # A flat `bins` list is still accepted and treated as required_bins.
 #
 # CI populates the builder from the minisign-verified stable bakery index
-# (https://dl.breadway.dev/index.json). Local builds still snapshot whatever
-# is installed on the builder; this file only names what must / may be present.
+# (https://dl.breadway.dev/index.json). Optional [versions] (or [[pin]]
+# tables with package + version) pin bakery package versions so two ISO
+# bakes of the same git commit fetch the same bits:
+#   https://dl.breadway.dev/<pkg>/<ver>/...
+# Bump pins after new bakery stables land. Local builds still snapshot
+# whatever is installed on the builder.
 #
 # Not shipped (even if they appear in the index): breadcast, breadarr.
 # breadlock is pacman (see packages.x86_64), not bakery.
@@ -42,3 +46,22 @@ optional_bins = [
   "bread-emit",
   "bread-module-host",
 ]
+
+# Package name → version, matching today's stable index. CI prefers the
+# pinned version URL when a key is set. [[pin]] { package, version } is
+# accepted as well and merged (conflict = bake error).
+[versions]
+bakery = "0.7.1"
+bread = "0.7.0"
+bread-theme = "0.7.1"
+breadbar = "0.3.0"
+breadbox = "0.3.0"
+breadcrumbs = "2.1.6"
+breadpad = "0.5.0"
+breadpaper = "0.1.11"
+breadmon = "0.1.2"
+breadsearch = "0.3.0"
+breadclip = "0.1.1"
+breadshot = "0.1.1"
+bos-settings = "0.7.1"
+breadhelp = "0.2.3"

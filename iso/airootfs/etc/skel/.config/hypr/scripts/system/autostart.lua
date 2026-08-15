@@ -12,11 +12,15 @@
 -- because the valid result happens to be empty.
 local json = dofile(os.getenv("HOME") .. "/.config/hypr/scripts/lib/json.lua")
 
+-- breadpaper/breadshot `listen` is wrapped so a missing binary (stable
+-- does not ship the command-bus verb yet) cannot take down the session.
 local DEFAULT_EXTRA = {
     { command = "breadbar", enabled = true },
     { command = "hypridle", enabled = true },
     { command = "bos-netcheck", enabled = true },
     { command = "breadhelp --autostart", enabled = true },
+    { command = "bash -c 'command -v breadpaper >/dev/null && exec breadpaper listen'", enabled = true },
+    { command = "bash -c 'command -v breadshot >/dev/null && exec breadshot listen'", enabled = true },
 }
 
 return function()

@@ -106,8 +106,10 @@ hl.gesture({
 -- daemon, breadd's Wayland-env fix, breadclipd) stays hardcoded here — it's
 -- timing/order-sensitive infrastructure, not something a settings UI should
 -- expose for a user to disable or reorder. The extra, genuinely toggleable
--- apps (breadbar, hypridle, bos-netcheck, breadhelp) come from
--- autostart.json via scripts/system/autostart.lua, appended after.
+-- apps (breadbar, hypridle, bos-netcheck, breadhelp, breadpaper/breadshot
+-- listen) come from autostart.json via scripts/system/autostart.lua,
+-- appended after. listen is wrapped with `command -v` so a missing
+-- binary does not brick login (Hyprland exec is already fire-and-forget).
 -- (bos-live-setup appends the live-installer launch below this on the ISO.)
 -- ---------------------------------------------------------------------------
 hl.on("hyprland.start", function()
@@ -168,7 +170,14 @@ hl.on("hyprland.start", function()
         -- autostart.json/its loader broke — fall back to the same apps BOS
         -- has always started, so a bad JSON edit degrades to "normal
         -- desktop" rather than "no bar, no idle lock, no onboarding".
-        extra = { "breadbar", "hypridle", "bos-netcheck", "breadhelp --autostart" }
+        extra = {
+            "breadbar",
+            "hypridle",
+            "bos-netcheck",
+            "breadhelp --autostart",
+            "bash -c 'command -v breadpaper >/dev/null && exec breadpaper listen'",
+            "bash -c 'command -v breadshot >/dev/null && exec breadshot listen'",
+        }
     end
     for _, cmd in ipairs(extra) do
         hl.dispatch(hl.dsp.exec_cmd(cmd))

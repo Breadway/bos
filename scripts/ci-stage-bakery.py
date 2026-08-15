@@ -24,6 +24,7 @@ from pathlib import Path
 from urllib.parse import urljoin, urlparse
 
 INDEX_URL = "https://dl.breadway.dev/index.json"
+DL_ORIGIN = "https://dl.breadway.dev"
 # Same key as bread-ecosystem/scripts/get.sh and bakery/src/manifest.rs.
 MINISIGN_PUBKEY = "RWTBR8w/IJ+jaylOv80b52DzekKbSR2CvOVGvzB0ipGBaMhJPAOiEWq8"
 BLOCKED = frozenset({"breadcast", "breadarr"})
@@ -46,7 +47,41 @@ def valid_name(name: str) -> bool:
     return bool(name) and "/" not in name and name not in (".", "..")
 
 
-def load_lockfile(path: Path) -> tuple[list[str], list[str]]:
+def load_versions(data: dict, path: Path) -> dict[str, str]:
+    """Optional [versions] map and/or [[pin]] tables → package → version."""
+    versions: dict[str, str] = {}
+
+    raw_map = data.get("versions")
+    if raw_map is not None:
+        if not isinstance(raw_map, dict):
+            die(f"{path}: [versions] must be a table of package = \"version\"")
+        for pkg, ver in raw_map.items():
+            if not isinstance(pkg, str) or not valid_name(pkg):
+                die(f"{path}: invalid [versions] package {pkg!r}")
+            if not isinstance(ver, str) or not valid_name(ver):
+                die(f"{path}: invalid [versions] version for {pkg}: {ver!r}")
+            versions[pkg] = ver
+
+    pins = data.get("pin")
+    if pins is not None:
+        if not isinstance(pins, list):
+            die(f"{path}: [[pin]] must be an array of tables")
+        for i, entry in enumerate(pins):
+            if not isinstance(entry, dict):
+                die(f"{path}: [[pin]] #{i} must be a table")
+            pkg = entry.get("package", entry.get("pkg"))
+            ver = entry.get("version")
+            if not isinstance(pkg, str) or not valid_name(pkg):
+                die(f"{path}: [[pin]] #{i}: missing valid package")
+            if not isinstance(ver, str) or not valid_name(ver):
+                die(f"{path}: [[pin]] #{i}: missing valid version")
+            if pkg in versions and versions[pkg] != ver:
+                die(f"{path}: conflicting pin for {pkg}: {versions[pkg]} vs {ver}")
+            versions[pkg] = ver
+    return versions
+
+
+def load_lockfile(path: Path) -> tuple[list[str], list[str], dict[str, str]]:
     with path.open("rb") as f:
         data = tomllib.load(f)
     required = data.get("required_bins")
@@ -66,15 +101,36 @@ def load_lockfile(path: Path) -> tuple[list[str], list[str]]:
     overlap = set(required) & set(optional)
     if overlap:
         die(f"{path}: bins in both required and optional: {sorted(overlap)}")
-    return list(required), list(optional)
+    return list(required), list(optional), load_versions(data, path)
 
 
-def fetch(url: str, dest: Path) -> None:
+def pinned_artifact_url(pkg: str, version: str, filename: str) -> str:
+    if not valid_name(pkg) or not valid_name(version) or not valid_name(filename):
+        die(f"refusing pinned URL with unsafe path {pkg}/{version}/{filename}")
+    return f"{DL_ORIGIN}/{pkg}/{version}/{filename}"
+
+
+def package_base_url(pkg_name: str, versions: dict[str, str], first_url: str) -> str:
+    pin = versions.get(pkg_name)
+    if pin:
+        if not valid_name(pkg_name) or not valid_name(pin):
+            die(f"refusing pinned version dir {pkg_name}/{pin}")
+        return f"{DL_ORIGIN}/{pkg_name}/{pin}/"
+    return version_dir(first_url)
+
+
+def fetch(url: str, dest: Path, *, required: bool = True) -> bool:
     dest.parent.mkdir(parents=True, exist_ok=True)
     try:
         urllib.request.urlretrieve(url, dest)
+        return True
     except (urllib.error.URLError, OSError) as e:
-        die(f"download failed: {url}: {e}")
+        if required:
+            die(f"download failed: {url}: {e}")
+        print(f"WARN: download failed: {url}: {e}", file=sys.stderr)
+        if dest.exists():
+            dest.unlink()
+        return False
 
 
 def sha256_file(path: Path) -> str:
@@ -183,11 +239,22 @@ def assert_safe_archive(path: Path) -> None:
                 die(f"refusing archive with unsafe path {name!r}")
 
 
-def stage_file(url: str, dest: Path, sha256: str, what: str, mode: int | None = None) -> None:
-    fetch(url, dest)
-    verify_sha256(dest, sha256, what)
+def stage_file(
+    url: str,
+    dest: Path,
+    sha256: str | None,
+    what: str,
+    mode: int | None = None,
+    *,
+    required: bool = True,
+) -> bool:
+    if not fetch(url, dest, required=required):
+        return False
+    if sha256 is not None:
+        verify_sha256(dest, sha256, what)
     if mode is not None:
         dest.chmod(mode)
+    return True
 
 
 def main() -> int:
@@ -216,8 +283,11 @@ def main() -> int:
     if not lockfile.is_file():
         die(f"lockfile missing: {lockfile}")
 
-    required, optional = load_lockfile(lockfile)
-    print(f"lockfile {lockfile}: {len(required)} required, {len(optional)} optional")
+    required, optional, versions = load_lockfile(lockfile)
+    print(
+        f"lockfile {lockfile}: {len(required)} required, {len(optional)} optional"
+        + (f", {len(versions)} pinned" if versions else "")
+    )
 
     bin_dir = home / ".local" / "bin"
     state_dir = home / ".local" / "state" / "bakery"
@@ -245,6 +315,24 @@ def main() -> int:
     selected: dict[str, dict] = {}
     installed_bins: dict[str, list[str]] = {}
     installed_sha: dict[str, dict[str, str]] = {}
+    fetched_url: dict[str, str] = {}
+
+    pin_warned: set[str] = set()
+
+    def pin_digest(pkg_name: str, pkg: dict, value: object, what: str) -> str | None:
+        """Index sha256 is only valid when it describes the pinned version."""
+        digest = require_sha256(value, what)
+        pin = versions.get(pkg_name)
+        if pin and str(pkg.get("version")) != pin:
+            if pkg_name not in pin_warned:
+                print(
+                    f"WARN: {pkg_name} pin {pin} != index {pkg.get('version')}; "
+                    f"fetching pinned URL without index sha256",
+                    file=sys.stderr,
+                )
+                pin_warned.add(pkg_name)
+            return None
+        return digest
 
     def take_bin(name: str, *, required_bin: bool) -> bool:
         hit = published.get(name)
@@ -256,16 +344,30 @@ def main() -> int:
         pkg_name, pkg, binary = hit
         if pkg_name in BLOCKED or name in BLOCKED:
             die(f"refusing blocked package/bin {pkg_name}/{name}")
-        url = binary.get("dl_url")
+        raw = binary.get("name")
+        index_url = binary.get("dl_url")
+        pin = versions.get(pkg_name)
+        if pin:
+            if not isinstance(raw, str) or not valid_name(raw):
+                die(f"{name}: missing binary filename for pinned URL")
+            url = pinned_artifact_url(pkg_name, pin, raw)
+        else:
+            url = index_url
         if not isinstance(url, str) or not url:
             die(f"{name}: missing dl_url")
-        digest = require_sha256(binary.get("sha256"), f"binary {name}")
+        digest = pin_digest(pkg_name, pkg, binary.get("sha256"), f"binary {name}")
         dest = bin_dir / name
-        print(f"  {name}  <-  {url}")
-        stage_file(url, dest, digest, f"binary {name}", mode=0o755)
+        note = f"  (pin {pkg_name}={pin})" if pin else ""
+        print(f"  {name}  <-  {url}{note}")
+        if not stage_file(
+            url, dest, digest, f"binary {name}", mode=0o755, required=required_bin
+        ):
+            return False
         selected[pkg_name] = pkg
         installed_bins.setdefault(pkg_name, []).append(name)
-        installed_sha.setdefault(pkg_name, {})[name] = digest
+        if digest is not None:
+            installed_sha.setdefault(pkg_name, {})[name] = digest
+        fetched_url.setdefault(pkg_name, url)
         return True
 
     for name in required:
@@ -281,14 +383,15 @@ def main() -> int:
 
     for pkg_name, pkg in sorted(selected.items()):
         bins = pkg.get("binaries") or []
-        first_url = None
-        for b in bins:
-            if isinstance(b, dict) and b.get("dl_url"):
-                first_url = b["dl_url"]
-                break
+        first_url = fetched_url.get(pkg_name)
+        if not first_url:
+            for b in bins:
+                if isinstance(b, dict) and b.get("dl_url"):
+                    first_url = b["dl_url"]
+                    break
         if not first_url:
             die(f"{pkg_name}: no binary dl_url to derive version dir")
-        base = version_dir(first_url)
+        base = package_base_url(pkg_name, versions, first_url)
         service_names: list[str] = []
 
         for svc in pkg.get("services") or []:
@@ -297,12 +400,13 @@ def main() -> int:
             unit = svc.get("unit")
             if not isinstance(unit, str) or not valid_name(unit):
                 die(f"{pkg_name}: invalid service unit {unit!r}")
-            digest = require_sha256(svc.get("sha256"), f"{pkg_name} {unit}")
+            digest = pin_digest(pkg_name, pkg, svc.get("sha256"), f"{pkg_name} {unit}")
             dest = unit_dir / unit
             url = urljoin(base, unit)
             print(f"  {unit}  <-  {url}")
             fetch(url, dest)
-            verify_sha256(dest, digest, f"unit {unit}")
+            if digest is not None:
+                verify_sha256(dest, digest, f"unit {unit}")
             dest.write_text(patch_exec_start(dest.read_text(), bin_dir))
             dest.chmod(0o644)
             if svc.get("enable"):
@@ -322,7 +426,9 @@ def main() -> int:
         if archive:
             if not isinstance(archive, str) or not valid_name(archive):
                 die(f"{pkg_name}: invalid data_archive {archive!r}")
-            digest = require_sha256(pkg.get("data_archive_sha256"), f"{pkg_name} {archive}")
+            digest = pin_digest(
+                pkg_name, pkg, pkg.get("data_archive_sha256"), f"{pkg_name} {archive}"
+            )
             url = urljoin(base, archive)
             data_dir = share_dir / pkg_name
             data_dir.mkdir(parents=True, exist_ok=True)
@@ -349,7 +455,9 @@ def main() -> int:
         if desktop:
             if not isinstance(desktop, str) or not valid_name(desktop):
                 die(f"{pkg_name}: invalid desktop_file {desktop!r}")
-            digest = require_sha256(pkg.get("desktop_file_sha256"), f"{pkg_name} {desktop}")
+            digest = pin_digest(
+                pkg_name, pkg, pkg.get("desktop_file_sha256"), f"{pkg_name} {desktop}"
+            )
             dest = share_dir / "applications" / f"{pkg_name}.desktop"
             stage_file(urljoin(base, desktop), dest, digest, f"{pkg_name} {desktop}")
 
@@ -357,13 +465,15 @@ def main() -> int:
         if license_file:
             if not isinstance(license_file, str) or not valid_name(license_file):
                 die(f"{pkg_name}: invalid license_file {license_file!r}")
-            digest = require_sha256(pkg.get("license_file_sha256"), f"{pkg_name} {license_file}")
+            digest = pin_digest(
+                pkg_name, pkg, pkg.get("license_file_sha256"), f"{pkg_name} {license_file}"
+            )
             dest = share_dir / "licenses" / pkg_name / "LICENSE"
             stage_file(urljoin(base, license_file), dest, digest, f"{pkg_name} {license_file}")
 
         installed[pkg_name] = {
             "name": pkg_name,
-            "version": pkg.get("version"),
+            "version": versions.get(pkg_name, pkg.get("version")),
             "binaries": installed_bins.get(pkg_name, []),
             "services": service_names,
             "installed_at": now,
