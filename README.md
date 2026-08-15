@@ -264,7 +264,7 @@ also get live systemd status + Start/Stop/Restart/Logs.
 | Packages | `bakery` installed list + updates, pacman system update |
 | AUR | Search via `yay`; installing opens a terminal (AUR build scripts need review) |
 | Firmware | `fwupd` device list + updates |
-| Snapshots | `snapper` list / boot-into (grub-btrfs) / delete |
+| Snapshots | `snapper` list (number / date / description); reboot to pick in GRUB (grub-btrfs); delete |
 
 Source and build live in the [bos-settings](https://git.breadway.dev/Breadway/bos-settings)
 repo, not here.
@@ -382,15 +382,16 @@ until `dl.breadway.dev/arch` exists).
 
 ## Recovery
 
-**An update broke something (system still boots):** open BOS Settings →
-Snapshots and pick a snapshot to boot, **or** choose one from the **GRUB
-“snapshots” submenu** (grub-btrfs) at boot, then reboot into it.
+**An update broke something (system still boots):** reboot → **GRUB
+“snapshots” submenu** (grub-btrfs), then boot that entry.
 
-Do **not** run `snapper rollback` as the default recovery step. BOS GRUB
-pins `rootflags=subvol=@`, so a snapper-swapped default subvolume is not
-what the installed grub.cfg will boot next. Use the grub-btrfs entry so the
-kernel command line matches the snapshot you want. Details:
-[docs/hardware.md](docs/hardware.md).
+BOS Settings → Snapshots lists each snapshot’s number, date, and
+description so you know which GRUB entry to pick. It does not roll the
+running root back in place.
+
+Do **not** run `snapper rollback`. BOS GRUB pins `rootflags=subvol=@`, so
+a snapper-swapped default subvolume is not what the installed grub.cfg
+will boot next. Details: [docs/hardware.md](docs/hardware.md).
 
 A/B root swapping (SteamOS-style) is a **future** idea in DESIGN.md — it is
 not shipped.
