@@ -2,13 +2,17 @@
 # bos-update — update all of BOS in one go.
 #
 # BOS packages come from two channels, so a full update touches both:
-#   1. pacman   — Arch base/desktop + the [breadway] repo (bos-settings, etc.).
-#                 Every transaction is snapshotted by snap-pac, so you can roll
-#                 back from the GRUB "snapshots" submenu or BOS Settings.
+#   1. pacman   — Arch base/desktop + the [breadway] repo (breadlock + AUR
+#                 republishes: calamares, zen-browser-bin, bibata, yay-bin,
+#                 powerlevel10k). [breadway] does NOT provide bos-settings
+#                 or other bakery desktop apps. Every transaction is
+#                 snapshotted by snap-pac; recover via the GRUB "snapshots"
+#                 submenu (grub-btrfs), not `snapper rollback`.
 #   2. bakery   — the bread ecosystem apps in ~/.local/bin (whatever `bakery list`
-#                 reports as installed — bread, breadbar, breadbox, breadcrumbs,
-#                 breadpad, breadman, bread-theme, breadpaper, breadmon,
-#                 breadsearch, breadclip, breadshot, ...).
+#                 reports as installed — bakery, bread, breadbar, breadbox,
+#                 breadcrumbs, breadpad, breadman, bread-theme, breadpaper,
+#                 breadmon, breadsearch, breadclip, breadshot, bos-settings,
+#                 breadhelp, ...).
 #
 # Best-effort: a failure in one channel doesn't abort the other.
 set -uo pipefail

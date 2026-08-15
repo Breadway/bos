@@ -46,8 +46,15 @@ done
 check "graphical.target is default" "[ \"\$(systemctl get-default)\" = graphical.target ]"
 
 echo "== bread ecosystem on PATH =="
-for bin in bakery bread breadd bread-emit bread-module-host breadbar breadbox breadbox-sync breadcrumbs breadpad breadman; do
+for bin in bakery bread breadd breadbar breadbox breadbox-sync breadcrumbs breadpad breadman; do
     check "$bin found" "command -v $bin"
+done
+for bin in bread-emit bread-module-host; do
+    if command -v "$bin" >/dev/null 2>&1; then
+        ok "$bin found"
+    else
+        note "$bin not on PATH (optional until stable bread ships it)"
+    fi
 done
 
 echo "== bos-settings =="

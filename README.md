@@ -16,15 +16,16 @@ wiring up dotfiles, no per-tool bakery installs.
   keybinds, snappy animations, blur, and pywal-driven colours on a black base.
 - **bread ecosystem**, baked into `/etc/skel` from bakery-managed binaries
   (no network needed at install time): the `bread`/`breadd` automation daemon
-  plus `bread-emit` / `bread-module-host`, `breadbar` (status bar +
-  notifications), `breadbox` (launcher), `breadclip` (clipboard history),
-  `breadcrumbs` (Wi-Fi profiles), `breadpad`/`breadman` (notes), `breadpaper`
-  (wallpaper + theme), `breadsearch` (system search), `breadmon` (monitor
-  layout TUI), `breadshot` (screenshots), `bread-theme` (the shared palette
-  engine), `breadhelp` (onboarding + cheatsheet), `bos-settings` (control
-  panel), and the `bakery` package manager. Most of those apps are
-  zero-config on first boot; breadcrumbs networks are user-filled after
-  install. See [below](#the-bread-ecosystem).
+  (`bread-emit` / `bread-module-host` when the stable bread release publishes
+  them), `breadbar` (status bar + notifications), `breadbox` (launcher),
+  `breadclip` (clipboard history), `breadcrumbs` (Wi-Fi profiles),
+  `breadpad`/`breadman` (notes), `breadpaper` (wallpaper + theme),
+  `breadsearch` (system search), `breadmon` (monitor layout TUI),
+  `breadshot` (screenshots), `bread-theme` (the shared palette engine),
+  `breadhelp` (onboarding + cheatsheet), `bos-settings` (control panel),
+  and the `bakery` package manager. Most of those apps are zero-config on
+  first boot; breadcrumbs networks are user-filled after install. See
+  [below](#the-bread-ecosystem).
 - **breadlock** (lock screen + greeter) is the one bread\* app that ships as
   **pacman**, not bakery — it needs a root-owned PAM service.
 - **bos-settings**: a **Tauri 2 + Svelte** control panel (standalone bakery
@@ -41,23 +42,28 @@ wiring up dotfiles, no per-tool bakery installs.
   `yay` ships for AUR access beyond bakery + `[breadway]`.
 - **Hardware**: pipewire audio, NetworkManager, BlueZ + blueman, CUPS printing
   with avahi mDNS discovery, TLP power management, fwupd firmware updates.
+  Mesa only — **NVIDIA proprietary drivers are not included** and NVIDIA is
+  unsupported out of the box (see Known limitations).
 - **Resilience**: btrfs + snapper + snap-pac + grub-btrfs snapshots on every
   pacman transaction; zram swap; ufw firewall (deny-incoming, mDNS allowed).
-- **Security**: full-disk encryption (LUKS, via Calamares' built-in support —
-  cryptsetup + the matching mkinitcpio/GRUB wiring ship so an encrypted
-  install actually boots) and self-signed Secure Boot (via `sbctl`, enrolled
-  automatically at install time when the firmware is in Setup Mode).
+  A/B root swapping is **not** implemented. Recovery is a grub-btrfs reboot,
+  not `snapper rollback` (GRUB pins `rootflags=subvol=@`).
+- **Security**: optional full-disk encryption is **LUKS1** (GRUB cannot unlock
+  LUKS2 + Argon2id). Secure Boot is **self-signed Setup Mode only** via
+  `sbctl` — not a Microsoft-signed shim; enrollment is skipped unless the
+  firmware is already in Setup Mode.
 
 ## What ships vs what does not
 
 | Channel | What |
 |---------|------|
-| **Bakery, baked into skel** | `bakery`, `bread` / `breadd` / `bread-emit` / `bread-module-host`, `breadbar`, `breadbox` / `breadbox-sync`, `breadcrumbs`, `breadpad` / `breadman`, `breadpaper`, `bread-theme`, `breadmon`, `breadsearch` / `breadmill`, `breadclip` / `breadclipd`, `breadshot`, `bos-settings`, `breadhelp` (+ breadhelp content under `~/.local/share/breadhelp/`) |
+| **Bakery, required** | `bakery`, `bread` / `breadd`, `breadbar`, `breadbox` / `breadbox-sync`, `breadcrumbs`, `breadpad` / `breadman`, `breadpaper`, `bread-theme`, `breadmon`, `breadsearch` / `breadmill`, `breadclip` / `breadclipd`, `breadshot`, `bos-settings`, `breadhelp` (+ breadhelp content under `~/.local/share/breadhelp/`) |
+| **Bakery, optional** | `bread-emit`, `bread-module-host` — baked when the verified stable index publishes them; skipped (not a failed bake) until bread ships them |
 | **pacman (`packages.x86_64`)** | `breadlock`, plus the rest of the distro (Hyprland, Calamares, Zen, …) |
 | **Not shipped** | `breadcast`, `breadarr` |
 
 The baked name list is [`iso/bread-lockfile.toml`](iso/bread-lockfile.toml).
-`build-local.sh` fails if any listed binary is missing on the builder.
+`build-local.sh` fails if any **required** binary is missing on the builder.
 
 ## Repo layout
 
@@ -68,7 +74,7 @@ repos and arrive via bakery.
 ```
 bos/
 ├── iso/                           # archiso profile
-│   ├── bread-lockfile.toml        # bakery bins that MUST be baked
+│   ├── bread-lockfile.toml        # bakery bins (required + optional)
 │   ├── profiledef.sh
 │   ├── packages.x86_64            # live + installed pacman set
 │   └── airootfs/                  # files overlaid onto the image
@@ -81,7 +87,10 @@ bos/
 │   ├── powerlevel10k/
 │   └── yay-bin/
 ├── dotfiles/                      # STALE — not the live skel; see its README
-├── scripts/smoke-test.sh
+├── scripts/
+│   ├── ci-stage-bakery.py     # CI: minisign-verified index → $LAPTOP_HOME
+│   ├── ci-verify-bake.sh      # CI: read-only checks before mkarchiso
+│   └── smoke-test.sh
 ├── .forgejo/workflows/            # CI: AUR republish + tagged ISO release
 ├── build-local.sh                 # native ISO build for this machine
 ├── README.md
@@ -120,10 +129,12 @@ sudo FAST_BUILD=1 ./build-local.sh # fast dev iteration (zstd squashfs)
 The ISO lands in `out/bos-<date>-x86_64.iso`. The script pins
 `SOURCE_DATE_EPOCH` (reproducible UUIDs), rewrites the `[breadway]` repo URL
 to the Tailscale-reachable Forgejo registry for the build, and **exits
-non-zero** if any lockfile binary (or breadhelp content) is missing.
+non-zero** if any **required** lockfile binary (or breadhelp content) is
+missing. Optional bins are skipped with a warning.
 
-CI should populate the builder from the **stable** bakery index; local
-builds still snapshot the builder. The lockfile is names only.
+CI stages the builder from the **minisign-verified** stable bakery index
+(`index.json` + `index.json.minisig`); local builds still snapshot the
+builder. The lockfile is names only.
 
 ### Why some packages are in-house
 
@@ -144,7 +155,10 @@ dedicated release-signing key (not reused from anything else):
 5620 3B86 A110 695A E7F3  1093 4AF3 323D 678E B5E2
 ```
 
-The public half is committed at [`KEYS.asc`](KEYS.asc). To verify a download:
+The public half is committed at [`KEYS.asc`](KEYS.asc). That key signs
+**ISO checksums only** — it does not sign the `[breadway]` pacman repo
+(Forgejo's Arch registry has no pacman-compatible db signatures; that
+section stays `SigLevel = Never`). To verify a download:
 
 ```sh
 gpg --import KEYS.asc
@@ -221,7 +235,7 @@ directly.
 
 | Tool | Role | Launch |
 |------|------|--------|
-| `bread` / `breadd` | Reactive automation daemon — normalises hardware/compositor/power/network signals into events dispatched to Lua modules (`~/.config/bread/`). `bread-emit` is the fire-and-forget helper hooks/CLIs use; `bread-module-host` is the sandboxed out-of-process module runtime breadd spawns. | runs at login (`breadd.service`) |
+| `bread` / `breadd` | Reactive automation daemon — normalises hardware/compositor/power/network signals into events dispatched to Lua modules (`~/.config/bread/`). `bread-emit` is the fire-and-forget helper hooks/CLIs use; `bread-module-host` is the sandboxed out-of-process module runtime breadd spawns. Both extra bins are **optional** on the ISO until a stable bread release publishes them. | runs at login (`breadd.service`) |
 | `breadbar` | Top status bar: workspaces, clock, system stats, tray, **and** the notification daemon — one process, not two | runs at login |
 | `breadbox` | Application launcher (fuzzy search, per-context results via `breadbox-sync`) | `SUPER+Space` |
 | `breadlock` | Idle lock screen. Also provides `breadgreet`, the login greeter hosted under `cage` via greetd — same project, two binaries, one visual identity from login to lock. **pacman**, not bakery. | `SUPER+L` (via `loginctl lock-session`, picked up by `hypridle`); `breadgreet` runs automatically at boot |
