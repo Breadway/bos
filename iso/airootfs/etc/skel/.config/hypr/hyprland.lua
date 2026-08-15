@@ -141,7 +141,8 @@ hl.on("hyprland.start", function()
         -- pywal only runs for real once the user picks a wallpaper themselves.
         [[bash -c 'until awww img /usr/share/backgrounds/bos/bread-background.png 2>/dev/null; do sleep 0.3; done']],
         -- breadd runs as a systemd user service (/usr/lib/systemd/user/breadd.service,
-        -- plus a skel copy). It autostarts at login but before Hyprland exists, so
+        -- enabled --global so every account starts it). It autostarts at login
+        -- but before Hyprland exists, so
         -- push the compositor's Wayland env into the user manager and restart breadd
         -- to pick it up — that's how it gets HYPRLAND_INSTANCE_SIGNATURE to talk to Hyprland.
         "dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP HYPRLAND_INSTANCE_SIGNATURE",

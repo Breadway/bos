@@ -68,6 +68,34 @@ check "bos-netcheck present" "command -v bos-netcheck"
 check "bos-rescue present" "command -v bos-rescue"
 check "bos-first-boot present" "command -v bos-first-boot"
 
+echo "== bakery user units (global enable) =="
+# A later useradd does not enable --user units unless they were enabled
+# --global (or the user enables them). post-install + live-setup + bake
+# write /etc/systemd/user/<target>.wants/ and a preset listing the set.
+check "bakery user preset present" \
+    "[ -f /usr/lib/systemd/user-preset/90-bos-bakery.preset ]"
+check "bos-enable-bakery-user-units present" \
+    "command -v bos-enable-bakery-user-units"
+check "breadd.service globally enabled" \
+    "systemctl --global is-enabled breadd.service || [ -L /etc/systemd/user/default.target.wants/breadd.service ]"
+if [[ -f /usr/lib/systemd/user-preset/90-bos-bakery.preset ]]; then
+    while read -r verb unit; do
+        [[ "$verb" == enable && -n "$unit" ]] || continue
+        [[ -f /usr/lib/systemd/user/$unit ]] || continue
+        check "$unit globally enabled" \
+            "systemctl --global is-enabled $unit || [ -L /etc/systemd/user/default.target.wants/$unit ] || [ -L /etc/systemd/user/graphical-session.target.wants/$unit ]"
+    done < /usr/lib/systemd/user-preset/90-bos-bakery.preset
+fi
+check "skel hyprland.lua present" "[ -f /etc/skel/.config/hypr/hyprland.lua ]"
+check "skel bakery installed.json present" \
+    "[ -f /etc/skel/.local/state/bakery/installed.json ]"
+check "skel bakery index cache present" \
+    "[ -f /etc/skel/.cache/bakery/index.json ]"
+check "skel has no bakery binaries" \
+    "! [ -e /etc/skel/.local/bin/bakery ] && ! [ -e /etc/skel/.local/bin/breadd ]"
+check "useradd SKEL is /etc/skel" \
+    "grep -q '^SKEL=/etc/skel' /etc/default/useradd"
+
 echo "== default dotfiles =="
 check "hyprland.lua present"  "[ -f \"\$HOME/.config/hypr/hyprland.lua\" ]"
 check "binds.json present" "[ -f \"\$HOME/.config/hypr/binds.json\" ]"

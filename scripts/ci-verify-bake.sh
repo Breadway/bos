@@ -151,6 +151,7 @@ if [[ -n "$AIROOTFS" || -n "$SKEL" ]]; then
         bad "skel still has bakery bin $b (belongs in /usr/local/bin)"
       fi
     done
+    check_file "$SKEL/.config/hypr/hyprland.lua" "skel hyprland.lua"
   fi
   image_units_json=""
   if [[ -n "$SKEL" && -f "$SKEL/.local/state/bakery/installed.json" ]]; then
@@ -183,6 +184,34 @@ PY
         fi
       fi
     done
+    check_file "$AIROOTFS/usr/lib/systemd/user-preset/90-bos-bakery.preset" \
+      "bakery user preset"
+    if [[ -L "$AIROOTFS/etc/systemd/user/default.target.wants/breadd.service" ]] \
+       || [[ -f "$AIROOTFS/etc/systemd/user/default.target.wants/breadd.service" ]]; then
+      ok "breadd.service globally enabled (etc wants)"
+    else
+      bad "breadd.service missing from /etc/systemd/user/default.target.wants"
+    fi
+    # After bake the image has /usr/local/bin/breadd and every preset unit.
+    # The committed airootfs only has the preset + breadd wants.
+    if [[ -f "$AIROOTFS/usr/lib/systemd/user-preset/90-bos-bakery.preset" ]] \
+       && [[ -x "$AIROOTFS/usr/local/bin/breadd" ]]; then
+      while read -r verb unit; do
+        [[ "$verb" == enable && -n "$unit" ]] || continue
+        check_file "$AIROOTFS/usr/lib/systemd/user/$unit" "preset unit $unit"
+        if [[ -L "$AIROOTFS/etc/systemd/user/default.target.wants/$unit" ]] \
+           || [[ -L "$AIROOTFS/etc/systemd/user/graphical-session.target.wants/$unit" ]]; then
+          ok "$unit globally enabled (etc wants)"
+        else
+          bad "$unit missing from /etc/systemd/user/*.target.wants"
+        fi
+      done < "$AIROOTFS/usr/lib/systemd/user-preset/90-bos-bakery.preset"
+    fi
+    if [[ -x "$AIROOTFS/usr/local/bin/bos-enable-bakery-user-units" ]]; then
+      ok "bos-enable-bakery-user-units executable"
+    else
+      bad "bos-enable-bakery-user-units missing or not executable"
+    fi
   fi
 fi
 
