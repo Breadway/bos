@@ -43,11 +43,12 @@ wiring up dotfiles, no per-tool bakery installs.
 - **Hardware**: pipewire audio, NetworkManager, BlueZ + blueman, CUPS printing
   with avahi mDNS discovery, TLP power management, fwupd firmware updates.
   Mesa only — **NVIDIA proprietary drivers are not included** and NVIDIA is
-  unsupported out of the box (see Known limitations).
+  unsupported out of the box (see [docs/hardware.md](docs/hardware.md)).
 - **Resilience**: btrfs + snapper + snap-pac + grub-btrfs snapshots on every
   pacman transaction; zram swap; ufw firewall (deny-incoming, mDNS allowed).
   A/B root swapping is **not** implemented. Recovery is a grub-btrfs reboot,
-  not `snapper rollback` (GRUB pins `rootflags=subvol=@`).
+  not `snapper rollback` (GRUB pins `rootflags=subvol=@`). See
+  [docs/hardware.md](docs/hardware.md).
 - **Security**: optional full-disk encryption is **LUKS1** (GRUB cannot unlock
   LUKS2 + Argon2id). Secure Boot is **self-signed Setup Mode only** via
   `sbctl` — not a Microsoft-signed shim; enrollment is skipped unless the
@@ -62,8 +63,10 @@ wiring up dotfiles, no per-tool bakery installs.
 | **pacman (`packages.x86_64`)** | `breadlock`, plus the rest of the distro (Hyprland, Calamares, Zen, …) |
 | **Not shipped** | `breadcast`, `breadarr` |
 
-The baked name list is [`iso/bread-lockfile.toml`](iso/bread-lockfile.toml).
-`build-local.sh` fails if any **required** binary is missing on the builder.
+The baked name list is [`iso/bread-lockfile.toml`](iso/bread-lockfile.toml)
+(plus optional `[versions]` / `[[pin]]` so CI fetches
+`https://dl.breadway.dev/<pkg>/<ver>/...`). `build-local.sh` fails if any
+**required** binary is missing on the builder.
 
 ## Repo layout
 
@@ -74,7 +77,7 @@ repos and arrive via bakery.
 ```
 bos/
 ├── iso/                           # archiso profile
-│   ├── bread-lockfile.toml        # bakery bins (required + optional)
+│   ├── bread-lockfile.toml        # bakery bins + optional version pins
 │   ├── profiledef.sh
 │   ├── packages.x86_64            # live + installed pacman set
 │   └── airootfs/                  # files overlaid onto the image
@@ -91,6 +94,9 @@ bos/
 │   ├── ci-stage-bakery.py     # CI: minisign-verified index → $LAPTOP_HOME
 │   ├── ci-verify-bake.sh      # CI: read-only checks before mkarchiso
 │   └── smoke-test.sh
+├── docs/
+│   ├── hardware.md                # Mesa only, NVIDIA, grub-btrfs recovery
+│   └── signed-repo.md             # future dl.breadway.dev/arch signing
 ├── .forgejo/workflows/            # CI: AUR republish + tagged ISO release
 ├── build-local.sh                 # native ISO build for this machine
 ├── README.md
@@ -133,8 +139,10 @@ non-zero** if any **required** lockfile binary (or breadhelp content) is
 missing. Optional bins are skipped with a warning.
 
 CI stages the builder from the **minisign-verified** stable bakery index
-(`index.json` + `index.json.minisig`); local builds still snapshot the
-builder. The lockfile is names only.
+(`index.json` + `index.json.minisig`) and prefers lockfile `[versions]`
+URLs (`https://dl.breadway.dev/<pkg>/<ver>/...`) when set, so two bakes
+of the same commit fetch the same bits. Local builds still snapshot the
+builder.
 
 ### Why some packages are in-house
 
@@ -158,7 +166,8 @@ dedicated release-signing key (not reused from anything else):
 The public half is committed at [`KEYS.asc`](KEYS.asc). That key signs
 **ISO checksums only** — it does not sign the `[breadway]` pacman repo
 (Forgejo's Arch registry has no pacman-compatible db signatures; that
-section stays `SigLevel = Never`). To verify a download:
+section stays `SigLevel = Never` until a signed repo exists — see
+[docs/signed-repo.md](docs/signed-repo.md)). To verify a download:
 
 ```sh
 gpg --import KEYS.asc
@@ -303,9 +312,13 @@ cheatsheet in-session; first boot shows a short welcome (once).
 
 ## Known limitations
 
+See [docs/hardware.md](docs/hardware.md) (GPUs, NVIDIA, recovery) and
+[docs/signed-repo.md](docs/signed-repo.md) (`[breadway]` stays unsigned
+until `dl.breadway.dev/arch` exists).
+
 - **GPUs**: ships the generic Mesa stack — AMD and Intel work out of the box.
-  The **NVIDIA proprietary driver is not included**; NVIDIA users must install
-  `nvidia`/`nvidia-utils` and set the usual Hyprland env vars after install.
+  NVIDIA is **unsupported** (no proprietary driver, no NVIDIA firmware). See
+  [docs/hardware.md](docs/hardware.md).
 - **Virtual machines**: Hyprland needs GPU acceleration to be smooth. Use
   `virtio-vga-gl` + `-display gtk,gl=on` (virgl); plain software rendering is
   noticeably laggy.
@@ -324,7 +337,10 @@ cheatsheet in-session; first boot shows a short welcome (once).
   BOS ships the matching `cryptsetup`/mkinitcpio/GRUB wiring so an encrypted
   install actually boots (LUKS1, since GRUB doesn't support LUKS2 + Argon2id).
 - **Snapshots assume btrfs**: the snapper/grub-btrfs tooling expects the default
-  btrfs subvolume layout the installer creates.
+  btrfs subvolume layout the installer creates. Recovery is the GRUB
+  snapshots submenu, not `snapper rollback` — [docs/hardware.md](docs/hardware.md).
+- **`[breadway]` signatures**: `SigLevel = Never` until a signed repo is
+  stood up at `dl.breadway.dev/arch`. See [docs/signed-repo.md](docs/signed-repo.md).
 
 ## Recovery
 
@@ -335,7 +351,8 @@ Snapshots and pick a snapshot to boot, **or** choose one from the **GRUB
 Do **not** run `snapper rollback` as the default recovery step. BOS GRUB
 pins `rootflags=subvol=@`, so a snapper-swapped default subvolume is not
 what the installed grub.cfg will boot next. Use the grub-btrfs entry so the
-kernel command line matches the snapshot you want.
+kernel command line matches the snapshot you want. Details:
+[docs/hardware.md](docs/hardware.md).
 
 A/B root swapping (SteamOS-style) is a **future** idea in DESIGN.md — it is
 not shipped.
