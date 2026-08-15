@@ -78,6 +78,8 @@ snapper
 snap-pac
 grub-btrfs
 inotify-tools
+# Home backup (Settings → Backup). Snapper is root (`@`) only; restic covers $HOME.
+restic
 
 # Wayland / Hyprland
 hyprland

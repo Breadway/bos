@@ -46,9 +46,11 @@ wiring up dotfiles, no per-tool bakery installs.
   Mesa only — **NVIDIA proprietary drivers are not included** and NVIDIA is
   unsupported out of the box (see [docs/hardware.md](docs/hardware.md)).
 - **Resilience**: btrfs + snapper + snap-pac + grub-btrfs snapshots on every
-  pacman transaction; zram swap; ufw firewall (deny-incoming, mDNS allowed).
-  A/B root swapping is **not** implemented. Recovery is a grub-btrfs reboot,
-  not `snapper rollback` (GRUB pins `rootflags=subvol=@`). See
+  pacman transaction (**root `@` only** — snapper does not cover `@home`);
+  home backup is **Settings → Backup** (restic, local path or SFTP); zram
+  swap; ufw firewall (deny-incoming, mDNS allowed). A/B root swapping is
+  **not** implemented. Recovery is a grub-btrfs reboot, not
+  `snapper rollback` (GRUB pins `rootflags=subvol=@`). See
   [docs/hardware.md](docs/hardware.md).
 - **Security**: optional full-disk encryption is **LUKS1** (GRUB cannot unlock
   LUKS2 + Argon2id). Secure Boot is **self-signed Setup Mode only** via
@@ -264,7 +266,8 @@ also get live systemd status + Start/Stop/Restart/Logs.
 | Packages | `bakery` installed list + updates, pacman system update |
 | AUR | Search via `yay`; installing opens a terminal (AUR build scripts need review) |
 | Firmware | `fwupd` device list + updates |
-| Snapshots | `snapper` list (number / date / description); reboot to pick in GRUB (grub-btrfs); delete |
+| Snapshots | `snapper` list (number / date / description); reboot to pick in GRUB (grub-btrfs); delete — **root (`@`) only** |
+| Backup | restic of `$HOME` (`@home`) via Settings → Backup; snapper does not cover home |
 
 Source and build live in the [bos-settings](https://git.breadway.dev/Breadway/bos-settings)
 repo, not here.
@@ -387,7 +390,9 @@ until `dl.breadway.dev/arch` exists).
 
 BOS Settings → Snapshots lists each snapshot’s number, date, and
 description so you know which GRUB entry to pick. It does not roll the
-running root back in place.
+running root back in place. Snapper is root only. Home files are
+**Settings → Backup** (restic restore into `~/bos-restore-<id>`, not
+over `$HOME`).
 
 Do **not** run `snapper rollback`. BOS GRUB pins `rootflags=subvol=@`, so
 a snapper-swapped default subvolume is not what the installed grub.cfg
