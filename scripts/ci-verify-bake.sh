@@ -42,6 +42,12 @@ PY
 
 echo "== lockfile $LOCKFILE =="
 echo "   ${#REQUIRED_BINS[@]} required, ${#OPTIONAL_BINS[@]} optional"
+echo "== host tools =="
+if command -v grub-install >/dev/null 2>&1; then
+  ok "grub-install (uefi.grub bootmode)"
+else
+  bad "grub-install missing — mkarchiso uefi.grub will abort (install grub on the builder)"
+fi
 echo "== builder home $LAPTOP_HOME =="
 
 check_exec() {

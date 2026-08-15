@@ -41,7 +41,10 @@ jobs:
     steps:
       - name: Install build dependencies
         run: |
-          pacman -Syu --noconfirm archiso curl python git minisign
+          # grub is required by profiledef.sh bootmodes=('uefi.grub'):
+          # mkarchiso validates grub-install on the *builder*, not the image.
+          # archiso pulls syslinux/squashfs-tools/libisoburn; it does not pull grub.
+          pacman -Syu --noconfirm archiso grub curl python git minisign
 
       - name: Determine tag and version
         id: vars
