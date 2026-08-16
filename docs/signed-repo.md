@@ -74,7 +74,7 @@ Pacman fetches `<section>.db` + `<section>.db.sig` from `Server`.
 ## Dispatch the workflow
 
 Forgejo UI: **Actions → "Publish signed [breadway] repo" → Run workflow**.
-Select this branch (`feature/signed-repo`) until it is on `main`.
+Select `main`.
 
 API (`workflow_dispatch`):
 
@@ -83,10 +83,8 @@ curl -fsS -X POST \
   -H "Authorization: token ${RELEASE_TOKEN}" \
   -H "Content-Type: application/json" \
   "https://git.breadway.dev/api/v1/repos/Breadway/bos/actions/workflows/signed-repo.yml/dispatches" \
-  -d '{"ref":"feature/signed-repo"}'
+  -d '{"ref":"main"}'
 ```
-
-After merge, use `"ref":"main"`.
 
 It also runs after the in-repo AUR republish workflows complete
 (`calamares` / `bibata` / `powerlevel10k` / `yay-bin`). breadlock lives in
@@ -151,5 +149,5 @@ and the verify commands above succeed:
 3. Only then flip that section to `SigLevel = Required`.
 
 Do not do those three steps against Forgejo's registry. See
-`iso/pacman.conf` and `iso/airootfs/etc/pacman.conf`. This branch does
+`iso/pacman.conf` and `iso/airootfs/etc/pacman.conf`. This tree does
 **not** change either file.

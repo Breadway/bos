@@ -81,6 +81,8 @@ repo_add_signed() {
   fi
   [[ -e breadway.db.tar.gz.sig || -e breadway.db.sig ]] \
     || die "repo-add -s did not write breadway.db*.sig"
+  # gpg writes 0600; nginx and the next publish need world-readable files.
+  find . -maxdepth 1 -type f -exec chmod a+r {} + || true
 }
 
 ensure_arch_tools() {
@@ -125,7 +127,12 @@ sign_and_index_anywhere() {
   rt="$(container_runtime)" || die \
     "need host gpg+repo-add, or docker/podman to run archlinux:latest (no Forgejo container: — host must see /srv/breadway-dl)"
   # Host job + bind-mount, same reason bakery writes /srv without container:.
+  # Run as the runner user: root-owned 0600 .sig files made chmod/nginx fail
+  # (run 1050) and would block the next `rm -rf` of a previous tree.
   "$rt" run --rm --network=host \
+    --user "$(id -u):$(id -g)" \
+    -e HOME=/tmp \
+    -e TMPDIR=/tmp \
     -e GPG_PRIVATE_KEY \
     -e BREADWAY_SIGN_ONLY=1 \
     -e BREADWAY_REPO_DIR=/repo \
