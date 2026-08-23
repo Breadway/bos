@@ -22,6 +22,7 @@ local DEFAULT_EXTRA = {
     { command = "breadhelp --autostart", enabled = true },
     { command = "bash -c 'command -v breadpaper >/dev/null && exec breadpaper listen'", enabled = true },
     { command = "bash -c 'command -v breadshot >/dev/null && exec breadshot listen'", enabled = true },
+    { command = "bash -c 'command -v breadlock >/dev/null && exec breadlock listen'", enabled = true },
     { command = "bash -c 'command -v breadbox >/dev/null && exec breadbox listen'", enabled = true },
     { command = "bash -c 'command -v breadhelp >/dev/null && exec breadhelp listen'", enabled = true },
     { command = "bash -c 'command -v breadsearch >/dev/null && exec breadsearch listen'", enabled = true },

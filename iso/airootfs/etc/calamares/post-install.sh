@@ -8,8 +8,6 @@
 # Best-effort: do NOT use `set -e`; a single failure here must not abort the rest.
 set -uo pipefail
 
-MAIN_USER="$(getent passwd 1000 | cut -d: -f1 || true)"
-
 # Whether Calamares encrypted the root partition (LUKS) — checked once here,
 # used below to conditionally wire mkinitcpio's encrypt hook and GRUB's
 # cryptodisk support. `lsblk TYPE` reports "crypt" for a cryptsetup-opened
@@ -32,6 +30,14 @@ rm -f /etc/systemd/system/bos-live-setup.service \
 rm -f /usr/local/bin/bos-live-setup /usr/local/bin/bos-launch-calamares
 rm -f /etc/sudoers.d/99-bos-live
 userdel -r liveuser 2>/dev/null || true
+
+# Live ISO creates liveuser as UID 1000; Calamares then creates the real
+# account as 1001. Capture AFTER userdel so Snapper ALLOW_USERS and skel
+# copy the installed user, not the deleted live account.
+MAIN_USER="$(getent passwd 1000 | cut -d: -f1 || true)"
+if [[ -z "$MAIN_USER" || "$MAIN_USER" == "liveuser" ]]; then
+    MAIN_USER="$(getent passwd | awk -F: '$3 >= 1000 && $3 < 60000 && $1 != "liveuser" { print $1; exit }')"
+fi
 
 # unpackfs copies the entire live squashfs onto the target. Remove live-only
 # packages (Calamares + archiso boot chain + memtest/EFI-shell payloads) so
