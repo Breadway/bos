@@ -47,7 +47,15 @@ fi
 echo
 bold "==> Bread ecosystem (bakery update --all)"
 if command -v bakery >/dev/null; then
-    bakery update --all || echo "WARN: bakery update failed"
+    # /usr/local is root-owned. Never run bakery as the user against it;
+    # bakery itself also tries sudo -n then pkexec for privileged writes.
+    if sudo -n true >/dev/null 2>&1; then
+        sudo -n bakery update --all || echo "WARN: bakery update failed"
+    elif command -v pkexec >/dev/null; then
+        pkexec bakery update --all || echo "WARN: bakery update failed"
+    else
+        echo "WARN: bakery update needs sudo -n or pkexec for /usr/local"
+    fi
 else
     echo "bakery not found; skipping"
 fi
