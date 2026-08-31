@@ -64,6 +64,16 @@ hl.window_rule({ name = "breadhelp",    match = { class = "^(com\\.breadway\\.br
 hl.window_rule({ name = "bos-netsetup", match = { class = "^(bos-netsetup)$" }, float = true, size = { 700, 560 } })
 
 -- ---------------------------------------------------------------------------
+-- Layer-shell rules — blur / ignore-alpha / per-namespace motion for the
+-- bread shell (breadbar island + osd + notif + panel, breadbox launcher,
+-- breadclip popup). Theme-driven via ~/.config/hypr/layerrules.json (written
+-- by `bread-theme layerrules` in the bootstrap below), with a hardcoded
+-- fallback so a missing/broken theme file can never leave the shell
+-- unblurred. Without these the launcher and popups get no compositor blur.
+-- ---------------------------------------------------------------------------
+pcall(dofile, script_dir .. "ui/rules.lua")
+
+-- ---------------------------------------------------------------------------
 -- Environment (vendor-neutral; no GPU-specific vars so it works on Intel/AMD).
 -- ---------------------------------------------------------------------------
 hl.env("XCURSOR_SIZE", "24")
@@ -76,6 +86,15 @@ hl.env("QT_WAYLAND_DISABLE_WINDOWDECORATION", "1")
 hl.env("SDL_VIDEODRIVER", "wayland")
 hl.env("ELECTRON_OZONE_PLATFORM_HINT", "auto")
 hl.env("_JAVA_AWT_WM_NONREPARENTING", "1")
+-- GTK4's default renderer (ngl/vulkan on GTK 4.14+) renders transparent
+-- layer-shell surfaces as opaque black on wlroots — the whole bread shell
+-- (breadbox launcher, breadclip popup, breadbar, breadhelp, bos-settings)
+-- goes black-on-black, and it's worse under a VM's virtio-gpu where no real
+-- GL/Vulkan context is available. cairo (software) always composites
+-- transparency correctly; the shell is flat colour/text/icons so there's no
+-- visible perf cost, and idle memory drops (~40%, no Mesa driver resident).
+-- Set GSK_RENDERER=gl in the session to override for a GPU-heavy GTK4 app.
+hl.env("GSK_RENDERER", "cairo")
 
 -- Optional NVIDIA env from bos-nvidia-setup. Mesa machines have no file.
 -- bos-nvidia-setup: optional proprietary env; no-op when the file is absent
@@ -128,6 +147,12 @@ hl.on("hyprland.start", function()
         -- Generate the shared bread GUI stylesheet first, so breadbar/breadbox/
         -- bos-settings load it on start (they also live-reload if it changes).
         "bread-theme generate",
+        -- Write ~/.config/hypr/layerrules.json from the active shell theme's
+        -- [compositor] table. scripts/ui/rules.lua (loaded above) already ran
+        -- with the hardcoded fallback; this refreshes the JSON for the next
+        -- `hyprctl reload` / theme switch. Harmless if bread-theme lacks the
+        -- verb on an older build.
+        "sh -c 'bread-theme layerrules 2>/dev/null || true'",
         -- Global dark theme: GTK4/libadwaita + GTK3 theme + icon + cursor.
         "gsettings set org.gnome.desktop.interface color-scheme prefer-dark",
         "gsettings set org.gnome.desktop.interface gtk-theme Adwaita-dark",
