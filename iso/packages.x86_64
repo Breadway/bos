@@ -225,6 +225,8 @@ slurp
 wl-clipboard
 playerctl
 # Wallpaper daemon + pywal (drives the bread* colour palette from the wallpaper).
+# python-pywal was dropped from Arch [extra] (AUR-only now) — republished to
+# [breadway], see packaging/python-pywal.
 awww
 python-pywal
 # Boot splash (BOS logo + spinner instead of kernel text).
