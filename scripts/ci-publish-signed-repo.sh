@@ -22,6 +22,7 @@ PACKAGES=(
   bibata-cursor-theme-bin
   zsh-theme-powerlevel10k
   yay-bin
+  python-pywal
 )
 
 ARCH="${BREADWAY_ARCH:-x86_64}"
