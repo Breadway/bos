@@ -16,7 +16,7 @@ taken as current:
 | Work on `dev`; origin = GitHub | Single-trunk `main`; `stable` is a CI marker. `origin` = Forgejo, `github` = GitHub. |
 | `[breadway]` provides bakery/breadbar/bos-settings | `[breadway]` is breadlock + AUR republishes. Desktop apps are bakery. **Not shipped:** breadcast, breadarr. |
 | NVIDIA / A/B / Secure Boot / LUKS2 | NVIDIA proprietary is **unsupported**. A/B root swapping is **not implemented**. Secure Boot is **Setup Mode only** (self-signed `sbctl`). Disk encryption is **LUKS1** because GRUB cannot unlock LUKS2+Argon2id. |
-| `SigLevel = Required` on `[breadway]` | **No.** Forgejo's Arch registry has no pacman-compatible db signatures. `SigLevel = Never` is TLS only; flipping Required without a signed db breaks installs. `KEYS.asc` signs ISO SHA256SUMS, not the pacman repo. |
+| `SigLevel = Required` on `[breadway]` | **Yes, as of the signed repo.** `[breadway]` points at `https://dl.breadway.dev/arch` where `scripts/ci-publish-signed-repo.sh` detach-signs every `.pkg.tar.zst` and the db with the BOS release key (`56203B86…`, `KEYS.asc`). That key is trusted in the pacman keyring at build time, on the live medium, and on the installed target. |
 
 ---
 

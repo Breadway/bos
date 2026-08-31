@@ -174,10 +174,10 @@ dedicated release-signing key (not reused from anything else):
 5620 3B86 A110 695A E7F3  1093 4AF3 323D 678E B5E2
 ```
 
-The public half is committed at [`KEYS.asc`](KEYS.asc). That key signs
-**ISO checksums only** — it does not sign the `[breadway]` pacman repo
-(Forgejo's Arch registry has no pacman-compatible db signatures; that
-section stays `SigLevel = Never` until a signed repo exists — see
+The public half is committed at [`KEYS.asc`](KEYS.asc). The same key signs
+the ISO checksums **and** the `[breadway]` pacman repo — every package and
+the db at `https://dl.breadway.dev/arch` carry a `.sig` from it, and that
+section is `SigLevel = Required` (see
 [docs/signed-repo.md](docs/signed-repo.md)). To verify a download:
 
 ```sh
@@ -381,8 +381,9 @@ until `dl.breadway.dev/arch` exists).
 - **Snapshots assume btrfs**: the snapper/grub-btrfs tooling expects the default
   btrfs subvolume layout the installer creates. Recovery is the GRUB
   snapshots submenu, not `snapper rollback` — [docs/hardware.md](docs/hardware.md).
-- **`[breadway]` signatures**: `SigLevel = Never` until a signed repo is
-  stood up at `dl.breadway.dev/arch`. See [docs/signed-repo.md](docs/signed-repo.md).
+- **`[breadway]` signatures**: `SigLevel = Required` — the signed repo at
+  `dl.breadway.dev/arch` is live (db + every package `.sig`ned with the BOS
+  release key). See [docs/signed-repo.md](docs/signed-repo.md).
 
 ## Recovery
 
