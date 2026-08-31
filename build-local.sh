@@ -25,14 +25,19 @@ OUT="${OUT:-$REPO/out}"
 STAGE=/tmp/bos-iso-stage
 rm -rf "$STAGE" && cp -a "$REPO/iso" "$STAGE"
 
-# Rewrite the [breadway] pacman repo URL to the fastest reachable address.
-#   CI_BUILD=1  — container runs on hestia with --network=host; localhost:3002 is direct
-#   default     — building on hermes; git.breadway.dev is flaky from there, use Tailscale
-# Only ever rewrites the staged copy, never the committed pacman.conf.
-if [ "${CI_BUILD:-0}" = "1" ]; then
-  sed -i 's#https://git.breadway.dev/api/packages/Breadway/arch/os#http://localhost:3002/api/packages/Breadway/arch/os#' "$STAGE/pacman.conf"
-else
-  sed -i 's#https://git.breadway.dev/api/packages/Breadway/arch/os#http://100.66.238.26:3002/api/packages/Breadway/arch/os#' "$STAGE/pacman.conf"
+# [breadway] now points at the signed public repo https://dl.breadway.dev/arch
+# (SigLevel = Required) — no Forgejo-registry URL rewrite needed anymore.
+#
+# Trust the [breadway] repo key in *this* build host's pacman keyring so
+# `pacstrap` can verify [breadway] packages while assembling the airootfs.
+# The same key is baked into the image at etc/pacman.d/breadway-repo.asc and
+# re-trusted on the live medium / installed target (calamares/post-install.sh).
+BREADWAY_KEY_FPR="56203B86A110695AE7F310934AF3323D678EB5E2"
+BREADWAY_KEY_SRC="$REPO/iso/airootfs/etc/pacman.d/breadway-repo.asc"
+if ! pacman-key --list-keys "$BREADWAY_KEY_FPR" &>/dev/null; then
+  echo "=== trusting [breadway] repo key ($BREADWAY_KEY_FPR) in the host pacman keyring ==="
+  pacman-key --add "$BREADWAY_KEY_SRC"
+  pacman-key --lsign-key "$BREADWAY_KEY_FPR"
 fi
 
 if [ "${FAST_BUILD:-0}" = "1" ]; then
