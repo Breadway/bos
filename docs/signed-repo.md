@@ -47,7 +47,7 @@ On disk: `/srv/breadway-dl/arch/x86_64/` (nginx already serves
 
 The job collects the current ISO `[breadway]` set from the Forgejo Arch
 registry (breadlock + calamares, zen-browser-bin, bibata-cursor-theme-bin,
-zsh-theme-powerlevel10k, yay-bin). Leftover bakery-channel pacman packages
+zsh-theme-powerlevel10k, yay-bin, python-pywal). Leftover bakery-channel pacman packages
 still sitting in that registry are **not** copied. Optional
 `BREADWAY_PKG_DIR` on the runner overrides individual files.
 
@@ -87,7 +87,7 @@ curl -fsS -X POST \
 ```
 
 It also runs after the in-repo AUR republish workflows complete
-(`calamares` / `bibata` / `powerlevel10k` / `yay-bin`). breadlock lives in
+(`calamares` / `bibata` / `powerlevel10k` / `yay-bin` / `python-pywal`). breadlock lives in
 another repo; that job can fire this one with `repository_dispatch` event
 `publish-signed-repo` (or dispatch from the UI after a breadlock tag).
 
