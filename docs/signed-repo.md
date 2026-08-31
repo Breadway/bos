@@ -1,18 +1,20 @@
 # Signed `[breadway]` repo
 
-Today the ISO's `[Breadway.os.git.breadway.dev]` section is
-`SigLevel = Never`. That is TLS-only integrity: packages come from Forgejo's
-Arch registry, which does **not** serve pacman-compatible database
-signatures. `KEYS.asc` signs **ISO `SHA256SUMS`** and, once published, the
-`dl.breadway.dev/arch` database. It is **not** imported as a pacman repo key
-on the ISO yet. Do not flip `SigLevel` to `Required` on that section until
-a signed repo exists and has been verified; Required without signatures
-breaks the ISO and every installed system.
+**Status: live.** The ISO's `[breadway]` section is `SigLevel = Required`
+and points at `https://dl.breadway.dev/arch/$arch`, where every
+`.pkg.tar.zst` and the db carry a detached `.sig` from the BOS release key
+(`56203B86…`, `KEYS.asc`, `releases@breadway.dev`). That key is trusted in
+the pacman keyring at build time (`build-local.sh`), on the live medium
+(`iso/airootfs/root/customize_airootfs.sh`), and on the installed target
+(`iso/airootfs/etc/calamares/post-install.sh`).
 
-The signed repo belongs at `https://dl.breadway.dev/arch`, not on Forgejo's
-registry. Forgejo publishing stays as it is (`package.yml` / packaging
-workflows PUT unsigned `.pkg.tar.zst` so existing Never installs keep
-working).
+Forgejo publishing is unchanged: `package.yml` / packaging workflows still
+PUT unsigned `.pkg.tar.zst` to Forgejo's Arch registry. The signed tree at
+`dl.breadway.dev/arch` is rebuilt from that registry by
+`.forgejo/workflows/signed-repo.yml` + `scripts/ci-publish-signed-repo.sh`.
+
+The rest of this doc is the original stand-up / verification procedure,
+kept for reference and for re-verifying after key rotation.
 
 ## Stand up `dl.breadway.dev/arch`
 
@@ -139,15 +141,29 @@ stays; Never installs keep working. The signed tree is rebuilt by the bos
 workflow above (registry fetch + sign + `repo-add -s`), not by writing
 `/srv` from breadlock's container.
 
-## After the signed repo exists
+## The ISO flip (done)
 
-Only after `https://dl.breadway.dev/arch/x86_64/breadway.db.sig` HEADs 200
-and the verify commands above succeed:
+All three steps have landed:
 
-1. Import `KEYS.asc` into the ISO keyring (`pacman-key --add` + `--lsign-key`).
-2. Point `[breadway]` `Server` at `https://dl.breadway.dev/arch/$arch`.
-3. Only then flip that section to `SigLevel = Required`.
+1. **Key trusted.** The public key is committed at
+   `iso/airootfs/etc/pacman.d/breadway-repo.asc`. `build-local.sh`
+   `pacman-key --add` + `--lsign-key`s it into the build host keyring;
+   `customize_airootfs.sh` does the same in the airootfs;
+   `calamares/post-install.sh` re-does it in the target chroot.
+2. **`Server`** in `iso/pacman.conf` and `iso/airootfs/etc/pacman.conf`
+   points at `https://dl.breadway.dev/arch/$arch`, section renamed to
+   `[breadway]` (matching `breadway.db`).
+3. **`SigLevel = Required`** on that section.
 
-Do not do those three steps against Forgejo's registry. See
-`iso/pacman.conf` and `iso/airootfs/etc/pacman.conf`. This tree does
-**not** change either file.
+### Re-verify after any build
+
+In a VM booted from a fresh ISO:
+
+```sh
+sudo pacman -Sy            # must fetch breadway.db + .sig, no signature error
+sudo pacman -Si breadlock  # lists the [breadway] section
+sudo pacman -S --noconfirm yay-bin   # installs with no key prompt
+```
+
+Then run the installer and, on the installed system, `sudo pacman -Sy`
+again — the target keyring must already trust `56203B86…`.

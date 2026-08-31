@@ -73,15 +73,23 @@ passwd -l root || true
 # over to the target (unpackfs may skip it / perms differ), leaving the installed
 # system unable to verify package signatures — the first `pacman -Syu` then dies
 # with "keyring is not writable / required key missing". Initialise it here so a
-# fresh install can update out of the box. archlinux-keyring is already present
-# and is the only keyring populated — it verifies official Arch packages.
-# [breadway] stays SigLevel=Never (Forgejo does not serve pacman-compatible
-# db signatures). Do not import KEYS.asc here: that key signs ISO SHA256SUMS,
-# not the pacman repo; treating it as a repo key would be a lie.
+# fresh install can update out of the box. archlinux-keyring verifies official
+# Arch packages; the BOS release key (56203B86…, shipped at
+# /etc/pacman.d/breadway-repo.asc) verifies the signed [breadway] repo at
+# dl.breadway.dev/arch — SigLevel = Required there, every package and the db
+# carry a .sig from it.
 # ---------------------------------------------------------------------------
+BREADWAY_KEY_FPR="56203B86A110695AE7F310934AF3323D678EB5E2"
 if command -v pacman-key &>/dev/null; then
     pacman-key --init || echo "WARN: pacman-key --init failed"
     pacman-key --populate archlinux || echo "WARN: pacman-key --populate failed"
+    if [[ -f /etc/pacman.d/breadway-repo.asc ]]; then
+        pacman-key --add /etc/pacman.d/breadway-repo.asc \
+            && pacman-key --lsign-key "$BREADWAY_KEY_FPR" \
+            || echo "WARN: could not trust the [breadway] repo key — pacman -Sy will fail on [breadway]"
+    else
+        echo "WARN: /etc/pacman.d/breadway-repo.asc missing — [breadway] (SigLevel=Required) will not verify"
+    fi
 fi
 
 # ---------------------------------------------------------------------------
