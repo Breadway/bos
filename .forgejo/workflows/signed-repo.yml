@@ -1,6 +1,6 @@
 name: Publish signed [breadway] repo
 
-# Host job on hestia (no container:) so it can write /srv/breadway-dl, same
+# Host job on the self-hosted runner (no container:) so it can write /srv/breadway-dl, same
 # as bakery releases. breadlock package.yml uses archlinux:latest and cannot
 # see host /srv — do not add container: here.
 #
@@ -31,7 +31,7 @@ concurrency:
 jobs:
   publish:
     if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
-    runs-on: [self-hosted, hestia]
+    runs-on: [self-hosted]
     steps:
       - name: Clone repository
         run: |
