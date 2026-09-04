@@ -19,7 +19,7 @@ kept for reference and for re-verifying after key rotation.
 ## Stand up `dl.breadway.dev/arch`
 
 CI job: **Publish signed `[breadway]` repo**
-(`.forgejo/workflows/signed-repo.yml`), host runner on hestia — **no
+(`.forgejo/workflows/signed-repo.yml`), host runner — **no
 container**, so it can write `/srv/breadway-dl` like bakery releases.
 breadlock `package.yml` uses `archlinux:latest` and cannot see host `/srv`.
 

@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # Local BOS ISO build for hermes (native Arch — no container needed).
 #
-# Builds straight from the working tree in ./iso. Two speedups vs the hestia
+# Builds straight from the working tree in ./iso. Two speedups vs the CI
 # container build:
-#   * runs natively (hermes is Arch; hestia needed a dockerised Arch)
+#   * runs natively (hermes is Arch; CI needs a dockerised Arch)
 #   * no 2 GB scp afterwards — the ISO lands here, where we test it
 #
 #   FAST_BUILD=1   zstd squashfs instead of xz -9e: compresses many times
