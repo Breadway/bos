@@ -11,7 +11,7 @@ on:
 
 jobs:
   bibata:
-    runs-on: [self-hosted, hestia]
+    runs-on: [self-hosted]
     container:
       image: archlinux:latest
     steps:
