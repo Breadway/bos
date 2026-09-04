@@ -1,6 +1,6 @@
 name: Build and release ISO
 
-# Builds the BOS ISO on the hestia self-hosted runner (native Arch container).
+# Builds the BOS ISO on the self-hosted runner (native Arch container).
 # Stages bakery desktop apps from the *minisign-verified* stable index at
 # https://dl.breadway.dev/index.json (see iso/bread-lockfile.toml), then runs
 # build-local.sh and uploads the ISO to a Forgejo release. A matching GitHub
@@ -28,7 +28,7 @@ on:
 
 jobs:
   release-iso:
-    runs-on: [self-hosted, hestia]
+    runs-on: [self-hosted]
     container:
       # Floating tag: this environment cannot pin a reproducible digest of
       # archlinux:latest. Do not invent one.

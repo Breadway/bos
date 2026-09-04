@@ -160,7 +160,7 @@ builder.
 `calamares`, `zen-browser-bin`, `bibata-cursor-theme`, and `yay-bin` are
 AUR-only. BOS keeps a PKGBUILD for each under `packaging/` and republishes
 the built package to the `[breadway]` repo via a Forgejo Actions workflow
-(built on the hestia self-hosted runner, published with a scoped registry
+(built on the self-hosted runner, published with a scoped registry
 token). `[breadway]` is **not** where bakery/breadbar/bos-settings live.
 
 ### Verifying a release
