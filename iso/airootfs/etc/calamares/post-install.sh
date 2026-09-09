@@ -3,12 +3,12 @@
 # shellprocess), AFTER the native initcpio module has built the initramfs. The
 # kernel (shellprocess@kernel) and initramfs (initcpio) are in place by now, so
 # this script installs GRUB and does the rest of setup. Calamares' own
-# `bootloader`/`grubcfg` modules are NOT used — in this archiso layout they leave
+# `bootloader`/`grubcfg` modules are NOT used; in this archiso layout they leave
 # the ESP empty and abort; the explicit grub-install below is verified to boot.
 # Best-effort: do NOT use `set -e`; a single failure here must not abort the rest.
 set -uo pipefail
 
-# Whether Calamares encrypted the root partition (LUKS) — checked once here,
+# Whether Calamares encrypted the root partition (LUKS), checked once here,
 # used below to conditionally wire mkinitcpio's encrypt hook and GRUB's
 # cryptodisk support. `lsblk TYPE` reports "crypt" for a cryptsetup-opened
 # mapper device regardless of what Calamares named it, so this works whether
@@ -44,7 +44,7 @@ fi
 # they do not stay on disk forever. pacman -Rs (not -Rns) keeps /etc configs
 # and reaps newly-orphaned KF6/Qt6 deps. Each name is independent so one
 # missing package cannot abort the rest. Offline-safe: never touches the
-# network. qt6-declarative is NOT reaped — qt6-wayland still needs it.
+# network. qt6-declarative is NOT reaped; qt6-wayland still needs it.
 LIVE_ONLY_PKGS=(
     calamares
     squashfs-tools
@@ -71,12 +71,12 @@ passwd -l root || true
 # ---------------------------------------------------------------------------
 # Pacman keyring. The live medium's /etc/pacman.d/gnupg doesn't reliably carry
 # over to the target (unpackfs may skip it / perms differ), leaving the installed
-# system unable to verify package signatures — the first `pacman -Syu` then dies
+# system unable to verify package signatures; the first `pacman -Syu` then dies
 # with "keyring is not writable / required key missing". Initialise it here so a
 # fresh install can update out of the box. archlinux-keyring verifies official
 # Arch packages; the BOS release key (56203B86…, shipped at
 # /etc/pacman.d/breadway-repo.asc) verifies the signed [breadway] repo at
-# dl.breadway.dev/arch — SigLevel = Required there, every package and the db
+# dl.breadway.dev/arch: SigLevel = Required there, every package and the db
 # carry a .sig from it.
 # ---------------------------------------------------------------------------
 BREADWAY_KEY_FPR="56203B86A110695AE7F310934AF3323D678EB5E2"
@@ -86,20 +86,20 @@ if command -v pacman-key &>/dev/null; then
     if [[ -f /etc/pacman.d/breadway-repo.asc ]]; then
         pacman-key --add /etc/pacman.d/breadway-repo.asc \
             && pacman-key --lsign-key "$BREADWAY_KEY_FPR" \
-            || echo "WARN: could not trust the [breadway] repo key — pacman -Sy will fail on [breadway]"
+            || echo "WARN: could not trust the [breadway] repo key; pacman -Sy will fail on [breadway]"
     else
-        echo "WARN: /etc/pacman.d/breadway-repo.asc missing — [breadway] (SigLevel=Required) will not verify"
+        echo "WARN: /etc/pacman.d/breadway-repo.asc missing; [breadway] (SigLevel=Required) will not verify"
     fi
 fi
 
 # ---------------------------------------------------------------------------
 # Initramfs HOOKS: microcode + plymouth. Edit HOOKS first, rebuild once below.
-#   microcode — embeds the (autodetect-pruned) CPU microcode into the initramfs
+#   microcode: embeds the (autodetect-pruned) CPU microcode into the initramfs
 #     so it loads at early boot. The live ISO embeds ucode the same way, so the
 #     ISO /boot carries no separate ucode image and bos-copy-kernel stages none
-#     onto the target — the installed initramfs must therefore carry it itself.
+#     onto the target; the installed initramfs must therefore carry it itself.
 #     Must sit AFTER `autodetect` so it's pruned to the running CPU's microcode.
-#   plymouth — the BOS boot splash. Only the udev `plymouth` hook exists (there
+#   plymouth: the BOS boot splash. Only the udev `plymouth` hook exists (there
 #     is NO `sd-plymouth`), so always insert it after `udev`.
 # All best-effort: a failure here still leaves a bootable initramfs.
 # ---------------------------------------------------------------------------
@@ -112,7 +112,7 @@ if [[ -f /etc/mkinitcpio.conf ]]; then
     # Current mkinitcpio's own shipped default template (verified against the
     # actual package, not assumed) uses the systemd-based hook set
     # (`HOOKS=(base systemd autodetect ... sd-vconsole block filesystems
-    # fsck)`), NOT the classic udev-based one — there is no literal "udev"
+    # fsck)`), NOT the classic udev-based one; there is no literal "udev"
     # token to match against on a stock install. The two hook sets are
     # mutually exclusive alternatives (systemd substitutes for udev as the
     # base hook providing the init program), and each has its own
@@ -120,7 +120,7 @@ if [[ -f /etc/mkinitcpio.conf ]]; then
     # plymouth is the same either way, but LUKS unlocking needs `encrypt`
     # under udev and `sd-encrypt` under systemd. Detect which is in play
     # once and use the matching hook, instead of assuming udev (which
-    # silently no-ops the sed on every current install — this was already
+    # silently no-ops the sed on every current install; this was already
     # true for the plymouth insertion below before this fix, just never
     # surfaced because it fails quietly).
     if grep -qE '^HOOKS=.*\bsystemd\b' /etc/mkinitcpio.conf; then
@@ -136,10 +136,10 @@ if [[ -f /etc/mkinitcpio.conf ]]; then
         sed -i "s/^\(HOOKS=.*\b${BASE_HOOK}\b\)/\1 plymouth/" /etc/mkinitcpio.conf \
             || echo "WARN: adding plymouth hook failed"
     fi
-    # encrypt/sd-encrypt — only when root is actually LUKS-encrypted
+    # encrypt/sd-encrypt: only when root is actually LUKS-encrypted
     # (ROOT_ENCRYPTED, detected above). Must sit after `block` (provides the
     # device nodes it opens) and before `filesystems` (mounts the now-
-    # unlocked root) — both already present in stock mkinitcpio.conf's
+    # unlocked root); both already present in stock mkinitcpio.conf's
     # default HOOKS regardless of which base hook is in use.
     if [[ "$ROOT_ENCRYPTED" == "1" ]] \
        && ! grep -qE '^HOOKS=.*\bencrypt\b' /etc/mkinitcpio.conf; then
@@ -149,7 +149,7 @@ if [[ -f /etc/mkinitcpio.conf ]]; then
 fi
 
 # ---------------------------------------------------------------------------
-# Boot splash (Plymouth) — BOS logo + spinner instead of kernel text. Set the
+# Boot splash (Plymouth): BOS logo + spinner instead of kernel text. Set the
 # theme + cmdline BEFORE grub so grub.cfg picks up the new cmdline.
 # ---------------------------------------------------------------------------
 if command -v plymouth-set-default-theme &>/dev/null; then
@@ -163,7 +163,7 @@ if command -v plymouth-set-default-theme &>/dev/null; then
     plymouth-set-default-theme bos || echo "WARN: plymouth-set-default-theme failed"
 fi
 
-# GRUB needs to unlock LUKS itself to reach the kernel — there's no separate
+# GRUB needs to unlock LUKS itself to reach the kernel; there's no separate
 # unencrypted /boot partition (only /boot/efi is separate). GRUB_ENABLE_CRYPTODISK
 # makes grub-mkconfig emit the cryptomount commands grub.cfg needs; the
 # --modules flags below (on both grub-install calls) make sure the cryptodisk
@@ -184,7 +184,7 @@ mkinitcpio -P || echo "WARN: mkinitcpio -P failed"
 # both grub-install passes and grub-mkconfig succeed.
 #
 # BOS ships a syslinux BIOS boot mode on the ISO (profiledef.sh bootmodes
-# includes bios.syslinux), but this only ever ran the UEFI grub-install path —
+# includes bios.syslinux), but this only ever ran the UEFI grub-install path;
 # a BIOS install would complete successfully and then have no bootloader at
 # all. Branch on /sys/firmware/efi (present only when booted UEFI) and install
 # the matching GRUB target; on BIOS, grub-install needs the whole disk, not a
@@ -211,7 +211,7 @@ if command -v grub-install &>/dev/null; then
             grub-install --target=i386-pc --recheck "${CRYPT_MODULES[@]}" "/dev/$ROOT_DISK" \
                 || echo "WARN: grub-install (BIOS) failed"
         else
-            echo "WARN: could not determine the disk hosting / (root device: ${ROOT_DEV:-unknown}) — BIOS grub-install skipped"
+            echo "WARN: could not determine the disk hosting / (root device: ${ROOT_DEV:-unknown}); BIOS grub-install skipped"
         fi
     fi
 fi
@@ -221,16 +221,16 @@ fi
 
 # ---------------------------------------------------------------------------
 # Secure Boot: self-signed keys via sbctl, only when the firmware is already
-# in Setup Mode (no vendor PK enrolled — the state a fresh/never-used
+# in Setup Mode (no vendor PK enrolled, the state a fresh/never-used
 # machine boots in, or one where the user cleared their firmware's keys
-# before installing). BOS can't ship a Microsoft-signed shim — that requires
-# going through Microsoft's own paid UEFI CA signing process — so this is
+# before installing). BOS can't ship a Microsoft-signed shim; that requires
+# going through Microsoft's own paid UEFI CA signing process, so this is
 # the realistic path for an Arch-based distro: generate our own keys, enroll
 # them (plus Microsoft's, so a dual-booted Windows bootmgr and fwupd's
 # signed capsule updates still verify), and sign the kernel + GRUB. sbctl's
 # own package ships a pacman hook (zz-sbctl.hook) that re-signs everything
-# automatically on every future kernel/GRUB update — nothing else to wire up.
-# Best-effort and silent-skip (not a WARN) when out of Setup Mode — that's
+# automatically on every future kernel/GRUB update; nothing else to wire up.
+# Best-effort and silent-skip (not a WARN) when out of Setup Mode; that's
 # the expected state on most real hardware, not a failure.
 # ---------------------------------------------------------------------------
 if [[ -d /sys/firmware/efi ]] && command -v sbctl &>/dev/null; then
@@ -242,16 +242,16 @@ if [[ -d /sys/firmware/efi ]] && command -v sbctl &>/dev/null; then
         sbctl sign-all -g || echo "WARN: sbctl sign-all failed"
         echo "Secure Boot: keys enrolled and boot files signed."
     else
-        echo "Secure Boot: firmware not in Setup Mode — skipped (run 'sudo sbctl enroll-keys --microsoft && sudo sbctl sign-all -g' manually later if desired)."
+        echo "Secure Boot: firmware not in Setup Mode; skipped (run 'sudo sbctl enroll-keys --microsoft && sudo sbctl sign-all -g' manually later if desired)."
     fi
 fi
 
 # ---------------------------------------------------------------------------
 # Create @snapshots, @log, @cache as top-level btrfs subvolumes (peers of @,
-# not nested under it — so snapshots of @ don't recursively include
+# not nested under it, so snapshots of @ don't recursively include
 # themselves, and log/cache churn doesn't bloat @'s snapshot history).
 #
-# iso/partition.conf's `btrfsSubvolumes:` key does NOT do this — verified on
+# iso/partition.conf's `btrfsSubvolumes:` key does NOT do this; verified on
 # real hardware that it's not a recognized key in this Calamares version's
 # partition module schema at all (same class of bug as the `userShell` fix
 # below: Calamares silently ignores unknown top-level keys). Calamares' own
@@ -259,7 +259,7 @@ fi
 # done by hand, here, after unpackfs has populated / but before anything
 # reads/writes /var/log or /var/cache going forward. Existing content in
 # those two dirs (real files already unpacked from the squashfs) is migrated
-# into the new subvolumes before mounting over them, so nothing is lost —
+# into the new subvolumes before mounting over them, so nothing is lost;
 # just shadowed by the mount, same as any other mountpoint.
 # ---------------------------------------------------------------------------
 if command -v btrfs &>/dev/null; then
@@ -268,7 +268,7 @@ if command -v btrfs &>/dev/null; then
     BTRFS_TOP=/.btrfs-top-tmp
 
     if [[ -z "$ROOT_UUID" ]]; then
-        echo "WARN: could not determine root filesystem UUID — skipping @snapshots/@log/@cache creation"
+        echo "WARN: could not determine root filesystem UUID; skipping @snapshots/@log/@cache creation"
     else
         mkdir -p "$BTRFS_TOP"
         if mount -o subvolid=5 "$ROOT_DEV" "$BTRFS_TOP"; then
@@ -292,7 +292,7 @@ if command -v btrfs &>/dev/null; then
             mount /var/log     || echo "WARN: mounting /var/log failed"
             mount /var/cache   || echo "WARN: mounting /var/cache failed"
         else
-            echo "WARN: could not mount btrfs top-level — skipping @snapshots/@log/@cache creation"
+            echo "WARN: could not mount btrfs top-level; skipping @snapshots/@log/@cache creation"
         fi
     fi
 fi
@@ -300,11 +300,11 @@ fi
 # ---------------------------------------------------------------------------
 # Snapper root config (root is btrfs).
 #
-# @snapshots is now mounted at /.snapshots (created above) — a dedicated
+# @snapshots is now mounted at /.snapshots (created above); a dedicated
 # top-level subvolume, a peer of @ rather than nested under it, so snapshots
 # aren't themselves recursively snapshotted. `snapper create-config` insists
 # on creating that subvolume itself and refuses whenever /.snapshots already
-# exists, mounted or not — silently, so without this dance every downstream
+# exists, mounted or not, silently, so without this dance every downstream
 # sed below is a no-op and BOS ships with its advertised auto-snapshot/
 # rollback feature entirely non-functional.
 # Unmount the real subvolume, let snapper create + own its nested one, then
@@ -313,10 +313,10 @@ fi
 #
 # Confirmed on real hardware: a plain `umount /.snapshots` here can
 # transiently fail inside the Calamares chroot (the same mount unmounts
-# cleanly moments later once booted normally — a chroot-specific busy-mount
+# cleanly moments later once booted normally: a chroot-specific busy-mount
 # race, not a logic error), which cascades into snapper create-config
-# refusing because .snapshots "already exists". A single pass — retry the
-# umount a few times, then fall back to a lazy unmount — was NOT enough on
+# refusing because .snapshots "already exists". A single pass, retry the
+# umount a few times, then fall back to a lazy unmount, was NOT enough on
 # real hardware: also confirmed is a run where every umount attempt in that
 # single pass failed (including the lazy fallback settling too slowly for
 # the immediately-following rmdir/create-config), leaving
@@ -342,7 +342,7 @@ if command -v snapper &>/dev/null; then
             umount -l /.snapshots || echo "WARN: lazy umount /.snapshots also failed (attempt $attempt)"
             # Lazy unmount detaches the mountpoint from the namespace right
             # away, but whatever was holding it busy may take a moment
-            # longer to actually let go — rmdir/create-config right after
+            # longer to actually let go; rmdir/create-config right after
             # this both fail if anything still references /.snapshots.
             sleep 2
         fi
@@ -363,7 +363,7 @@ if command -v snapper &>/dev/null; then
         sed -i 's/NUMBER_MIN_AGE="[^"]*"/NUMBER_MIN_AGE="1800"/' /etc/snapper/configs/root
         sed -i 's/NUMBER_LIMIT="[^"]*"/NUMBER_LIMIT="10"/' /etc/snapper/configs/root
         sed -i 's/NUMBER_LIMIT_IMPORTANT="[^"]*"/NUMBER_LIMIT_IMPORTANT="5"/' /etc/snapper/configs/root
-        # set-config (not sed) — snapper's own template text for this line has
+        # set-config (not sed): snapper's own template text for this line has
         # drifted across versions before, and a sed that doesn't match just
         # silently no-ops, leaving ALLOW_USERS empty and every non-root
         # `snapper` call (bos-settings' Snapshots page included) failing with
@@ -372,7 +372,7 @@ if command -v snapper &>/dev/null; then
         [[ -n "$MAIN_USER" ]] && \
             snapper -c root set-config "ALLOW_USERS=$MAIN_USER"
     else
-        echo "ERROR: snapper config for root still missing after 3 attempts — snapshots/rollback will not work on this install"
+        echo "ERROR: snapper config for root still missing after 3 attempts; snapshots/rollback will not work on this install"
     fi
 fi
 
@@ -381,8 +381,8 @@ fi
 # resolves every unit first and enables NONE if any one can't be loaded, so a
 # single wrong/absent unit name would silently leave NetworkManager (etc.)
 # disabled. The loop isolates failures to the offending unit.
-#   greetd       — graphical login (shipped disabled; live uses tty autologin)
-#   grub-btrfsd  — regenerates GRUB snapshot entries (the unit is grub-btrfsd.service,
+#   greetd       : graphical login (shipped disabled; live uses tty autologin)
+#   grub-btrfsd  : regenerates GRUB snapshot entries (the unit is grub-btrfsd.service,
 #                  NOT grub-btrfs.path, which no longer exists)
 # avahi-daemon.service → avahi-daemon.socket: the package ships both; socket
 # activation still answers nss-mdns and CUPS discovery but stays off the idle
@@ -428,7 +428,7 @@ fi
 
 # ---------------------------------------------------------------------------
 # Firewall: deny inbound by default, allow outbound, and permit inbound mDNS so
-# avahi printer/service discovery keeps working. Best-effort — rule application
+# avahi printer/service discovery keeps working. Best-effort; rule application
 # happens at boot; here we only persist the policy + enable the unit.
 # ---------------------------------------------------------------------------
 if command -v ufw &>/dev/null; then

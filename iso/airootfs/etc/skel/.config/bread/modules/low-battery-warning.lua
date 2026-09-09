@@ -1,4 +1,4 @@
--- low-battery-warning — notify once when the battery runs low (zero-config).
+-- low-battery-warning: notify once when the battery runs low (zero-config).
 -- Shipped active in BOS; auto-discovered by breadd. Safe on desktops too
 -- (simply never fires without a battery).
 

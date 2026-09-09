@@ -1,4 +1,4 @@
--- scripts/ui/rules.lua — layer-shell (compositor) rules for the bread shell.
+-- scripts/ui/rules.lua: layer-shell (compositor) rules for the bread shell.
 --
 -- Blur / ignore-alpha / per-namespace motion for breadbar (island + osd +
 -- notif + panel + dismiss), the breadbox launcher, and the breadclip popup.
@@ -7,12 +7,12 @@
 --
 -- Theme-driven (bos-ui-demos THEME_SYSTEM_PLAN.md §9): `bread-theme
 -- layerrules` writes ~/.config/hypr/layerrules.json from the active shell
--- theme's [compositor] table — blur / ignore_alpha / blur_popups /
+-- theme's [compositor] table: blur / ignore_alpha / blur_popups /
 -- animation / no_anim, keyed by layer-shell namespace. That table owns
 -- *appearance* only; placement / workspace / focus are never touched here.
 -- If the JSON is missing, unreadable, malformed, or anything goes wrong
--- while parsing it, apply_hardcoded_layer_rules() runs instead — the exact
--- set this file hardcoded before the theme system existed — so a broken or
+-- while parsing it, apply_hardcoded_layer_rules() runs instead: the exact
+-- set this file hardcoded before the theme system existed, so a broken or
 -- absent theme file can never disable compositor blur.
 
 local LAYERRULES_JSON = os.getenv("HOME") .. "/.config/hypr/layerrules.json"
@@ -127,7 +127,7 @@ else
     apply_hardcoded_layer_rules()
 end
 
--- breadclip is not part of the shell theme's [compositor] table yet — always
+-- breadclip is not part of the shell theme's [compositor] table yet, always
 -- hardcoded, regardless of the JSON above.
 hl.layer_rule({
     match        = "breadclip",

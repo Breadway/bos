@@ -4,7 +4,7 @@ These files are a leftover from an earlier design (Hyprland `.conf` binds).
 They are **not** copied into the ISO or the installed system.
 
 `dotfiles/hypr/keybinds.conf` still mentions `grimblast`. That is not the
-screenshot tool BOS ships — live binds use **breadshot**
+screenshot tool BOS ships; live binds use **breadshot**
 (`iso/airootfs/etc/skel/.config/hypr/binds.json`). Do not treat grimblast
 as current.
 

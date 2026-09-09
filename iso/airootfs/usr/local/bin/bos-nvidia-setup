@@ -1,9 +1,9 @@
 #!/bin/bash
-# bos-nvidia-setup — optional proprietary NVIDIA driver + Hyprland env.
+# bos-nvidia-setup: optional proprietary NVIDIA driver + Hyprland env.
 #
 # Installs nvidia + nvidia-utils only (never cuda). Writes
 # ~/.config/hypr/nvidia.lua, which skel hyprland.lua dofiles only when
-# the file exists — Mesa machines stay unchanged. Existing installs get
+# the file exists; Mesa machines stay unchanged. Existing installs get
 # the same include patched in if it is missing.
 #
 # Click-to-install from Settings, or run by hand. Not invoked from
@@ -88,7 +88,7 @@ HYPR_LUA="$HYPR_DIR/hyprland.lua"
 # current VA-API hint. No WLR_* (not wlroots). No GBM_BACKEND (not
 # required; older docs cargo-culted it and it can break Firefox).
 NVIDIA_LUA_BODY='-- Written by bos-nvidia-setup. hyprland.lua dofiles this only when it exists.
--- Hyprland 0.56 (Aquamarine) — no WLR_* variables.
+-- Hyprland 0.56 (Aquamarine): no WLR_* variables.
 -- https://wiki.hypr.land/Nvidia/
 hl.env("LIBVA_DRIVER_NAME", "nvidia")
 hl.env("__GLX_VENDOR_LIBRARY_NAME", "nvidia")

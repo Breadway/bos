@@ -1,4 +1,4 @@
--- scripts/input/keybinds.lua — turns binds.json entries into real hl.bind()
+-- scripts/input/keybinds.lua: turns binds.json entries into real hl.bind()
 -- calls. Ported from a personal modular Hyprland config using the same
 -- `hl` API; action_builders covers every dispatcher shape BOS's keybinds
 -- actually use (exec, window management, focus/move/resize, workspaces,
@@ -17,7 +17,7 @@ return function(ctx)
 
     -- `allow_empty`: an explicit `"mods": []` in binds.json (media keys,
     -- which must bind with no modifier at all) must NOT fall back to
-    -- default_mods — only an *omitted* `mods` field should.
+    -- default_mods: only an *omitted* `mods` field should.
     local function normalize_mods(value, fallback, allow_empty)
         if value == nil then
             return fallback
@@ -101,7 +101,7 @@ return function(ctx)
     }
 
     -- One bad entry (unknown action, missing field a builder needs) must
-    -- never take down every other bind — skip it and keep going instead of
+    -- never take down every other bind; skip it and keep going instead of
     -- asserting/erroring, which would abort binds.json loading entirely.
     for _, entry in ipairs(bindings) do
         local builder = action_builders[entry.action]

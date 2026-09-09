@@ -1,6 +1,6 @@
 # BOS default mirrorlist.
 #
-# geo.mirror.pkgbuild.com is the official Arch geo-IP redirect — it routes to a
+# geo.mirror.pkgbuild.com is the official Arch geo-IP redirect; it routes to a
 # nearby mirror anywhere in the world, so pacman works out of the box without
 # region-specific configuration. The others are reliable global fallbacks.
 #

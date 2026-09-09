@@ -1,6 +1,6 @@
--- BOS Hyprland configuration — native Lua config (Hyprland 0.55+).
+-- BOS Hyprland configuration: native Lua config (Hyprland 0.55+).
 -- hyprlang (.conf) is deprecated; this uses the built-in `hl` API.
--- Mostly single-file by design (reference: https://wiki.hypr.land/) — the
+-- Mostly single-file by design (reference: https://wiki.hypr.land/); the
 -- exceptions are keybinds, appearance settings, monitor layout, and the
 -- extra autostart list, each loaded from a JSON file (binds.json,
 -- settings.json, monitors.json, autostart.json) so bread* apps can read/edit
@@ -8,26 +8,26 @@
 --
 -- Every loader below is wrapped in `pcall`: this file is loaded as a single
 -- Lua chunk, so an uncaught error partway through would abort everything
--- *after* it too (no keybinds, no window rules, no autostart) — a bad or
+-- *after* it too (no keybinds, no window rules, no autostart); a bad or
 -- hand-edited JSON file must degrade to that one section's hardcoded
 -- defaults, never take down the rest of the session.
 local script_dir = os.getenv("HOME") .. "/.config/hypr/scripts/"
 local config_home = os.getenv("HOME") .. "/.config/hypr/"
 
 -- ---------------------------------------------------------------------------
--- Monitors — from monitors.json, always falls back to a generic
+-- Monitors: from monitors.json, always falls back to a generic
 -- any-hardware default (see scripts/display/monitors.lua).
 -- ---------------------------------------------------------------------------
 pcall(dofile, script_dir .. "display/monitors.lua")
 
 -- ---------------------------------------------------------------------------
--- Core appearance/input settings — from settings.json (see
+-- Core appearance/input settings: from settings.json (see
 -- scripts/ui/settings.lua).
 -- ---------------------------------------------------------------------------
 pcall(dofile, script_dir .. "ui/settings.lua")
 
 -- ---------------------------------------------------------------------------
--- Animations — snappy curves + per-leaf speeds (matches the reference laptop;
+-- Animations: snappy curves + per-leaf speeds (matches the reference laptop;
 -- the hl.config default above is much slower).
 -- ---------------------------------------------------------------------------
 local curves = {
@@ -55,7 +55,7 @@ for _, animation in ipairs(animations) do
 end
 
 -- ---------------------------------------------------------------------------
--- Window rules — float + centre the onboarding/help popups.
+-- Window rules: float + centre the onboarding/help popups.
 -- breadhelp replaces the old bos-welcome/bos-keybinds kitty+less popups.
 -- bos-netsetup (nmtui, from bos-netcheck) is unrelated to breadhelp and
 -- still floats the same way.
@@ -64,7 +64,7 @@ hl.window_rule({ name = "breadhelp",    match = { class = "^(com\\.breadway\\.br
 hl.window_rule({ name = "bos-netsetup", match = { class = "^(bos-netsetup)$" }, float = true, size = { 700, 560 } })
 
 -- ---------------------------------------------------------------------------
--- Layer-shell rules — blur / ignore-alpha / per-namespace motion for the
+-- Layer-shell rules: blur / ignore-alpha / per-namespace motion for the
 -- bread shell (breadbar island + osd + notif + panel, breadbox launcher,
 -- breadclip popup). Theme-driven via ~/.config/hypr/layerrules.json (written
 -- by `bread-theme layerrules` in the bootstrap below), with a hardcoded
@@ -87,7 +87,7 @@ hl.env("SDL_VIDEODRIVER", "wayland")
 hl.env("ELECTRON_OZONE_PLATFORM_HINT", "auto")
 hl.env("_JAVA_AWT_WM_NONREPARENTING", "1")
 -- GTK4's default renderer (ngl/vulkan on GTK 4.14+) renders transparent
--- layer-shell surfaces as opaque black on wlroots — the whole bread shell
+-- layer-shell surfaces as opaque black on wlroots; the whole bread shell
 -- (breadbox launcher, breadclip popup, breadbar, breadhelp, bos-settings)
 -- goes black-on-black, and it's worse under a VM's virtio-gpu where no real
 -- GL/Vulkan context is available. cairo (software) always composites
@@ -111,7 +111,7 @@ end
 -- above blurs behind the terminal while keeping text fully opaque.
 
 -- ---------------------------------------------------------------------------
--- Standard BOS keybinds — data-driven from binds.json (apps, windows,
+-- Standard BOS keybinds: data-driven from binds.json (apps, windows,
 -- screenshots, focus/move/resize, workspaces, mouse, media keys), loaded via
 -- scripts/input/{binds,keybinds}.lua. breadhelp's keybind viewer reads
 -- binds.json directly as its source of truth (no separately-maintained
@@ -133,7 +133,7 @@ hl.gesture({
 
 -- ---------------------------------------------------------------------------
 -- Autostart. Core bootstrap sequence (polkit agent, dark theme, wallpaper
--- daemon, breadd's Wayland-env fix, breadclipd) stays hardcoded here — it's
+-- daemon, breadd's Wayland-env fix, breadclipd) stays hardcoded here; it's
 -- timing/order-sensitive infrastructure, not something a settings UI should
 -- expose for a user to disable or reorder. The extra, genuinely toggleable
 -- apps (breadbar, hypridle, bos-netcheck, breadhelp, breadpaper/breadshot
@@ -160,7 +160,7 @@ hl.on("hyprland.start", function()
         "gsettings set org.gnome.desktop.interface cursor-theme Bibata-Modern-Ice",
         "gsettings set org.gnome.desktop.interface cursor-size 24",
         -- Clipboard history is breadclipd, a bakery-managed systemd --user
-        -- service (auto-started from /usr/lib/systemd/user — see
+        -- service (auto-started from /usr/lib/systemd/user, see
         -- build-local.sh's service bake) rather than an exec-once here.
         -- Prefer bread-polkit if it is on PATH (not baked; lockfile does not
         -- ship it). Otherwise the ISO's polkit-gnome agent. command -v so a
@@ -168,11 +168,11 @@ hl.on("hyprland.start", function()
         "sh -c 'if command -v bread-polkit >/dev/null; then exec bread-polkit; else exec /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1; fi'",
         "awww-daemon",
         -- Set the default wallpaper once the daemon is up (retry until ready).
-        -- Raw `awww img`, NOT `breadpaper set` — breadpaper set also runs real
+        -- Raw `awww img`, NOT `breadpaper set`; breadpaper set also runs real
         -- pywal against the image, which would clobber the curated black-base
         -- colors.json baked into skel (.cache/wal/colors.json: #0c0c0c bg,
         -- bread-toned browns reserved for accent slots only) with colors
-        -- actually extracted from bread-background.png — which is an all-beige
+        -- actually extracted from bread-background.png, which is an all-beige
         -- photo, so every bread-theme app (breadbar included) turns brown.
         -- `breadpaper get` still works on a fresh install without ever running
         -- pywal: .cache/wal/wal (pywal's own "last image" marker, which is all
@@ -183,11 +183,11 @@ hl.on("hyprland.start", function()
         -- enabled --global so every account starts it). It autostarts at login
         -- but before Hyprland exists, so
         -- push the compositor's Wayland env into the user manager and restart breadd
-        -- to pick it up — that's how it gets HYPRLAND_INSTANCE_SIGNATURE to talk to Hyprland.
+        -- to pick it up; that's how it gets HYPRLAND_INSTANCE_SIGNATURE to talk to Hyprland.
         "dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP HYPRLAND_INSTANCE_SIGNATURE",
         "systemctl --user restart breadd",
         -- graphical-session.target ships with RefuseManualStart=yes (systemd
-        -- convention — only a session manager like uwsm is meant to activate
+        -- convention; only a session manager like uwsm is meant to activate
         -- it), confirmed on real hardware: `systemctl --user start
         -- graphical-session.target` fails outright ("Operation refused").
         -- BOS doesn't use uwsm, and nothing else activates that target, so
@@ -201,14 +201,14 @@ hl.on("hyprland.start", function()
     end
 
     -- breadbox-sync is a Type=oneshot systemd --user service
-    -- (WantedBy=default.target, no Hyprland IPC dependency) — it already
+    -- (WantedBy=default.target, no Hyprland IPC dependency); it already
     -- runs on login via the unit baked into /usr/lib/systemd/user,
     -- independent of this list.
     local ok, extra = pcall(function()
         return dofile(script_dir .. "system/autostart.lua")()
     end)
     if not ok or type(extra) ~= "table" then
-        -- autostart.json/its loader broke — fall back to the same apps BOS
+        -- autostart.json/its loader broke; fall back to the same apps BOS
         -- has always started, so a bad JSON edit degrades to "normal
         -- desktop" rather than "no bar, no idle lock, no onboarding".
         extra = {

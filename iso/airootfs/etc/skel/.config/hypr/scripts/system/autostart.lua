@@ -1,14 +1,14 @@
--- scripts/system/autostart.lua — loads the *extra* (user-toggleable)
+-- scripts/system/autostart.lua: loads the *extra* (user-toggleable)
 -- autostart list from autostart.json. Returns just the enabled commands, in
 -- order. The core bootstrap sequence (theme generation, dark-mode gsettings,
 -- polkit agent, wallpaper daemon, breadd's Wayland-env fix, breadclipd) is
--- deliberately NOT exposed here — it's timing/order-sensitive infrastructure,
+-- deliberately NOT exposed here: it's timing/order-sensitive infrastructure,
 -- not something a settings UI should let a user disable, so it stays
 -- hardcoded in hyprland.lua itself.
 --
 -- Failsafe: unlike monitors.json, an empty or all-disabled result here is a
 -- legitimate user choice (they don't want breadbar/hypridle/etc), so this
--- only falls back to defaults on a missing/malformed file — never just
+-- only falls back to defaults on a missing/malformed file; never just
 -- because the valid result happens to be empty.
 local json = dofile(os.getenv("HOME") .. "/.config/hypr/scripts/lib/json.lua")
 

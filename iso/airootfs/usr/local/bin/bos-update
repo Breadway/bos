@@ -1,15 +1,15 @@
 #!/bin/bash
-# bos-update — update all of BOS in one go.
+# bos-update: update all of BOS in one go.
 #
 # BOS packages come from two channels, so a full update touches both:
-#   1. pacman   — Arch base/desktop + the [breadway] repo (breadlock + AUR
+#   1. pacman   : Arch base/desktop + the [breadway] repo (breadlock + AUR
 #                 republishes: calamares, zen-browser-bin, bibata, yay-bin,
 #                 powerlevel10k). [breadway] does NOT provide bos-settings
 #                 or other bakery desktop apps. Every transaction is
 #                 snapshotted by snap-pac; recover via the GRUB "snapshots"
 #                 submenu (grub-btrfs), not `snapper rollback`.
-#   2. bakery   — the bread ecosystem apps in /usr/local (whatever `bakery list`
-#                 reports as installed — bakery, bread, breadbar, breadbox,
+#   2. bakery   : the bread ecosystem apps in /usr/local (whatever `bakery list`
+#                 reports as installed: bakery, bread, breadbar, breadbox,
 #                 breadcrumbs, breadpad, breadman, bread-theme, breadpaper,
 #                 breadmon, breadsearch, breadclip, breadshot, bos-settings,
 #                 breadhelp, ...). Those bits live on @ and ride snapper
@@ -23,7 +23,7 @@ bold() { printf '\033[1m%s\033[0m\n' "$1"; }
 # Timed snapper pre snapshot before either channel. snap-pac already
 # snapshots root around pacman; bakery now writes /usr/local (on @), so
 # that root snapshot includes the desktop apps. This extra snapshot is
-# still best-effort — a home config if the installer created one (user
+# still best-effort; a home config if the installer created one (user
 # bakery state), plus a root timeline around the whole update. Never
 # fail the update if snapper is missing or the create errors.
 if command -v snapper >/dev/null; then

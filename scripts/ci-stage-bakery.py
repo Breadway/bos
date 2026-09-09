@@ -161,7 +161,7 @@ def version_dir(first_dl_url: str) -> str:
 
 def verify_index(index_path: Path, sig_path: Path) -> None:
     if shutil.which("minisign") is None:
-        die("minisign is not installed — refuse to trust an unsigned index")
+        die("minisign is not installed: refuse to trust an unsigned index")
     cmd = [
         "minisign",
         "-V",
@@ -175,7 +175,7 @@ def verify_index(index_path: Path, sig_path: Path) -> None:
     ]
     result = subprocess.run(cmd, check=False)
     if result.returncode != 0:
-        die("index.json minisign verification FAILED — refusing to proceed")
+        die("index.json minisign verification FAILED: refusing to proceed")
     print("index.json minisign OK")
 
 
@@ -339,7 +339,7 @@ def main() -> int:
         if hit is None:
             if required_bin:
                 die(f"required bin {name!r} is not in the verified stable index")
-            print(f"WARN: optional bin {name} not in index — skipping", file=sys.stderr)
+            print(f"WARN: optional bin {name} not in index: skipping", file=sys.stderr)
             return False
         pkg_name, pkg, binary = hit
         if pkg_name in BLOCKED or name in BLOCKED:

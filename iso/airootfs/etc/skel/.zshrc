@@ -1,4 +1,4 @@
-# BOS default zsh config — Powerlevel10k prompt + plugins + pywal palette.
+# BOS default zsh config: Powerlevel10k prompt + plugins + pywal palette.
 #
 # Mirrors the BOS dev shell, but sources plugins from the distro packages
 # (/usr/share/zsh/...) instead of oh-my-zsh, so there's no framework to manage.
@@ -25,7 +25,7 @@ zstyle ':completion:*' matcher-list 'm:{a-z}={A-Z}'
 # Emacs-style key bindings
 bindkey -e
 
-# Prompt — Powerlevel10k (republished to [breadway] as zsh-theme-powerlevel10k).
+# Prompt: Powerlevel10k (republished to [breadway] as zsh-theme-powerlevel10k).
 source /usr/share/zsh-theme-powerlevel10k/powerlevel10k.zsh-theme
 
 # Plugins (order matters: syntax-highlighting must be sourced LAST).
@@ -38,14 +38,14 @@ source /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zs
 bindkey '^[[A' history-substring-search-up
 bindkey '^[[B' history-substring-search-down
 
-# fzf — fuzzy history search on Ctrl+R, fuzzy file find on Ctrl+T
+# fzf: fuzzy history search on Ctrl+R, fuzzy file find on Ctrl+T
 if command -v fzf &>/dev/null; then
     source /usr/share/fzf/key-bindings.zsh 2>/dev/null || true
     source /usr/share/fzf/completion.zsh 2>/dev/null || true
     export FZF_DEFAULT_OPTS='--height 40% --layout=reverse --border'
 fi
 
-# zoxide — smarter cd (type z instead of cd)
+# zoxide: smarter cd (type z instead of cd)
 if command -v zoxide &>/dev/null; then
     eval "$(zoxide init zsh)"
 fi
@@ -76,12 +76,12 @@ alias free='free -h'
 alias grep='grep --color=auto'
 alias ip='ip --color=auto'
 
-# Updates — bos-update runs both channels (pacman + bakery). pacman aliased to
+# Updates: bos-update runs both channels (pacman + bakery). pacman aliased to
 # sudo so `pacman -Syu` etc. just work.
 alias update='bos-update'
 alias pacman='sudo pacman'
 
-# Package shortcuts — official repos via pacman, AUR via yay (alt-* prefix).
+# Package shortcuts: official repos via pacman, AUR via yay (alt-* prefix).
 alias install='sudo pacman -S'
 alias uninstall='sudo pacman -R'
 alias srchpkg='sudo pacman -Ss'

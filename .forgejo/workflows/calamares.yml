@@ -25,7 +25,7 @@ jobs:
           useradd -m builder
           git config --global --add safe.directory '*'
           # Clone the branch/tag that triggered this run (not the default
-          # branch) — same as bibata.yml/powerlevel10k.yml/yay-bin.yml, so a
+          # branch); same as bibata.yml/powerlevel10k.yml/yay-bin.yml, so a
           # push to a feature branch (or a release tag) builds and publishes
           # from that ref, not whatever happens to be on the default branch.
           git clone --depth 1 --branch "${GITHUB_REF_NAME}" \
