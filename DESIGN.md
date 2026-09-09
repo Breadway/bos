@@ -1,4 +1,4 @@
-# BOS — historical design plan
+# BOS: historical design plan
 
 ## Current architecture
 
@@ -24,7 +24,7 @@ taken as current:
 
 ## Context
 
-The bread ecosystem (bread, breadbar, breadbox, breadcrumbs, breadpad/breadman, bakery) is a cohesive set of Arch/Hyprland-specific tools with a shared theme system, unified package manager, and consistent config conventions. Currently, getting to a working system requires installing Arch, Hyprland, each tool via bakery, and wiring up dotfiles manually. BOS eliminates that — one ISO install produces a fully working desktop with everything preconfigured.
+The bread ecosystem (bread, breadbar, breadbox, breadcrumbs, breadpad/breadman, bakery) is a cohesive set of Arch/Hyprland-specific tools with a shared theme system, unified package manager, and consistent config conventions. Currently, getting to a working system requires installing Arch, Hyprland, each tool via bakery, and wiring up dotfiles manually. BOS eliminates that: one ISO install produces a fully working desktop with everything preconfigured.
 
 Goals:
 - **Install and be done**: Calamares GUI installer → reboot → working Hyprland + full bread stack
@@ -36,18 +36,18 @@ Goals:
 
 ## Repo Structure
 
-Single new repo: `Breadway/bos` — *planned as* a Cargo workspace. **That is
+Single new repo: `Breadway/bos`, *planned as* a Cargo workspace. **That is
 not what landed**; see Current architecture.
 
 ```
 bos/
-├── Cargo.toml                  # Workspace (members: [bos-settings])  — NOT in tree
-├── bos-settings/               # planned GTK4 app — now its own bakery repo
+├── Cargo.toml                  # Workspace (members: [bos-settings])  ; NOT in tree
+├── bos-settings/               # planned GTK4 app; now its own bakery repo
 ├── iso/                        # archiso profile (this is the repo)
 │   ├── profiledef.sh
 │   ├── packages.x86_64
 │   └── airootfs/
-└── dotfiles/                   # planned install-time configs — NOT the live skel
+└── dotfiles/                   # planned install-time configs; NOT the live skel
 ```
 
 ---
@@ -58,8 +58,8 @@ bos/
 
 | Subvolume | Mount point | Notes |
 |-----------|-------------|-------|
-| `@` | `/` | Root — snapshotted by snapper |
-| `@home` | `/home` | User data — separate from root snapshots |
+| `@` | `/` | Root, snapshotted by snapper |
+| `@home` | `/home` | User data, separate from root snapshots |
 | `@snapshots` | `/.snapshots` | Snapper snapshot dir |
 | `@log` | `/var/log` | Excluded from root snapshots (prevents bloat) |
 | `@cache` | `/var/cache` | Excluded from root snapshots |
@@ -74,9 +74,9 @@ wrong instruction to give users.
 
 ### Snapshot tooling (installed + configured during post-install)
 
-- `snapper` — snapshot manager; configured for root (`snapper -c root create-config /`)
-- `snap-pac` — pacman hooks that call `snapper pre`/`snapper post` around every transaction
-- `grub-btrfs` — regenerates GRUB entries from snapper snapshots; hook runs on `snapper post`
+- `snapper`: snapshot manager; configured for root (`snapper -c root create-config /`)
+- `snap-pac`: pacman hooks that call `snapper pre`/`snapper post` around every transaction
+- `grub-btrfs`: regenerates GRUB entries from snapper snapshots; hook runs on `snapper post`
 
 **snapper root config defaults** (written to `/etc/snapper/configs/root`):
 ```
@@ -87,7 +87,7 @@ NUMBER_LIMIT="10"          # keep last 10 pacman snapshots
 NUMBER_LIMIT_IMPORTANT="5"
 ```
 
-No user-facing CLI needed for this component — `bos-settings` is the interface.
+No user-facing CLI needed for this component; `bos-settings` is the interface.
 
 ---
 
@@ -100,7 +100,7 @@ No user-facing CLI needed for this component — `bos-settings` is the interface
   breadlock, WebKitGTK 4.1 for Tauri bos-settings, …). bakery apps are not
   listed here.
 - `airootfs/etc/skel/` contains the default user configs (this is the live
-  skel — not `dotfiles/`).
+  skel, not `dotfiles/`).
 - Live session autologs into a `liveuser` and launches Calamares automatically
 
 ### Calamares modules (in order)
@@ -110,15 +110,15 @@ Calamares `bootloader`/`grubcfg` installing GRUB. What shipped instead:
 binaries are already in skel; `post-install.sh` runs `grub-install` +
 `grub-mkconfig` (Calamares' bootloader modules leave the ESP empty here).
 
-1. **welcome** — system checks (RAM ≥ 2GB, internet, disk space)
-2. **locale** — timezone + locale selection
-3. **keyboard** — layout selection
-4. **partition** — custom `btrfs` mode: creates EFI partition + single btrfs pool with the subvolume layout above
-5. **users** — create main user, set password
-6. **packages** — install package list (reuses `packages.x86_64`)
-7. **bootloader** — *planned*; actual GRUB install is in `post-install.sh`
-8. **shellprocess (post-install)** — snapper, services, copy skel; does **not** run bakery
-9. **finished** — reboot prompt
+1. **welcome**: system checks (RAM ≥ 2GB, internet, disk space)
+2. **locale**: timezone + locale selection
+3. **keyboard**: layout selection
+4. **partition**: custom `btrfs` mode: creates EFI partition + single btrfs pool with the subvolume layout above
+5. **users**: create main user, set password
+6. **packages**: install package list (reuses `packages.x86_64`)
+7. **bootloader**: *planned*; actual GRUB install is in `post-install.sh`
+8. **shellprocess (post-install)**: snapper, services, copy skel; does **not** run bakery
+9. **finished**: reboot prompt
 
 ---
 
@@ -126,7 +126,7 @@ binaries are already in skel; `post-install.sh` runs `grub-install` +
 
 ### Tech choices (original)
 
-- **gtk4-rs** (v0.11, v4_12 feature), no relm4 — plain GTK4 following breadman's pattern
+- **gtk4-rs** (v0.11, v4_12 feature), no relm4; plain GTK4 following breadman's pattern
 
 **What shipped:** Tauri 2 + Svelte in its own repo
 (`git.breadway.dev/Breadway/bos-settings`), distributed by bakery. This
@@ -151,7 +151,7 @@ Minimal but functional defaults. These live in `iso/airootfs/etc/skel`
 (`hyprland.lua` + JSON binds, not `dotfiles/hyprland/*.conf`).
 
 Zero-config bakery apps survive with no extra skel files. breadcrumbs
-networks are user-filled after install — do not invent a full
+networks are user-filled after install; do not invent a full
 `breadcrumbs.toml` in-tree.
 
 ---
@@ -165,7 +165,7 @@ iterates on. bos-settings is developed in its own repo.
 
 ## Verification
 
-- **ISO**: `sudo ./build-local.sh` (not a raw `mkarchiso iso/` — the bake
+- **ISO**: `sudo ./build-local.sh` (not a raw `mkarchiso iso/`; the bake
   step is required). Boot in QEMU; complete install; confirm bakery bins and
   `~/.local/share/breadhelp/content`.
 - **btrfs layout**: `btrfs subvolume list /` after install; confirm `@`, `@home`, `@snapshots`, `@log`, `@cache` exist

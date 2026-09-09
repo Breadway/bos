@@ -74,7 +74,7 @@ if [[ ${#units[@]} -eq 0 ]]; then
 fi
 
 if ! command -v systemctl >/dev/null 2>&1; then
-    echo "WARN: systemctl missing — cannot --global enable bakery user units"
+    echo "WARN: systemctl missing: cannot --global enable bakery user units"
     exit 0
 fi
 
@@ -82,7 +82,7 @@ for unit in "${units[@]}"; do
     [[ -f "$UNITS_DIR/$unit" ]] || continue
     is_blocked "$unit" && continue
     if ! grep -q '^\[Install\]' "$UNITS_DIR/$unit"; then
-        echo "WARN: $unit has no [Install] section — skip --global enable"
+        echo "WARN: $unit has no [Install] section: skip --global enable"
         continue
     fi
     systemctl --global enable "$unit" \

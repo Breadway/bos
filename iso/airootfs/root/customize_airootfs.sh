@@ -6,8 +6,8 @@
 #
 # Purpose: trust the BOS release key (56203B86…) in the image's pacman
 # keyring so the signed [breadway] repo (SigLevel = Required,
-# https://dl.breadway.dev/arch) verifies both on the live medium and — via
-# calamares' unpackfs, which copies this squashfs to the target — on the
+# https://dl.breadway.dev/arch) verifies both on the live medium and, via
+# calamares' unpackfs, which copies this squashfs to the target, on the
 # installed system. calamares/post-install.sh re-does this in the target
 # chroot as a fallback (unpackfs can skip /etc/pacman.d/gnupg).
 set -euo pipefail

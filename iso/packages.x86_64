@@ -2,7 +2,7 @@
 base
 linux
 # linux-firmware metapackage pulls every mandatory vendor blob (incl. nvidia).
-# List the subpackages we actually need so nvidia (~103 MiB, nouveau-only —
+# List the subpackages we actually need so nvidia (~103 MiB, nouveau-only,
 # BOS ships no NVIDIA driver) can stay off the image. Turing+ nouveau needs
 # the GSP blobs; reinstall linux-firmware-nvidia when lspci sees NVIDIA.
 # linux-firmware
@@ -17,11 +17,11 @@ linux-firmware-radeon
 linux-firmware-other
 # linux-firmware-nvidia
 # base-devel + linux-headers are for AUR/DKMS builds. yay needs base-devel,
-# but those builds need network anyway — pacman -S base-devel at that point.
+# but those builds need network anyway; pacman -S base-devel at that point.
 # linux-headers is DKMS-only and BOS ships no DKMS packages.
 # base-devel
 # linux-headers
-# CPU microcode — applied early by GRUB on the installed system (picked up by
+# CPU microcode: applied early by GRUB on the installed system (picked up by
 # the bootloader module). amd-ucode for the dev laptop's Ryzen; intel-ucode for
 # Intel targets. bos-copy-kernel also stages these into the live target /boot.
 amd-ucode
@@ -29,13 +29,13 @@ intel-ucode
 
 # Power management (vendor-neutral; works on Intel and AMD). tlp auto-tunes power
 # by AC/battery and CPU driver; hypridle/breadlock handle idle dim/off/lock/suspend
-# and the lock screen; upower exposes battery state. NOT power-profiles-daemon —
+# and the lock screen; upower exposes battery state. NOT power-profiles-daemon;
 # it conflicts with tlp.
 tlp
 tlp-rdw
 upower
 hypridle
-# breadlock replaces hyprlock (locker) and tuigreet (greetd's greeter) — see
+# breadlock replaces hyprlock (locker) and tuigreet (greetd's greeter); see
 # /etc/greetd/config.toml and skel's hypridle.conf lock_cmd. cage hosts
 # breadgreet as a single-client kiosk compositor under greetd.
 breadlock
@@ -47,12 +47,12 @@ efibootmgr
 btrfs-progs
 dosfstools
 mtools
-# LUKS full-disk encryption — Calamares' partition module has encryption
+# LUKS full-disk encryption: Calamares' partition module has encryption
 # support built in and enabled by default, but needs cryptsetup actually
 # present (live, to create the container; installed, to unlock at boot via
 # mkinitcpio's encrypt hook) or the checkbox leads to an unbootable system.
 cryptsetup
-# Secure Boot key enrollment/signing (self-signed — see post-install.sh).
+# Secure Boot key enrollment/signing (self-signed, see post-install.sh).
 # Ships its own pacman hook (zz-sbctl.hook) that re-signs the kernel/
 # bootloader automatically on every future update once enrolled.
 sbctl
@@ -63,7 +63,7 @@ squashfs-tools
 rsync
 # Live-ISO boot (archiso bootmodes: bios.syslinux + uefi.grub)
 # mkinitcpio-archiso provides the initramfs hooks that find and mount
-# airootfs.sfs and switch root into it — without it the live ISO drops
+# airootfs.sfs and switch root into it; without it the live ISO drops
 # to emergency mode on boot.
 mkinitcpio
 mkinitcpio-archiso
@@ -84,7 +84,7 @@ restic
 # Wayland / Hyprland
 hyprland
 xdg-desktop-portal-hyprland
-# GTK portal backend — file-chooser/screenshot portals for Flatpak, Electron,
+# GTK portal backend: file-chooser/screenshot portals for Flatpak, Electron,
 # and Firefox-based apps (Zen). Without it those apps get no file dialog.
 xdg-desktop-portal-gtk
 # Login manager for the installed system (Wayland-native; enabled by
@@ -106,7 +106,7 @@ pipewire-jack
 networkmanager
 network-manager-applet
 iw
-# mDNS service/name resolution — lets CUPS auto-discover network printers and
+# mDNS service/name resolution: lets CUPS auto-discover network printers and
 # resolves .local hostnames (avahi-daemon enabled + nss-mdns wired in
 # post-install.sh).
 avahi
@@ -138,7 +138,7 @@ gnome-themes-extra
 # render in LIGHT mode regardless of the GTK theme.
 gsettings-desktop-schemas
 dconf
-# Credential/keyring storage — browsers, SSH agents, and most apps persist
+# Credential/keyring storage: browsers, SSH agents, and most apps persist
 # passwords here; without it every session loses saved logins. seahorse is the
 # GUI to view/manage the stored secrets and keys.
 gnome-keyring
@@ -155,11 +155,11 @@ noto-fonts
 # noto-fonts-cjk
 noto-fonts-emoji
 ttf-jetbrains-mono
-# Nerd font variant — icons in terminal tools (eza --icons, fastfetch, yazi)
+# Nerd font variant: icons in terminal tools (eza --icons, fastfetch, yazi)
 ttf-jetbrains-mono-nerd
 # Metric-compatible (Arial/Times/Courier) so Office/web docs lay out correctly,
 # broad Unicode fallback, and the Font Awesome icon glyph set (otf-, the desktop
-# variant — ttf-font-awesome resolves to the web-only woff2 build).
+# variant (ttf-font-awesome resolves to the web-only woff2 build).
 ttf-liberation
 ttf-dejavu
 otf-font-awesome
@@ -173,7 +173,7 @@ nautilus
 # media). gvfs-mtp adds Android/MTP device support (phones, tablets via USB).
 gvfs
 gvfs-mtp
-# file-roller: archive manager — gives nautilus right-click Extract/Compress.
+# file-roller: archive manager; gives nautilus right-click Extract/Compress.
 file-roller
 
 # GUI applications a general desktop is expected to have out of the box.
@@ -184,7 +184,7 @@ file-roller
 gnome-text-editor
 gnome-calculator
 loupe
-# Media player — BOS ships gstreamer codecs but otherwise has no player app.
+# Media player: BOS ships gstreamer codecs but otherwise has no player app.
 vlc
 # Web browser (served from the [Breadway] repo; AUR zen-browser-bin republished
 # there so the ISO build can pull it via pacman). mailcap satisfies zen's
@@ -192,11 +192,11 @@ vlc
 zen-browser-bin
 mailcap
 
-# Installer — Calamares is AUR-only; built in-house and served from [breadway]
+# Installer: Calamares is AUR-only; built in-house and served from [breadway]
 # (calamares 3.4.x is already Qt6; there is no separate calamares-qt6 package)
 calamares
 
-# AUR helper — yay-bin is AUR-only (no AUR helper ships in the official
+# AUR helper: yay-bin is AUR-only (no AUR helper ships in the official
 # repos), so it's republished to [breadway] the same way (see
 # packaging/yay-bin). Lets users reach the wider AUR beyond bakery's bread
 # ecosystem + [breadway]'s own small set of republished packages.
@@ -205,10 +205,10 @@ yay-bin
 # Bread ecosystem.
 #
 # breadlock is the only bread* pacman package here (it needs a root-owned
-# /etc/pam.d/breadlock). Everything else — bakery, bread/breadd/bread-emit/
+# /etc/pam.d/breadlock). Everything else, bakery, bread/breadd/bread-emit/
 # bread-module-host, breadbar, breadbox, breadcrumbs, breadpad, breadpaper,
 # bread-theme, breadmon, breadsearch, breadclip, breadshot, bos-settings,
-# breadhelp — is bakery-managed and baked into /usr/local at ISO build
+# breadhelp, is bakery-managed and baked into /usr/local at ISO build
 # time from iso/bread-lockfile.toml (see build-local.sh). breadcast and
 # breadarr are not shipped. bos-settings/breadhelp desktop entries are
 # also committed under iso/airootfs/etc/skel/.local/share/applications/. Runtime
@@ -221,29 +221,29 @@ grim
 slurp
 # Clipboard (Wayland copy/paste; also clipboard screenshots) and media keys.
 # Clipboard history is breadclip/breadclipd (bakery-managed, SUPER+SHIFT+V),
-# not cliphist — wl-clipboard is still needed directly by breadclip/breadshot.
+# not cliphist; wl-clipboard is still needed directly by breadclip/breadshot.
 wl-clipboard
 playerctl
 # Wallpaper daemon + pywal (drives the bread* colour palette from the wallpaper).
-# python-pywal was dropped from Arch [extra] (AUR-only now) — republished to
+# python-pywal was dropped from Arch [extra] (AUR-only now); republished to
 # [breadway], see packaging/python-pywal.
 awww
 python-pywal
 # Boot splash (BOS logo + spinner instead of kernel text).
 plymouth
 
-# Media codecs — GStreamer plugins for video thumbnails in nautilus, browser
+# Media codecs: GStreamer plugins for video thumbnails in nautilus, browser
 # media, and general playback. bad/ugly add patent-encumbered formats (H.264 etc).
 gst-plugins-good
 gst-plugins-bad
 gst-plugins-ugly
-# Hardware video acceleration (VA-API) — lets the AMD/Intel GPU decode H.264/HEVC/
+# Hardware video acceleration (VA-API): lets the AMD/Intel GPU decode H.264/HEVC/
 # VP9 in mpv, VLC, and browsers instead of the CPU (cooler, longer battery on
 # video). The open Mesa VA-API backend (radeonsi_drv_video.so etc.) now ships in
 # the `mesa` package itself (pulled in already), so only libva (deps) + the
 # `vainfo` verification tool need listing here.
 libva-utils
-# GUI audio mixer — useful when output device needs manual switching.
+# GUI audio mixer: useful when output device needs manual switching.
 pavucontrol
 
 # Utilities
@@ -260,7 +260,7 @@ man-pages
 less
 
 # Base CLI tools every install should have.
-# Shell — zsh with the same prompt + plugins as the dev laptop. Powerlevel10k is
+# Shell: zsh with the same prompt + plugins as the dev laptop. Powerlevel10k is
 # AUR-only, so it's republished to [breadway] (see packaging/powerlevel10k). The
 # three plugins come from the official repos; skel/.zshrc sources them in order
 # (autosuggestions → history-substring-search → syntax-highlighting LAST).
@@ -274,12 +274,12 @@ nano
 micro
 vim
 neovim
-# Shell QoL — modern replacements shipped with skel aliases set up
+# Shell QoL: modern replacements shipped with skel aliases set up
 eza
 bat
 fzf
 zoxide
-# Fast search — pairs with fzf/zsh and underpins a good neovim experience
+# Fast search: pairs with fzf/zsh and underpins a good neovim experience
 ripgrep
 fd
 # System / hardware inspection
@@ -302,14 +302,14 @@ openssh
 # Mirror management (refresh /etc/pacman.d/mirrorlist for the user's location)
 reflector
 
-# Printing — CUPS daemon + GUI printer setup. cups-pk-helper lets the GUI add
+# Printing: CUPS daemon + GUI printer setup. cups-pk-helper lets the GUI add
 # printers via polkit without a root shell. cups.socket is enabled in
 # post-install.sh so printing works on the installed system.
 cups
 cups-pk-helper
 system-config-printer
 
-# Flatpak — sandboxed third-party app distribution (Flathub). The user adds a
+# Flatpak: sandboxed third-party app distribution (Flathub). The user adds a
 # remote post-install (needs network); the runtime is shipped ready.
 flatpak
 
@@ -322,12 +322,12 @@ gnome-disk-utility
 gufw
 mission-center
 
-# Firewall — ufw, enabled deny-incoming in post-install.sh (mDNS allowed so
+# Firewall: ufw, enabled deny-incoming in post-install.sh (mDNS allowed so
 # printer discovery still works).
 ufw
 # Firmware updates via LVFS (works with gnome-software / fwupdmgr).
 fwupd
-# Compressed RAM swap — see /etc/systemd/zram-generator.conf.
+# Compressed RAM swap: see /etc/systemd/zram-generator.conf.
 zram-generator
 
 # Icon and cursor themes
@@ -339,12 +339,12 @@ papirus-icon-theme
 # XCURSOR_THEME env in hyprland.lua and gtk settings.ini / gsettings.
 bibata-cursor-theme-bin
 
-# Qt dark theme — makes Qt5/Qt6 apps (VLC, pavucontrol, etc.) respect the dark
+# Qt dark theme: makes Qt5/Qt6 apps (VLC, pavucontrol, etc.) respect the dark
 # palette. qt5ct/qt6ct are configured via skel to use Fusion style in dark mode;
 # QT_QPA_PLATFORMTHEME=qt5ct is set in hyprland.lua env.
 qt5ct
 qt6ct
-# Native Wayland platform plugins for Qt — QT_QPA_PLATFORM=wayland (set in
+# Native Wayland platform plugins for Qt: QT_QPA_PLATFORM=wayland (set in
 # hyprland.lua) needs these or Qt apps fall back to (blurry) XWayland.
 qt5-wayland
 qt6-wayland

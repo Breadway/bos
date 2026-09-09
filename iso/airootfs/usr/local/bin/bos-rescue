@@ -1,5 +1,5 @@
 #!/bin/bash
-# bos-rescue — live-ISO helper for an installed BOS that will not boot.
+# bos-rescue: live-ISO helper for an installed BOS that will not boot.
 #
 # Finds the installed btrfs `@` and the ESP, mounts them, then offers to
 # arch-chroot and/or reinstall GRUB using the same sequence as
@@ -8,7 +8,7 @@
 #   BIOS: grub-install i386-pc onto the disk hosting /
 #
 # Recovery is this script or the GRUB "snapshots" submenu (grub-btrfs).
-# GRUB pins rootflags=subvol=@ — a snapper-swapped default subvolume is
+# GRUB pins rootflags=subvol=@; a snapper-swapped default subvolume is
 # not what the installed grub.cfg will boot. Never snapper-rollback.
 #
 # Safe: prints the devices it will use and requires YES before writing.
@@ -81,7 +81,7 @@ pick_mnt() {
     fi
     if findmnt -n /mnt >/dev/null 2>&1; then
         MNT=/mnt/bos-rescue
-        info "/mnt is already a mountpoint — using $MNT"
+        info "/mnt is already a mountpoint; using $MNT"
     else
         MNT=/mnt
     fi
@@ -184,7 +184,7 @@ find_esp_for_root() {
     fi
 
     local best="" scored=0 score
-    # PARTTYPE is the GPT GUID — no spaces, unlike PARTTYPENAME ("EFI System").
+    # PARTTYPE is the GPT GUID: no spaces, unlike PARTTYPENAME ("EFI System").
     local efi_guid="c12a7328-f81f-11d2-ba4b-00a716dde993"
     while read -r dev fstype parttype; do
         [[ -n "$dev" ]] || continue
@@ -270,7 +270,7 @@ discover_and_choose() {
     elif (( ${#bos_devs[@]} > 1 )); then
         ROOT_DEV="$(select_from_list "More than one BOS @ found:" "${bos_devs[@]}")" || return 1
     else
-        warn "No ID=bos os-release on @ — offering every btrfs @ found"
+        warn "No ID=bos os-release on @; offering every btrfs @ found"
         ROOT_DEV="$(select_from_list "Select the installed root device:" "${other_devs[@]}")" || return 1
     fi
 
@@ -345,7 +345,7 @@ print_plan() {
     fi
     echo >&2
     info "Recovery is grub-btrfs (GRUB snapshots submenu) or this GRUB reinstall."
-    info "GRUB pins rootflags=subvol=@ — do not swap the default subvolume."
+    info "GRUB pins rootflags=subvol=@; do not swap the default subvolume."
 }
 
 run_in_target() {
@@ -354,7 +354,7 @@ run_in_target() {
         arch-chroot "$MNT" bash -c "$cmd"
         return $?
     fi
-    # arch-install-scripts is not guaranteed on the ISO — bind the API
+    # arch-install-scripts is not guaranteed on the ISO; bind the API
     # filesystems the same way arch-chroot would, then chroot.
     mount --bind /proc "$MNT/proc" 2>/dev/null || mount -t proc proc "$MNT/proc"
     mount --bind /sys "$MNT/sys" 2>/dev/null || mount -t sysfs sys "$MNT/sys"
@@ -392,7 +392,7 @@ EOF
 
 reinstall_grub() {
     if [[ ! -d "$MNT/boot" ]]; then
-        warn "target $MNT/boot missing — mount the installed @ first"
+        warn "target $MNT/boot missing; mount the installed @ first"
         return 1
     fi
     echo >&2
@@ -440,7 +440,7 @@ else
         grub-install --target=i386-pc --recheck "${CRYPT_MODULES[@]}" "/dev/$ROOT_DISK" \
             || echo "WARN: grub-install (BIOS) failed"
     else
-        echo "WARN: could not determine the disk hosting / — BIOS grub-install skipped"
+        echo "WARN: could not determine the disk hosting /; BIOS grub-install skipped"
     fi
 fi
 if command -v grub-mkconfig >/dev/null; then
@@ -454,7 +454,7 @@ EOS
         bold "GRUB reinstall finished."
         info "Firmware that lost its NVRAM entry can still boot EFI/BOOT/BOOTX64.EFI."
     else
-        warn "GRUB reinstall returned non-zero — see messages above"
+        warn "GRUB reinstall returned non-zero; see messages above"
         return 1
     fi
 }
@@ -507,15 +507,15 @@ menu_installed() {
     fi
     echo
     bold "Already running the installed BOS (not the live ISO)."
-    info "Root and ESP are already mounted — chroot is not needed."
+    info "Root and ESP are already mounted; chroot is not needed."
     print_plan
     if confirm_yes "Reinstall GRUB on this running system?"; then
         # Running on the installed root: no extra mount/chroot.
         local old_mnt="$MNT"
         MNT="/"
-        # run_in_target would chroot into / — just run locally.
+        # run_in_target would chroot into /; just run locally.
         if [[ -d /sys/firmware/efi && -z "$ESP_DEV" ]]; then
-            warn " /boot/efi is not mounted — refusing to write"
+            warn " /boot/efi is not mounted; refusing to write"
             return 1
         fi
         bash -c "$(cat <<'EOS'
@@ -572,7 +572,7 @@ main() {
     bold "bos-rescue"
     info "Live-ISO recovery helper. Prints devices and asks YES before writing."
     info "Use grub-btrfs (GRUB snapshots submenu) for a bootable snapshot."
-    info "Do not snapper-rollback — GRUB pins rootflags=subvol=@."
+    info "Do not snapper-rollback: GRUB pins rootflags=subvol=@."
     echo
 
     if already_on_installed; then
@@ -582,7 +582,7 @@ main() {
 
     if ! is_live_iso; then
         warn "This does not look like the BOS live ISO (/run/archiso missing)."
-        info "Continuing anyway — will scan disks for a BOS @."
+        info "Continuing anyway: will scan disks for a BOS @."
     fi
 
     discover_and_choose || exit 1

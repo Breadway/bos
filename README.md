@@ -1,12 +1,12 @@
-# BOS — Bread Operating System
+# BOS: Bread Operating System
 
 An Arch-based, Hyprland desktop distribution that ships the [bread
 ecosystem](https://git.breadway.dev/Breadway) preconfigured. One Calamares install
-produces a themed, bootable Wayland desktop — no manual Arch bootstrap, no
+produces a themed, bootable Wayland desktop: no manual Arch bootstrap, no
 wiring up dotfiles, no per-tool bakery installs.
 
 > This file is the product as the tree ships it. [DESIGN.md](DESIGN.md) is the
-> original plan, kept as history — several of its sections (in-tree GTK
+> original plan, kept as history; several of its sections (in-tree GTK
 > bos-settings, bakery-at-post-install, A/B as if it were current) are not
 > how the ISO works today.
 
@@ -28,7 +28,7 @@ wiring up dotfiles, no per-tool bakery installs.
   first boot; breadcrumbs networks are user-filled after install. See
   [below](#the-bread-ecosystem).
 - **breadlock** (lock screen + greeter) is the one bread\* app that ships as
-  **pacman**, not bakery — it needs a root-owned PAM service.
+  **pacman**, not bakery; it needs a root-owned PAM service.
 - **bos-settings**: a **Tauri 2 + Svelte** control panel (standalone bakery
   product, not a member of this repo). Configures every bread\* app
   non-destructively, plus snapshots, bakery/pacman updates, and day-to-day
@@ -43,10 +43,10 @@ wiring up dotfiles, no per-tool bakery installs.
   `yay` ships for AUR access beyond bakery + `[breadway]`.
 - **Hardware**: pipewire audio, NetworkManager, BlueZ + blueman, CUPS printing
   with avahi mDNS discovery, TLP power management, fwupd firmware updates.
-  Mesa only — **NVIDIA proprietary drivers are not included** and NVIDIA is
+  Mesa only; **NVIDIA proprietary drivers are not included** and NVIDIA is
   unsupported out of the box (see [docs/hardware.md](docs/hardware.md)).
 - **Resilience**: btrfs + snapper + snap-pac + grub-btrfs snapshots on every
-  pacman transaction (**root `@` only** — snapper does not cover `@home`);
+  pacman transaction (**root `@` only**; snapper does not cover `@home`);
   home backup is **Settings → Backup** (restic, local path or SFTP); zram
   swap; ufw firewall (deny-incoming, mDNS allowed). A/B root swapping is
   **not** implemented. Recovery is a grub-btrfs reboot, not
@@ -54,7 +54,7 @@ wiring up dotfiles, no per-tool bakery installs.
   [docs/hardware.md](docs/hardware.md).
 - **Security**: optional full-disk encryption is **LUKS1** (GRUB cannot unlock
   LUKS2 + Argon2id). Secure Boot is **self-signed Setup Mode only** via
-  `sbctl` — not a Microsoft-signed shim; enrollment is skipped unless the
+  `sbctl`, not a Microsoft-signed shim; enrollment is skipped unless the
   firmware is already in Setup Mode.
 
 ## What ships vs what does not
@@ -62,7 +62,7 @@ wiring up dotfiles, no per-tool bakery installs.
 | Channel | What |
 |---------|------|
 | **Bakery, required** | `bakery`, `bread` / `breadd`, `breadbar`, `breadbox` / `breadbox-sync`, `breadcrumbs`, `breadpad` / `breadman`, `breadpaper`, `bread-theme`, `breadmon`, `breadsearch` / `breadmill`, `breadclip` / `breadclipd`, `breadshot`, `bos-settings`, `breadhelp` (+ breadhelp content under `/usr/local/share/breadhelp/`) |
-| **Bakery, optional** | `bread-emit`, `bread-module-host` — baked when the verified stable index publishes them; skipped (not a failed bake) until bread ships them |
+| **Bakery, optional** | `bread-emit`, `bread-module-host`: baked when the verified stable index publishes them; skipped (not a failed bake) until bread ships them |
 | **pacman (`packages.x86_64`)** | `breadlock`, plus the rest of the distro (Hyprland, Calamares, Zen, …) |
 | **Not shipped** | `breadcast`, `breadarr` |
 
@@ -74,7 +74,7 @@ The baked name list is [`iso/bread-lockfile.toml`](iso/bread-lockfile.toml)
 ## Repo layout
 
 This is an **ISO + Calamares + skel** repo. There is no Cargo workspace and
-no `bos-settings/` member — bos-settings and breadhelp live in their own
+no `bos-settings/` member; bos-settings and breadhelp live in their own
 repos and arrive via bakery.
 
 ```
@@ -92,7 +92,7 @@ bos/
 │   ├── bibata/
 │   ├── powerlevel10k/
 │   └── yay-bin/
-├── dotfiles/                      # STALE — not the live skel; see its README
+├── dotfiles/                      # STALE, not the live skel; see its README
 ├── scripts/
 │   ├── ci-stage-bakery.py     # CI: minisign-verified index → $LAPTOP_HOME
 │   ├── ci-verify-bake.sh      # CI: read-only checks before mkarchiso
@@ -115,13 +115,13 @@ breadpad). Do not treat `dotfiles/hypr/keybinds.conf` as current.
 
 Single-trunk: work on **`main`** via short-lived `feature/*` / `fix/*`
 branches. **`stable`** is a marker branch CI fast-forwards to the latest
-non-RC release tag — do not land work there by hand.
+non-RC release tag; do not land work there by hand.
 
 Dual remotes:
 
-- **`origin`** — Forgejo (`ssh://git@100.66.238.26:2222/Breadway/bos.git`),
+- **`origin`**: Forgejo (`ssh://git@100.66.238.26:2222/Breadway/bos.git`),
   authoritative
-- **`github`** — GitHub (`https://github.com/Breadway/bos.git`) mirror
+- **`github`**: GitHub (`https://github.com/Breadway/bos.git`) mirror
 
 Push `origin` (and `github` when mirroring). Do not treat origin as GitHub.
 
@@ -175,7 +175,7 @@ dedicated release-signing key (not reused from anything else):
 ```
 
 The public half is committed at [`KEYS.asc`](KEYS.asc). The same key signs
-the ISO checksums **and** the `[breadway]` pacman repo — every package and
+the ISO checksums **and** the `[breadway]` pacman repo: every package and
 the db at `https://dl.breadway.dev/arch` carry a `.sig` from it, and that
 section is `SigLevel = Required` (see
 [docs/signed-repo.md](docs/signed-repo.md)). To verify a download:
@@ -196,7 +196,7 @@ A reusable, GPU-accelerated launcher lives at `~/bos-vm/run.sh`:
 ```
 
 It uses KVM + `-cpu host`, 8 GiB / 8 vCPU, and `virtio-vga-gl` with
-`-display gtk,gl=on` (virgl) — 3D acceleration is essential for a smooth
+`-display gtk,gl=on` (virgl); 3D acceleration is essential for a smooth
 Hyprland session in QEMU. The disk lives on NVMe (not the tmpfs `/tmp`) to
 avoid memory pressure.
 
@@ -207,7 +207,7 @@ subvolumes, services, bakery bins on PATH, breadhelp content under
 
 ## Second account
 
-Bakery desktop apps live in `/usr/local` — shared, already on PATH. A later
+Bakery desktop apps live in `/usr/local`, shared, already on PATH. A later
 account does **not** get a private copy of those binaries.
 
 `/etc/default/useradd` keeps `SKEL=/etc/skel`. Stock `useradd -m` is enough:
@@ -217,7 +217,7 @@ sudo useradd -m alice
 sudo passwd alice
 ```
 
-- **Apps**: `/usr/local/bin` (and `/usr/local/share`) — already there.
+- **Apps**: `/usr/local/bin` (and `/usr/local/share`), already there.
 - **Session files**: `useradd -m` copies `/etc/skel` (Hyprland, bread
   config, bakery `installed.json` + index cache) so first login has a
   session. Skel does not contain bakery binaries.
@@ -250,7 +250,7 @@ also get live systemd status + Start/Stop/Restart/Logs.
 |-------|--------------|
 | About | System info (OS/kernel/CPU/GPU/memory/disk/uptime) + hostname |
 | Network | Wi-Fi scan/connect, Ethernet status, radio toggle |
-| Wi-Fi Profiles (breadcrumbs) | `breadcrumbs.toml` — settings, saved networks, profiles |
+| Wi-Fi Profiles (breadcrumbs) | `breadcrumbs.toml`: settings, saved networks, profiles |
 | Firewall | ufw rules: enable/disable, add/remove, view active rules |
 | Sound | PipeWire output/input device + volume via `pactl` |
 | Power | Battery status/health, brightness, charge limits (hardware-dependent), TLP profile (read-only) |
@@ -259,15 +259,15 @@ also get live systemd status + Start/Stop/Restart/Logs.
 | Users | Add/remove accounts, change passwords |
 | Wallpaper (breadpaper) | Set wallpaper, drives the pywal-derived accent palette |
 | Bar (breadbar) | `breadbar/style.css` override, live-reloads on save |
-| Launcher (breadbox) | `breadbox/config.toml` — launcher contexts |
+| Launcher (breadbox) | `breadbox/config.toml`: launcher contexts |
 | Clipboard (breadclip) | breadclipd service control + "open history" |
-| Notes (breadpad) | `breadpad/breadpad.toml` — settings, model + ollama, reminders, calendar |
-| File Search (breadsearch) | `breadsearch/config.toml` — index/search/model + breadmill service |
-| Daemon (bread) | `breadd.toml` — daemon, lua, modules, adapters, events, notifications |
+| Notes (breadpad) | `breadpad/breadpad.toml`: settings, model + ollama, reminders, calendar |
+| File Search (breadsearch) | `breadsearch/config.toml`: index/search/model + breadmill service |
+| Daemon (bread) | `breadd.toml`: daemon, lua, modules, adapters, events, notifications |
 | Packages | `bakery` installed list + updates, pacman system update |
 | AUR | Search via `yay`; installing opens a terminal (AUR build scripts need review) |
 | Firmware | `fwupd` device list + updates |
-| Snapshots | `snapper` list (number / date / description); reboot to pick in GRUB (grub-btrfs); delete — **root (`@`) only** |
+| Snapshots | `snapper` list (number / date / description); reboot to pick in GRUB (grub-btrfs); delete: **root (`@`) only** |
 | Backup | restic of `$HOME` (`@home`) via Settings → Backup; snapper does not cover home |
 
 Source and build live in the [bos-settings](https://git.breadway.dev/Breadway/bos-settings)
@@ -278,7 +278,7 @@ repo, not here.
 Everything below is a separate bakery-distributed project with its own repo
 and release cadence, baked into `/usr/local` at ISO build time so a fresh
 install has them all with no network round-trip. Some ship more than one
-binary from a single package — that's noted where it applies. Most have a
+binary from a single package; that's noted where it applies. Most have a
 corresponding **bos-settings** panel; this table is about *using* the app
 directly.
 
@@ -286,10 +286,10 @@ directly.
 
 | Tool | Role | Launch |
 |------|------|--------|
-| `bread` / `breadd` | Reactive automation daemon — normalises hardware/compositor/power/network signals into events dispatched to Lua modules (`~/.config/bread/`). `bread-emit` is the fire-and-forget helper hooks/CLIs use; `bread-module-host` is the sandboxed out-of-process module runtime breadd spawns. Both extra bins are **optional** on the ISO until a stable bread release publishes them. | runs at login (`breadd.service`) |
-| `breadbar` | Top status bar: workspaces, clock, system stats, tray, **and** the notification daemon — one process, not two | runs at login |
+| `bread` / `breadd` | Reactive automation daemon: normalises hardware/compositor/power/network signals into events dispatched to Lua modules (`~/.config/bread/`). `bread-emit` is the fire-and-forget helper hooks/CLIs use; `bread-module-host` is the sandboxed out-of-process module runtime breadd spawns. Both extra bins are **optional** on the ISO until a stable bread release publishes them. | runs at login (`breadd.service`) |
+| `breadbar` | Top status bar: workspaces, clock, system stats, tray, **and** the notification daemon (one process, not two) | runs at login |
 | `breadbox` | Application launcher (fuzzy search, per-context results via `breadbox-sync`) | `SUPER+Space` |
-| `breadlock` | Idle lock screen. Also provides `breadgreet`, the login greeter hosted under `cage` via greetd — same project, two binaries, one visual identity from login to lock. **pacman**, not bakery. | `SUPER+L` (via `loginctl lock-session`, picked up by `hypridle`); `breadgreet` runs automatically at boot |
+| `breadlock` | Idle lock screen. Also provides `breadgreet`, the login greeter hosted under `cage` via greetd (same project, two binaries, one visual identity from login to lock). **pacman**, not bakery. | `SUPER+L` (via `loginctl lock-session`, picked up by `hypridle`); `breadgreet` runs automatically at boot |
 | `bread-theme` | The shared palette engine every bread app renders through: fixed dark base colors, with only the accent slots following the current wallpaper's pywal palette. `bread-theme generate` regenerates the stylesheet; hyprland.lua calls it automatically on wallpaper change. | invoked automatically, rarely run by hand |
 
 **Productivity**
@@ -297,25 +297,25 @@ directly.
 | Tool | Role | Launch |
 |------|------|--------|
 | `breadpad` | Quick-capture scratchpad/notes popup with AI classification and optional CalDAV calendar sync | `SUPER+U` |
-| `breadman` | The fuller notes manager view (browse/organize) — ships from the same `breadpad` package as a second binary | `SUPER+M` |
+| `breadman` | The fuller notes manager view (browse/organize); ships from the same `breadpad` package as a second binary | `SUPER+M` |
 | `breadclip` | Clipboard history. `breadclipd` is the background daemon that actually records history; `breadclip` is the GTK4 popup that browses it | `SUPER+V` / `SUPER+Shift+V` |
-| `breadsearch` | Semantic system-wide search (indexes files/notes, embeds locally — CPU/ROCm/CUDA backend configurable). `breadmill` is its indexing daemon. | via breadbox, or BOS Settings → File Search |
+| `breadsearch` | Semantic system-wide search (indexes files/notes, embeds locally; CPU/ROCm/CUDA backend configurable). `breadmill` is its indexing daemon. | via breadbox, or BOS Settings → File Search |
 | `breadhelp` | Onboarding + in-session help/cheatsheet. Content lives at `/usr/local/share/breadhelp/content` (bakery `content.tar.gz`, baked into the image). | `SUPER+/` |
 
 **System**
 
 | Tool | Role | Launch |
 |------|------|--------|
-| `breadcrumbs` | Location-aware Wi-Fi profile state machine, with optional Tailscale integration — switches network behavior based on which saved network you're on | CLI, or BOS Settings → Wi-Fi Profiles |
-| `breadpaper` | Wallpaper manager — sets the wallpaper via `awww`, generates the pywal accent palette from it, and reloads every bread-theme app | BOS Settings → Wallpaper |
-| `breadmon` | TUI monitor layout manager (resolution/position/scaling) — the interactive counterpart to BOS Settings' read-only Display panel | `breadmon` in a terminal |
+| `breadcrumbs` | Location-aware Wi-Fi profile state machine, with optional Tailscale integration: switches network behavior based on which saved network you're on | CLI, or BOS Settings → Wi-Fi Profiles |
+| `breadpaper` | Wallpaper manager: sets the wallpaper via `awww`, generates the pywal accent palette from it, and reloads every bread-theme app | BOS Settings → Wallpaper |
+| `breadmon` | TUI monitor layout manager (resolution/position/scaling); the interactive counterpart to BOS Settings' read-only Display panel | `breadmon` in a terminal |
 | `breadshot` | Screenshot utility wrapping `grim`/`slurp`/`wl-copy` with Hyprland-aware geometry (multi-monitor-safe region select) | `breadshot`, or `SUPER+Shift+S/C/P` |
 
 **Tooling**
 
 | Tool | Role | Launch |
 |------|------|--------|
-| `bakery` | CLI package manager for the whole ecosystem — install/update/list, tracks installed binaries + versions independently of pacman | `bakery` |
+| `bakery` | CLI package manager for the whole ecosystem: install/update/list, tracks installed binaries + versions independently of pacman | `bakery` |
 | `bos-settings` | Unified Tauri 2 + Svelte control panel: live system state + control (network, power, firewall, users, packages, firmware, AUR, snapshots) plus non-destructive config editing for every app above | `SUPER+,` |
 
 ## Keyboard shortcuts
@@ -349,7 +349,7 @@ cheatsheet in-session; first boot shows a short welcome (once).
 | `SUPER+Shift+[ / ]` | Move window to previous / next workspace |
 | `SUPER+scroll` | Cycle workspaces |
 | `SUPER+left/right-drag` | Move / resize window with the mouse |
-| Volume / brightness / play-pause / next / prev | Media keys — work even on the lock screen |
+| Volume / brightness / play-pause / next / prev | Media keys, work even on the lock screen |
 | Calculator key | Opens gnome-calculator |
 
 ## Known limitations
@@ -358,14 +358,14 @@ See [docs/hardware.md](docs/hardware.md) (GPUs, NVIDIA, recovery) and
 [docs/signed-repo.md](docs/signed-repo.md) (`[breadway]` stays unsigned
 until `dl.breadway.dev/arch` exists).
 
-- **GPUs**: ships the generic Mesa stack — AMD and Intel work out of the box.
+- **GPUs**: ships the generic Mesa stack; AMD and Intel work out of the box.
   NVIDIA is **unsupported** (no proprietary driver, no NVIDIA firmware). See
   [docs/hardware.md](docs/hardware.md).
 - **Virtual machines**: Hyprland needs GPU acceleration to be smooth. Use
   `virtio-vga-gl` + `-display gtk,gl=on` (virgl); plain software rendering is
   noticeably laggy.
 - **Wayland-first**: X11-only apps run through XWayland; a few may misbehave.
-- **Secure Boot**: self-signed only, via `sbctl` — BOS can't ship a
+- **Secure Boot**: self-signed only, via `sbctl`; BOS can't ship a
   Microsoft-signed shim (that needs going through Microsoft's own paid UEFI
   CA process). Post-install enrolls BOS's own keys automatically, but only
   when the firmware is already in Setup Mode (no vendor keys installed yet);
@@ -375,13 +375,13 @@ until `dl.breadway.dev/arch` exists).
   writes both an NVRAM entry and the removable `EFI/BOOT/BOOTX64.EFI` fallback
   either way.
 - **Disk encryption**: full-disk LUKS is available on the installer's "Erase
-  disk" page (Calamares' own checkbox) and on manually-created partitions —
+  disk" page (Calamares' own checkbox) and on manually-created partitions;
   BOS ships the matching `cryptsetup`/mkinitcpio/GRUB wiring so an encrypted
   install actually boots (LUKS1, since GRUB doesn't support LUKS2 + Argon2id).
 - **Snapshots assume btrfs**: the snapper/grub-btrfs tooling expects the default
   btrfs subvolume layout the installer creates. Recovery is the GRUB
-  snapshots submenu, not `snapper rollback` — [docs/hardware.md](docs/hardware.md).
-- **`[breadway]` signatures**: `SigLevel = Required` — the signed repo at
+  snapshots submenu, not `snapper rollback`; [docs/hardware.md](docs/hardware.md).
+- **`[breadway]` signatures**: `SigLevel = Required`; the signed repo at
   `dl.breadway.dev/arch` is live (db + every package `.sig`ned with the BOS
   release key). See [docs/signed-repo.md](docs/signed-repo.md).
 
@@ -400,7 +400,7 @@ Do **not** run `snapper rollback`. BOS GRUB pins `rootflags=subvol=@`, so
 a snapper-swapped default subvolume is not what the installed grub.cfg
 will boot next. Details: [docs/hardware.md](docs/hardware.md).
 
-A/B root swapping (SteamOS-style) is a **future** idea in DESIGN.md — it is
+A/B root swapping (SteamOS-style) is a **future** idea in DESIGN.md; it is
 not shipped.
 
 **The system won't boot (broken GRUB / lost EFI entry):**
@@ -421,7 +421,7 @@ not shipped.
    ```
 
 **Firmware shows “no boot device”:** select `EFI/BOOT/BOOTX64.EFI` from the
-firmware boot menu — the installer always writes that removable fallback.
+firmware boot menu; the installer always writes that removable fallback.
 
 ## Boot architecture notes
 
@@ -429,6 +429,6 @@ archiso keeps the kernel and initramfs outside the squashfs, so the installer
 stages them explicitly: a `shellprocess@kernel` step copies the kernel + ucode
 into the target `/boot` and writes a stock mkinitcpio preset before the native
 `initcpio` module builds the initramfs. GRUB is **not** installed by Calamares'
-`bootloader`/`grubcfg` modules (they leave the ESP empty in this layout) —
+`bootloader`/`grubcfg` modules (they leave the ESP empty in this layout);
 `post-install.sh` runs `grub-install` (NVRAM **and** `--removable`) +
 `grub-mkconfig` instead, which is the sequence verified to boot.

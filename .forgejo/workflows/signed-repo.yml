@@ -2,7 +2,7 @@ name: Publish signed [breadway] repo
 
 # Host job on the self-hosted runner (no container:) so it can write /srv/breadway-dl, same
 # as bakery releases. breadlock package.yml uses archlinux:latest and cannot
-# see host /srv — do not add container: here.
+# see host /srv; do not add container: here.
 #
 # Collects breadlock + the ISO AUR republishes from the Forgejo Arch
 # registry, detach-signs each .pkg.tar.zst, repo-add -s, publishes

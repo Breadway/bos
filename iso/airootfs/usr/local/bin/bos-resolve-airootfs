@@ -3,7 +3,7 @@
 # module runs, and leave a stable symlink for it to unpack from.
 #
 # archiso's own initcpio hook unmounts /run/archiso/bootmnt once copytoram has
-# copied the image to a tmpfs (/run/archiso/copytoram/airootfs.sfs) — and
+# copied the image to a tmpfs (/run/archiso/copytoram/airootfs.sfs), and
 # copytoram=auto self-enables on most real hardware (non-optical boot device,
 # image under 4 GiB, enough free RAM), not just when explicitly requested. A
 # Calamares unpackfs.conf source path hardcoded to /run/archiso/bootmnt/...

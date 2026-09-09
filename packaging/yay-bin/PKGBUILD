@@ -1,7 +1,7 @@
-# BOS in-house rebuild of yay-bin (AUR-only upstream — no AUR helper is in
+# BOS in-house rebuild of yay-bin (AUR-only upstream; no AUR helper is in
 # the official Arch repos, including yay itself). Republished to the
 # [breadway] repo so the ISO build can pull it via pacman (same pattern as
-# bibata-cursor-theme and calamares). Prebuilt release tarball — no build step.
+# bibata-cursor-theme and calamares). Prebuilt release tarball, no build step.
 # Upstream maintainer: Jguer <pkgbuilds at jguer.space>
 pkgname=yay-bin
 pkgver=13.0.1

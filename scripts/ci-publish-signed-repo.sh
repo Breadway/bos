@@ -4,7 +4,7 @@
 # under /srv/breadway-dl/arch/x86_64/ (https://dl.breadway.dev/arch/x86_64/).
 #
 # Does not change ISO SigLevel and does not write to the Forgejo Arch
-# registry — existing package.yml / packaging/*.yml PUTs stay as they are.
+# registry; existing package.yml / packaging/*.yml PUTs stay as they are.
 #
 # Required env:
 #   GPG_PRIVATE_KEY   armoured secret key (same secret as release-iso.yml)
@@ -126,7 +126,7 @@ sign_and_index_anywhere() {
   fi
   local rt
   rt="$(container_runtime)" || die \
-    "need host gpg+repo-add, or docker/podman to run archlinux:latest (no Forgejo container: — host must see /srv/breadway-dl)"
+    "need host gpg+repo-add, or docker/podman to run archlinux:latest (no Forgejo container: host must see /srv/breadway-dl)"
   # Host job + bind-mount, same reason bakery writes /srv without container:.
   # Run as the runner user: root-owned 0600 .sig files made chmod/nginx fail
   # (run 1050) and would block the next `rm -rf` of a previous tree.

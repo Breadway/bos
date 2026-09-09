@@ -1,4 +1,4 @@
--- breadhelp-suggest — nudge breadhelp's Home tab banner when a bread event
+-- breadhelp-suggest: nudge breadhelp's Home tab banner when a bread event
 -- suggests a relevant guide (e.g. a newly connected monitor -> breadmon
 -- setup). Auto-discovered by breadd. If breadhelp isn't already running,
 -- `--suggest <id>` launches it straight to Home with the banner focused; if
