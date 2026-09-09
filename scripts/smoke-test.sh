@@ -23,14 +23,14 @@ if command -v btrfs >/dev/null; then
     paths="$(btrfs subvolume list / 2>/dev/null || sudo -n btrfs subvolume list / 2>/dev/null)"
     paths="$(awk '{print $NF}' <<<"$paths")"
     if [ -z "$paths" ]; then
-        note "couldn't list subvolumes (need root) — skipping"
+        note "couldn't list subvolumes (need root): skipping"
     else
         for sv in @ @home @snapshots @log @cache; do
             if grep -qx "$sv" <<<"$paths"; then ok "subvolume $sv present"; else bad "subvolume $sv missing"; fi
         done
     fi
 else
-    note "btrfs not installed (not a btrfs root?) — skipping subvolume checks"
+    note "btrfs not installed (not a btrfs root?): skipping subvolume checks"
 fi
 
 echo "== snapshot tooling =="

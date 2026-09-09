@@ -8,9 +8,9 @@ name: Build and release ISO
 # (GitHub releases cannot host files larger than 2 GB).
 #
 # Required secrets:
-#   RELEASE_TOKEN    — Forgejo API token with write:repository scope
-#   MIRROR_TOKEN     — GitHub personal access token with repo scope
-#   GPG_PRIVATE_KEY  — armoured secret key for the dedicated "BOS Release Signing"
+#   RELEASE_TOKEN    : Forgejo API token with write:repository scope
+#   MIRROR_TOKEN     : GitHub personal access token with repo scope
+#   GPG_PRIVATE_KEY  : armoured secret key for the dedicated "BOS Release Signing"
 #                      identity (releases@breadway.dev); public half is committed
 #                      at KEYS.asc. Signs ISO SHA256SUMS here; the same secret
 #                      signs the [breadway] repo in signed-repo.yml. No passphrase
@@ -135,7 +135,7 @@ jobs:
                 \"tag_name\": \"${TAG}\",
                 \"name\": \"BOS ${TAG}\",
                 \"prerelease\": false,
-                \"body\": \"ISO image attached below. Verify with SHA256SUMS + SHA256SUMS.asc (signed by the BOS Release Signing key — see KEYS.asc in the repo).\\n\\nSee the [README](https://github.com/Breadway/bos#testing-in-a-vm) for VM testing instructions.\"
+                \"body\": \"ISO image attached below. Verify with SHA256SUMS + SHA256SUMS.asc (signed by the BOS Release Signing key, see KEYS.asc in the repo).\\n\\nSee the [README](https://github.com/Breadway/bos#testing-in-a-vm) for VM testing instructions.\"
               }")
             RELEASE_ID=$(echo "${RELEASE}" | python3 -c "import json,sys; print(json.load(sys.stdin)['id'])")
           fi
@@ -180,7 +180,7 @@ jobs:
           VERSION="${{ steps.vars.outputs.version }}"
           FORGEJO_URL="https://git.breadway.dev/${GITHUB_REPOSITORY}/releases/tag/${TAG}"
 
-          printf '**Download ISO:** %s\n\nGitHub releases cannot host files >2 GB; the `bos-%s-x86_64.iso` (~2.5 GB), SHA256SUMS, and SHA256SUMS.asc (signed by the BOS Release Signing key — public half at [KEYS.asc](https://github.com/Breadway/bos/blob/main/KEYS.asc)) are all on Forgejo.\n\nSee the [README](https://github.com/Breadway/bos#testing-in-a-vm) for VM testing instructions.' \
+          printf '**Download ISO:** %s\n\nGitHub releases cannot host files >2 GB; the `bos-%s-x86_64.iso` (~2.5 GB), SHA256SUMS, and SHA256SUMS.asc (signed by the BOS Release Signing key, public half at [KEYS.asc](https://github.com/Breadway/bos/blob/main/KEYS.asc)) are all on Forgejo.\n\nSee the [README](https://github.com/Breadway/bos#testing-in-a-vm) for VM testing instructions.' \
             "${FORGEJO_URL}" "${VERSION}" > /tmp/gh-release-notes.md
 
           gh release create "${TAG}" \
@@ -189,7 +189,7 @@ jobs:
             --notes-file /tmp/gh-release-notes.md \
           || echo "skip: GitHub release failed (MIRROR_TOKEN historically broken)"
 
-      # `stable` is a marker branch only — CI fast-forwards it to whatever
+      # `stable` is a marker branch only; CI fast-forwards it to whatever
       # commit the latest real (non-RC) release tag points at. Never merged
       # into by hand, so unlike the old dev/beta/main model it can't rot:
       # nobody has to remember to move it, a bot always does. Lets you

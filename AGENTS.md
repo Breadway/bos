@@ -1,6 +1,6 @@
-# AGENTS.md — Repo hygiene
+# AGENTS.md: Repo hygiene
 
-Scope: this file covers *repo hygiene* — branching, remotes, CI, cleanup. It is not project documentation. Product shape is [README.md](README.md).
+Scope: this file covers *repo hygiene*: branching, remotes, CI, cleanup. It is not project documentation. Product shape is [README.md](README.md).
 
 ## What this repo is
 
@@ -14,17 +14,17 @@ Live skel is `iso/airootfs/etc/skel`. `dotfiles/` is stale.
 
 Single-trunk:
 
-- `main` — integration + release trunk. Land work via short-lived
+- `main`: integration + release trunk. Land work via short-lived
   `feature/*` / `fix/*` branches, then merge.
-- `stable` — marker only. CI fast-forwards it to the latest non-RC release
+- `stable`: marker only. CI fast-forwards it to the latest non-RC release
   tag. Never merge into it by hand.
 
 There is no `dev` integration branch.
 
 ## Remotes
 
-- `origin` — Forgejo (`ssh://git@100.66.238.26:2222/Breadway/bos.git`) — authoritative.
-- `github` — GitHub (`https://github.com/Breadway/bos.git`) mirror. Push
+- `origin`: Forgejo (`ssh://git@100.66.238.26:2222/Breadway/bos.git`), authoritative.
+- `github`: GitHub (`https://github.com/Breadway/bos.git`) mirror. Push
   origin (and github when mirroring).
 
 `origin` is **not** GitHub.
@@ -32,10 +32,10 @@ There is no `dev` integration branch.
 ## CI
 
 - `.forgejo/workflows/*.yml` trigger on `push: tags: ['v*']` (or
-  path-scoped packaging triggers) — ordinary pushes to `main` run nothing
+  path-scoped packaging triggers); ordinary pushes to `main` run nothing
   except those path filters. Tag a release to build the ISO.
 - `stable` is moved by the release-iso workflow, not by humans.
-- No build/lint/test CI runs on ordinary commits or PRs — test locally
+- No build/lint/test CI runs on ordinary commits or PRs; test locally
   before merging to `main`.
 
 ## Cleanup
@@ -46,10 +46,10 @@ There is no `dev` integration branch.
 
 ## Don't
 
-- Don't embed credentials in remote URLs — SSH or a credential helper only.
+- Don't embed credentials in remote URLs; SSH or a credential helper only.
 - Don't leave the default branch pointed at a feature branch on
   GitHub/Forgejo.
-- Don't bake an ISO (`sudo ./build-local.sh`) unless asked — lockfile/docs
+- Don't bake an ISO (`sudo ./build-local.sh`) unless asked; lockfile/docs
   work does not require it.
 - Don't tell users to `snapper rollback` blindly; GRUB pins
   `rootflags=subvol=@`. Recovery is grub-btrfs reboot. Bakery desktop

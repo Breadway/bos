@@ -1,9 +1,9 @@
--- scripts/ui/settings.lua — loads settings.json over hardcoded defaults and
+-- scripts/ui/settings.lua: loads settings.json over hardcoded defaults and
 -- applies via hl.config(). Failsafe in two layers:
 --   1. every leaf value is type-checked against its default individually, so
 --      one bad field (wrong type, typo) falls back to just that field, not
 --      the whole file;
---   2. the actual hl.config() application is pcall'd — if Hyprland itself
+--   2. the actual hl.config() application is pcall'd; if Hyprland itself
 --      rejects a well-typed-but-semantically-bad value, we fall back to
 --      re-applying pure hardcoded defaults, so the session always comes up
 --      with a normal, usable layout instead of erroring out mid-config-load.

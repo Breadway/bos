@@ -19,7 +19,7 @@ kept for reference and for re-verifying after key rotation.
 ## Stand up `dl.breadway.dev/arch`
 
 CI job: **Publish signed `[breadway]` repo**
-(`.forgejo/workflows/signed-repo.yml`), host runner — **no
+(`.forgejo/workflows/signed-repo.yml`), host runner: **no
 container**, so it can write `/srv/breadway-dl` like bakery releases.
 breadlock `package.yml` uses `archlinux:latest` and cannot see host `/srv`.
 
@@ -121,7 +121,7 @@ On a throwaway Arch box (not the ISO tree):
 sudo pacman-key --add KEYS.asc
 sudo pacman-key --lsign-key 56203B86A110695AE7F310934AF3323D678EB5E2
 
-# Temporary /etc/pacman.conf snippet — do not commit this to the ISO:
+# Temporary /etc/pacman.conf snippet; do not commit this to the ISO:
 # [breadway]
 # SigLevel = Required
 # Server = https://dl.breadway.dev/arch/$arch
@@ -166,4 +166,4 @@ sudo pacman -S --noconfirm yay-bin   # installs with no key prompt
 ```
 
 Then run the installer and, on the installed system, `sudo pacman -Sy`
-again — the target keyring must already trust `56203B86…`.
+again; the target keyring must already trust `56203B86…`.

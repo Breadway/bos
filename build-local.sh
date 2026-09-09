@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Local BOS ISO build for hermes (native Arch — no container needed).
+# Local BOS ISO build for hermes (native Arch, no container needed).
 #
 # Builds straight from the working tree in ./iso. Two speedups vs the CI
 # container build:
 #   * runs natively (hermes is Arch; CI needs a dockerised Arch)
-#   * no 2 GB scp afterwards — the ISO lands here, where we test it
+#   * no 2 GB scp afterwards: the ISO lands here, where we test it
 #
 #   FAST_BUILD=1   zstd squashfs instead of xz -9e: compresses many times
 #                  faster at the cost of a slightly larger image. Dev only.
@@ -14,7 +14,7 @@
 set -euo pipefail
 
 REPO="$(cd "$(dirname "$0")" && pwd)"
-# WORK defaults to /tmp, but on hermes /tmp is a 16 GB tmpfs — a full xz build
+# WORK defaults to /tmp, but on hermes /tmp is a 16 GB tmpfs; a full xz build
 # (uncompressed rootfs + squashfs + work copies) can exhaust it mid-build. Allow
 # pointing it at the NVMe instead: WORK=/home/.../bos-work sudo ./build-local.sh
 WORK="${WORK:-/tmp/bos-work}"
@@ -26,7 +26,7 @@ STAGE=/tmp/bos-iso-stage
 rm -rf "$STAGE" && cp -a "$REPO/iso" "$STAGE"
 
 # [breadway] now points at the signed public repo https://dl.breadway.dev/arch
-# (SigLevel = Required) — no Forgejo-registry URL rewrite needed anymore.
+# (SigLevel = Required), no Forgejo-registry URL rewrite needed anymore.
 #
 # Trust the [breadway] repo key in *this* build host's pacman keyring so
 # `pacstrap` can verify [breadway] packages while assembling the airootfs.
@@ -49,7 +49,7 @@ grep airootfs_image_tool_options "$STAGE/profiledef.sh"
 # --- Bake this machine's bakery-installed bread ecosystem into the image ------
 # The bread desktop apps are bakery-managed (release binaries from
 # dl.breadway.dev / GitHub), not pacman. bakery needs DNS at install time,
-# which the live/installed image doesn't have — so instead of running bakery
+# which the live/installed image doesn't have, so instead of running bakery
 # on the target, we copy the binaries + bakery manifest this builder already
 # has. Builder home stays user-layout (~/.local); the *image* is system-prefix
 # /usr/local so apps live on @ and ride snapper/grub-btrfs snapshots.
@@ -169,7 +169,7 @@ PY
 # bakery fetches its package index from dl.breadway.dev (then a GitHub fallback),
 # but falls back to a cached index when both are unreachable. With no network/DNS
 # in the live/installed image, even `bakery list` errors unless that cache exists,
-# so bake it in too — then bakery works fully offline (list/info from cache;
+# so bake it in too, then bakery works fully offline (list/info from cache;
 # install/update still need network, as expected).
 if [[ ! -f "$BAKERY_CACHE/index.json" ]]; then
   echo "ERROR: bakery index cache missing: $BAKERY_CACHE/index.json" >&2
@@ -332,7 +332,7 @@ for unit in sorted(units):
 PY
 )
 if [[ ! " ${SERVICE_UNITS[*]} " =~ " breadd.service " ]]; then
-  echo "ERROR: breadd.service not in the bakery unit list — refusing to bake" >&2
+  echo "ERROR: breadd.service not in the bakery unit list: refusing to bake" >&2
   exit 1
 fi
 rewrite_exec_start() {
@@ -434,7 +434,7 @@ echo "  wrote $preset_dest"
 # in profiledef.sh's file_permissions array or they ship non-executable and the
 # exec-once launches fail with "permission denied". Inject a 0755 entry for each
 # baked bakery binary right after the array opener (bos-* bins are already
-# listed; keeps the bakery list in one place — the lockfile).
+# listed; keeps the bakery list in one place, the lockfile).
 perm_file="$(mktemp)"
 for b in "${BREAD_BINS[@]}"; do
   printf '    ["/usr/local/bin/%s"]="0:0:755"\n' "$b" >>"$perm_file"
@@ -445,7 +445,7 @@ echo "=== file_permissions after injection ==="; grep -A40 '^file_permissions=('
 
 # Pin one timestamp for the whole build. Without this, mkarchiso derives the
 # boot-config UUID (%ARCHISO_UUID%) when it starts and the iso9660 volume UUID
-# when xorriso writes the image at the end — on a slow build these diverge by
+# when xorriso writes the image at the end; on a slow build these diverge by
 # the build duration, so the initramfs searches /dev/disk/by-uuid/<wrong-uuid>,
 # never finds the medium, and drops to a recovery shell. Fixing the epoch makes
 # both derive from the same instant (and makes builds reproducible).

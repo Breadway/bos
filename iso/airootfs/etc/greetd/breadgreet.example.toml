@@ -21,6 +21,6 @@ family = "Varela Round"
 wayland_dirs = ["/usr/share/wayland-sessions"]
 xsessions_dirs = ["/usr/share/xsessions"]
 # .desktop file stem (without extension) to auto-select. Falls back to the
-# first entry found if this isn't present. v1 has no session picker UI —
+# first entry found if this isn't present. v1 has no session picker UI:
 # BOS only ships one session (Hyprland) today.
 default = "hyprland"

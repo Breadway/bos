@@ -1,7 +1,7 @@
--- scripts/display/monitors.lua — loads monitors.json (an array of monitor
+-- scripts/display/monitors.lua: loads monitors.json (an array of monitor
 -- rules) and applies each via hl.monitor(). Failsafe: an empty or entirely
--- invalid monitors.json is treated the same as a missing one — falling back
--- to the single generic wildcard rule — because applying *zero* monitor
+-- invalid monitors.json is treated the same as a missing one, falling back
+-- to the single generic wildcard rule, because applying *zero* monitor
 -- rules risks an unconfigured/black-screen session, unlike settings.json or
 -- autostart.json where "apply nothing extra" is a legitimate user choice.
 local json = dofile(os.getenv("HOME") .. "/.config/hypr/scripts/lib/json.lua")
@@ -49,7 +49,7 @@ for _, m in ipairs(monitors) do
 end
 
 -- Every entry failed to apply (e.g. Hyprland rejected values that still
--- passed our type checks) — guarantee a usable session rather than leaving
+-- passed our type checks): guarantee a usable session rather than leaving
 -- every monitor unconfigured.
 if not applied_any then
     pcall(hl.monitor, DEFAULT_MONITORS[1])

@@ -2,7 +2,7 @@
 # Create the unprivileged BOS live user and its Hyprland session.
 #
 # Hyprland refuses to run as root (superuser-privileges check), so the live
-# session must run as a normal user. Calamares — which does need root — is
+# session must run as a normal user. Calamares (which does need root) is
 # launched onto the user's Wayland socket via passwordless sudo (see
 # bos-launch-calamares). Runs once at boot, before the tty1 autologin getty.
 set -e
@@ -16,7 +16,7 @@ if [[ -x /usr/local/bin/bos-enable-bakery-user-units ]]; then
 fi
 
 # useradd -m copies /etc/skel, so the live user gets the real BOS desktop
-# (hypr + bread config + bakery state) — proper live-media functionality,
+# (hypr + bread config + bakery state): proper live-media functionality,
 # not an installer kiosk. Binaries are /usr/local, not skel.
 if ! id liveuser &>/dev/null; then
     useradd -m -s /usr/bin/zsh liveuser
@@ -29,7 +29,7 @@ fi
 # Layer the installer onto the live desktop: auto-launch it, and bind
 # Super+Shift+I to relaunch it after it's been closed. Appended (in Lua) to
 # the skel hyprland.lua native config so the full desktop stays intact.
-# NOTE: plain SUPER+I is float-toggle in the skel config — don't reuse it
+# NOTE: plain SUPER+I is float-toggle in the skel config; don't reuse it
 # here, it was tried once and silently double-bound both actions.
 HYPR=/home/liveuser/.config/hypr/hyprland.lua
 install -d -m 0755 -o liveuser -g liveuser /home/liveuser/.config/hypr
@@ -45,7 +45,7 @@ fi
 # Start Hyprland on tty1 login; capture output and fall back to a shell so a
 # failed compositor start is visible rather than a blank looping cursor.
 # liveuser's shell is zsh (see useradd above), which never sources
-# .bash_profile — this must be .zprofile (zsh's login-shell hook) or it never
+# .bash_profile: this must be .zprofile (zsh's login-shell hook) or it never
 # runs at all and the live session boots to a bare console.
 cat >/home/liveuser/.zprofile <<'EOF'
 if [[ "$(tty)" == /dev/tty1 ]] && [[ -z "$WAYLAND_DISPLAY" ]]; then

@@ -11,7 +11,7 @@ buildmodes=('iso')
 # systemd-boot can only read files from the ESP it was launched from, so
 # mkarchiso's _make_bootmode_uefi.systemd-boot copies vmlinuz + initramfs
 # INTO the FAT efiboot.img on top of the copy already on ISO9660 (~244 MiB
-# duplicate). uefi.grub's ESP is only EFI + shell*.efi — GRUB reads ISO9660
+# duplicate). uefi.grub's ESP is only EFI + shell*.efi; GRUB reads ISO9660
 # directly. iso/grub/{grub,loopback}.cfg are already BOS-branded.
 bootmodes=('bios.syslinux' 'uefi.grub')
 arch="x86_64"

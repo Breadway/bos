@@ -1,4 +1,4 @@
--- scripts/input/binds.lua — loads binds.json into { default_mods, bindings }.
+-- scripts/input/binds.lua: loads binds.json into { default_mods, bindings }.
 -- Simpler than the multi-keyboard-layout version some personal configs use
 -- (BOS ships one fixed layout, no per-layout bind switching needed): just
 -- reads `default_mods` + the flat `bindings` array.
