@@ -5,12 +5,12 @@
 # in the squashfs, so the rootfs that unpackfs lays down has an empty /boot.
 # The kernel must be present before Calamares' `initcpio` module runs mkinitcpio
 # (the stock linux.preset points ALL_kver at /boot/vmlinuz-linux) and before the
-# `bootloader` module runs grub — otherwise the installed system is unbootable.
+# `bootloader` module runs grub; otherwise the installed system is unbootable.
 #
 # Runs in the LIVE environment (Calamares shellprocess, dontChroot); the
 # target root mount point is passed as $1.
 #
-# The kernel is read from /usr/lib/modules/$(uname -r)/vmlinuz — part of the
+# The kernel is read from /usr/lib/modules/$(uname -r)/vmlinuz, part of the
 # live squashfs itself (the linux package always installs it there), not from
 # the ISO's separate arch/boot/x86_64/ dir under /run/archiso/bootmnt. That
 # mount gets torn down by archiso's own copytoram handling, which self-enables
@@ -31,7 +31,7 @@ elif [ -f "$SRC_BOOT/vmlinuz-linux" ]; then
     echo "WARN: $SRC_KERNEL missing, falling back to $SRC_BOOT"
     cp -f "$SRC_BOOT/vmlinuz-linux" "$ROOT/boot/vmlinuz-linux"
 else
-    echo "ERROR: no kernel image found (checked $SRC_KERNEL and $SRC_BOOT/vmlinuz-linux) — install would be unbootable" >&2
+    echo "ERROR: no kernel image found (checked $SRC_KERNEL and $SRC_BOOT/vmlinuz-linux): install would be unbootable" >&2
     exit 1
 fi
 

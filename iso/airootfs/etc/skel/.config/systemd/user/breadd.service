@@ -3,7 +3,7 @@ Description=Bread Runtime Daemon
 
 [Service]
 Type=simple
-# System-prefix bakery install — same path for every account.
+# System-prefix bakery install; same path for every account.
 ExecStart=/usr/local/bin/breadd
 Restart=on-failure
 RestartSec=2

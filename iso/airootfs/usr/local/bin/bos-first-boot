@@ -1,8 +1,8 @@
 #!/bin/bash
-# bos-first-boot — one-shot hardware probe after the first graphical login.
+# bos-first-boot: one-shot hardware probe after the first graphical login.
 #
 # Detects NVIDIA (offer file + notify; never auto-installs a driver), a VM
-# without GL, and HiDPI (hint file only — never rewrites monitors.json).
+# without GL, and HiDPI (hint file only; never rewrites monitors.json).
 #
 # Non-fatal: missing tools, notify-send, or hyprctl must not block login.
 # Guarded with `command -v`. Flag: ~/.local/state/bos/first-boot-done.
@@ -14,7 +14,7 @@ NVIDIA_OFFER="$STATE_DIR/nvidia-offer.json"
 HIDPI_HINT="$STATE_DIR/hidpi-hint.json"
 VM_HINT="$STATE_DIR/vm-gl-hint.json"
 
-# Never run on the live/installer session — only on an installed system.
+# Never run on the live/installer session; only on an installed system.
 [[ "$(id -un)" == "liveuser" ]] && exit 0
 
 # Already probed this home.
@@ -43,7 +43,7 @@ fi
 mkdir -p "$STATE_DIR" 2>/dev/null || exit 0
 
 # ---------------------------------------------------------------------------
-# NVIDIA — hardware only. Do not install nvidia / nvidia-utils.
+# NVIDIA: hardware only. Do not install nvidia / nvidia-utils.
 # ---------------------------------------------------------------------------
 nvidia_present=0
 nvidia_pci=""
@@ -68,7 +68,7 @@ if [[ "$nvidia_present" == "1" ]]; then
   "offered_at": "$(iso_now)"
 }
 EOF
-    notify "NVIDIA GPU detected. The proprietary driver is not on the ISO — open BOS Settings later. Nothing was installed." normal
+    notify "NVIDIA GPU detected. The proprietary driver is not on the ISO; open BOS Settings later. Nothing was installed." normal
 fi
 
 # ---------------------------------------------------------------------------
@@ -98,7 +98,7 @@ EOF
 fi
 
 # ---------------------------------------------------------------------------
-# HiDPI — hint file for bos-settings. Do not rewrite monitors.json.
+# HiDPI: hint file for bos-settings. Do not rewrite monitors.json.
 # scale > 1 from hyprctl, or computed DPI >= 140.
 # ---------------------------------------------------------------------------
 if command -v hyprctl >/dev/null 2>&1 && command -v python3 >/dev/null 2>&1; then
@@ -182,6 +182,6 @@ PY
     fi
 fi
 
-# Mark done even if every probe was a no-op — do not nag next login.
+# Mark done even if every probe was a no-op; do not nag next login.
 printf '%s\n' "$(iso_now)" >"$FLAG" 2>/dev/null || true
 exit 0

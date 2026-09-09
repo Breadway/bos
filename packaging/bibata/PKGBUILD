@@ -1,7 +1,7 @@
 # BOS in-house rebuild of bibata-cursor-theme-bin (AUR-only upstream).
 # Bibata is the BOS default cursor theme; the AUR package is republished to the
 # [breadway] repo so the ISO build can pull it via pacman (same pattern as
-# zen-browser-bin and calamares). Prebuilt release tarball — no build step.
+# zen-browser-bin and calamares). Prebuilt release tarball, no build step.
 # Upstream maintainer: Mark Wagie <mark dot wagie at proton dot me>
 pkgname=bibata-cursor-theme-bin
 pkgver=2.0.7

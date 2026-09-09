@@ -1,6 +1,6 @@
 name: Build and publish yay-bin
 
-# yay (and every AUR helper) is AUR-only — not in Arch's official repos — so
+# yay (and every AUR helper) is AUR-only, not in Arch's official repos, so
 # BOS maintains an in-house PKGBUILD and publishes the built package to the
 # [breadway] repo, same as bibata-cursor-theme and calamares. Prebuilt
 # release tarball, no build step.

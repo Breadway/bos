@@ -16,7 +16,7 @@
     padding: 3px 0;
 }
 
-/* Logo at the top of the sidebar — keep aspect ratio, don't stretch */
+/* Logo at the top of the sidebar: keep aspect ratio, don't stretch */
 #logoApp {
     qproperty-alignment: AlignCenter;
     margin: 14px 8px;
