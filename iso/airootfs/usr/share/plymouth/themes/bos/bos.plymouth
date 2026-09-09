@@ -1,6 +1,6 @@
 [Plymouth Theme]
 Name=BOS
-Description=Bread Operating System boot splash — logo, spinner, status
+Description=Bread Operating System boot splash: logo, spinner, status
 ModuleName=script
 
 [script]
