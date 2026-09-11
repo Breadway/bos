@@ -51,9 +51,14 @@ cat >/home/liveuser/.zprofile <<'EOF'
 if [[ "$(tty)" == /dev/tty1 ]] && [[ -z "$WAYLAND_DISPLAY" ]]; then
     export WLR_RENDERER_ALLOW_SOFTWARE=1
     export WLR_NO_HARDWARE_CURSORS=1
+    # Wipe the autologin banner (plymouth quit --retain-splash left the splash
+    # up, then agetty/login printed over it) so the gap before Hyprland paints
+    # is blank, not console text.
+    printf '\033c' >/dev/tty1 2>/dev/null || true
     # Log to a user-writable path (/var/log is root-only; redirecting there
     # would fail and silently keep the compositor from ever launching).
     start-hyprland &>/tmp/hyprland-live.log
+    printf '\033c' >/dev/tty1 2>/dev/null || true
     echo "Hyprland exited (rc=$?). Log: /tmp/hyprland-live.log"
     exec zsh -i
 fi
