@@ -40,12 +40,37 @@ hardening keeps ISO builds reproducible.
 
 ### bread-ecosystem binary version changes (since v0.6.1)
 
-- `bakery`: 0.7.3 -> 0.7.4
-- `bread-theme`: 0.7.3 -> 0.7.4
-- `bread-emit`, `bread-module-host`: moved from optional to required
-  (bread 0.8.0 ships both)
-- `breadsearch`, `breadmill`: dropped from the default install (still
-  installable with `bakery install breadsearch`)
+Checked directly against `iso/bread-lockfile.toml` as it stood at the
+`v0.6.1` tag, not just the previous bread-ecosystem tag, so this is
+what actually shipped last time, not an assumption. Every pin not
+listed below is unchanged since v0.6.1: `bread` 0.8.0, `breadbar`
+0.3.2, `breadbox` 0.3.2, `breadcrumbs` 2.1.8, `breadpad` 0.5.2,
+`breadpaper` 0.1.13, `breadmon` 0.1.4, `breadclip` 0.2.3, `breadshot`
+0.1.3, `bos-settings` 0.8.1, `breadhelp` 0.2.5.
+
+- **`bread-theme` 0.7.3 -> 0.7.4** (real functional change). Adds
+  per-output palettes and window-scoped theme binding: each
+  Hyprland/GDK connector can now have its own palette and stylesheet
+  under `$XDG_RUNTIME_DIR/bread/{palettes,themes}/`, and GTK apps bind
+  a widget-level CSS provider so two windows in the same process can
+  follow different wallpapers. This is the change that makes
+  per-monitor theming possible in the first place, and it is also
+  what exposed the bos-settings accent bug tracked as BSET-10 (the
+  Tauri settings window still fell back to the old single global
+  palette on outputs it could not name).
+- **`bakery` 0.7.3 -> 0.7.4** (no functional change). `bakery` and
+  `bread-theme` share one workspace version in the bread-ecosystem
+  monorepo (`version.workspace = true`), so bakery's pin ticks up in
+  lockstep with any workspace release even when, as here, only
+  `bread-theme` actually changed.
+- **`bread-emit`, `bread-module-host`**: version unchanged (`bread`
+  stays 0.8.0). Moved from `optional_bins` to `required_bins` in BOS's
+  own lockfile; bread 0.8.0 already shipped both, the ISO just was not
+  requiring them yet.
+- **`breadsearch`, `breadmill`**: version unchanged upstream (still
+  0.3.2 / bundled). Dropped from BOS's `required_bins` entirely, so
+  neither is installed by default; still one command away with
+  `bakery install breadsearch`.
 
 ### BOS changes (ISO / installer / packaging / CI)
 
