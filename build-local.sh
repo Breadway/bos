@@ -25,6 +25,27 @@ OUT="${OUT:-$REPO/out}"
 STAGE=/tmp/bos-iso-stage
 rm -rf "$STAGE" && cp -a "$REPO/iso" "$STAGE"
 
+# LOCAL_REPO=/path/to/dir splices a local pacman repo in front of [breadway],
+# so an uncommitted breadlock (or AUR-republish) build can be tested in the
+# ISO without tagging a release and running the signed-repo publish. The dir
+# must hold a repo-add'd <name>.db (+ the .pkg.tar.zst files). Dev only —
+# packages are pulled SigLevel = Never. Give the package a high pkgrel so
+# pacman prefers it over the published [breadway] copy.
+if [ -n "${LOCAL_REPO:-}" ]; then
+  LOCAL_DB="$(find "$LOCAL_REPO" -maxdepth 1 -name '*.db' | head -1)"
+  [ -n "$LOCAL_DB" ] || { echo "ERROR: LOCAL_REPO=$LOCAL_REPO has no *.db (run repo-add)" >&2; exit 1; }
+  LOCAL_NAME="$(basename "${LOCAL_DB%.db}")"
+  echo "=== splicing local repo [$LOCAL_NAME] ($LOCAL_REPO) ahead of [breadway] ==="
+  python3 - "$STAGE/pacman.conf" "$LOCAL_NAME" "$LOCAL_REPO" <<'PY'
+import sys
+conf, name, path = sys.argv[1:]
+text = open(conf).read()
+block = f"[{name}]\nSigLevel = Never\nServer = file://{path}\n\n"
+i = text.index("[breadway]")
+open(conf, "w").write(text[:i] + block + text[i:])
+PY
+fi
+
 # [breadway] now points at the signed public repo https://dl.breadway.dev/arch
 # (SigLevel = Required), no Forgejo-registry URL rewrite needed anymore.
 #
@@ -103,6 +124,15 @@ LAPTOP_HOME="${LAPTOP_HOME:-$(getent passwd "${SUDO_USER:-$USER}" | cut -d: -f6)
 BAKERY_BIN="$LAPTOP_HOME/.local/bin"
 BAKERY_STATE="$LAPTOP_HOME/.local/state/bakery"
 BAKERY_CACHE="$LAPTOP_HOME/.cache/bakery"
+# bakery keeps a per-track index cache: index.json (stable), index-beta.json,
+# index-dev.json. Bake the one that matches the track this build's
+# installed.json follows — baking the stale stable cache into a dev-track
+# image leaves `bakery list/info` reporting ancient versions offline.
+BAKERY_TRACK="$(python3 -c "import json,sys; print(json.load(open(sys.argv[1])).get('track','stable'))" "$BAKERY_STATE/installed.json" 2>/dev/null || echo stable)"
+case "$BAKERY_TRACK" in
+  stable) BAKERY_INDEX="$BAKERY_CACHE/index.json" ;;
+  *)      BAKERY_INDEX="$BAKERY_CACHE/index-${BAKERY_TRACK}.json" ;;
+esac
 BAKERY_SHARE="$LAPTOP_HOME/.local/share"
 AIROOTFS="$STAGE/airootfs"
 IMAGE_BIN="$AIROOTFS/usr/local/bin"
@@ -141,6 +171,19 @@ for b in "${BREAD_BINS[@]}"; do
   install -m 0755 "$BAKERY_BIN/$b" "$IMAGE_BIN/$b"
 done
 
+# BAKE_OVERRIDE=/path/to/dir drops locally-built binaries over the baked
+# bakery ones — for testing an unmerged bread-app fix in the ISO without
+# clobbering ~/.local/bin or waiting for a dev-track publish. Only files whose
+# name is already in the lockfile bin set are copied. Dev only.
+if [ -n "${BAKE_OVERRIDE:-}" ]; then
+  for b in "${BREAD_BINS[@]}"; do
+    if [ -x "$BAKE_OVERRIDE/$b" ]; then
+      echo "=== BAKE_OVERRIDE: $b <- $BAKE_OVERRIDE/$b ==="
+      install -m 0755 "$BAKE_OVERRIDE/$b" "$IMAGE_BIN/$b"
+    fi
+  done
+fi
+
 # Drop packages that are not in the lockfile (breadcast/breadarr must not
 # appear installed when their binaries were deliberately left out).
 python3 - "$BAKERY_STATE/installed.json" "$SKEL/.local/state/bakery/installed.json" "${BREAD_BINS[@]}" <<'PY'
@@ -171,11 +214,13 @@ PY
 # in the live/installed image, even `bakery list` errors unless that cache exists,
 # so bake it in too, then bakery works fully offline (list/info from cache;
 # install/update still need network, as expected).
-if [[ ! -f "$BAKERY_CACHE/index.json" ]]; then
-  echo "ERROR: bakery index cache missing: $BAKERY_CACHE/index.json" >&2
+if [[ ! -f "$BAKERY_INDEX" ]]; then
+  echo "ERROR: bakery index cache missing: $BAKERY_INDEX (track $BAKERY_TRACK) — run 'bakery list' once to populate it" >&2
   exit 1
 fi
-install -m 0644 "$BAKERY_CACHE/index.json" "$SKEL/.cache/bakery/index.json"
+echo "baking bakery index for track '$BAKERY_TRACK' from $BAKERY_INDEX"
+install -m 0644 "$BAKERY_INDEX" "$SKEL/.cache/bakery/index.json"
+[[ "$BAKERY_TRACK" != stable ]] && install -m 0644 "$BAKERY_INDEX" "$SKEL/.cache/bakery/index-${BAKERY_TRACK}.json"
 echo "baked bins: $(ls "$IMAGE_BIN")"
 
 # --- Bake bakery data dirs the apps need offline ------------------------------
@@ -196,7 +241,7 @@ install -d -m 0755 "$IMAGE_SHARE"
 cp -a "$BAKERY_SHARE/breadhelp" "$IMAGE_SHARE/breadhelp"
 echo "  baked $IMAGE_SHARE/breadhelp/content"
 
-python3 - "$BAKERY_CACHE/index.json" "$BAKERY_SHARE" "$IMAGE_SHARE" "${BREAD_BINS[@]}" <<'PY'
+python3 - "$BAKERY_INDEX" "$BAKERY_SHARE" "$IMAGE_SHARE" "${BREAD_BINS[@]}" <<'PY'
 import json, os, shutil, sys
 index_path, src_share, dest_share, *bins = sys.argv[1:]
 wanted = set(bins)
@@ -272,7 +317,7 @@ install -d -m 0755 "$IMAGE_UNITS"
 # so every lockfile daemon is baked and can be --global enabled.
 mapfile -t SERVICE_UNITS < <(python3 - \
   "$SKEL/.local/state/bakery/installed.json" \
-  "$BAKERY_CACHE/index.json" \
+  "$BAKERY_INDEX" \
   "$SYSTEMD_USER_DIR" \
   "${BREAD_BINS[@]}" <<'PY'
 import json, os, sys
