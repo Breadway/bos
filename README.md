@@ -21,11 +21,13 @@ wiring up dotfiles, no per-tool bakery installs.
   them), `breadbar` (status bar + notifications), `breadbox` (launcher),
   `breadclip` (clipboard history), `breadcrumbs` (Wi-Fi profiles),
   `breadpad`/`breadman` (notes), `breadpaper` (wallpaper + theme),
-  `breadsearch` (system search), `breadmon` (monitor layout TUI),
+  `breadmon` (monitor layout TUI),
   `breadshot` (screenshots), `bread-theme` (the shared palette engine),
   `breadhelp` (onboarding + cheatsheet), `bos-settings` (control panel),
   and the `bakery` package manager. Most of those apps are zero-config on
-  first boot; breadcrumbs networks are user-filled after install. See
+  first boot; breadcrumbs networks are user-filled after install.
+  Semantic file search (`breadsearch` / `breadmill`) is not installed by
+  default: add it with `bakery install breadsearch`. See
   [below](#the-bread-ecosystem).
 - **breadlock** (lock screen + greeter) is the one bread\* app that ships as
   **pacman**, not bakery; it needs a root-owned PAM service.
@@ -61,9 +63,10 @@ wiring up dotfiles, no per-tool bakery installs.
 
 | Channel | What |
 |---------|------|
-| **Bakery, required** | `bakery`, `bread` / `breadd`, `breadbar`, `breadbox` / `breadbox-sync`, `breadcrumbs`, `breadpad` / `breadman`, `breadpaper`, `bread-theme`, `breadmon`, `breadsearch` / `breadmill`, `breadclip` / `breadclipd`, `breadshot`, `bos-settings`, `breadhelp` (+ breadhelp content under `/usr/local/share/breadhelp/`) |
+| **Bakery, required** | `bakery`, `bread` / `breadd`, `breadbar`, `breadbox` / `breadbox-sync`, `breadcrumbs`, `breadpad` / `breadman`, `breadpaper`, `bread-theme`, `breadmon`, `breadclip` / `breadclipd`, `breadshot`, `bos-settings`, `breadhelp` (+ breadhelp content under `/usr/local/share/breadhelp/`) |
 | **Bakery, optional** | `bread-emit`, `bread-module-host`: baked when the verified stable index publishes them; skipped (not a failed bake) until bread ships them |
 | **pacman (`packages.x86_64`)** | `breadlock`, plus the rest of the distro (Hyprland, Calamares, Zen, …) |
+| **Not shipped (installable)** | `breadsearch` / `breadmill` (semantic file search): not baked, add it after install with `bakery install breadsearch` |
 | **Not shipped** | `breadcast`, `breadarr` |
 
 The baked name list is [`iso/bread-lockfile.toml`](iso/bread-lockfile.toml)
@@ -222,8 +225,9 @@ sudo passwd alice
   config, bakery `installed.json` + index cache) so first login has a
   session. Skel does not contain bakery binaries.
 - **Daemons**: `breadd`, `breadbox-sync`, `breadclipd`, `breadcrumbs`,
-  `breadmill`, … are `systemctl --global enable`'d at install (and on
+  … are `systemctl --global enable`'d at install (and on
   the live image). Creating a user starts them on first login.
+  (`bakery install breadsearch` adds and enables `breadmill.service` too.)
 - **Login**: greetd/breadgreet lists any local user with a login shell
   (`SHELL=/usr/bin/zsh` is the useradd default).
 
@@ -243,7 +247,7 @@ binary the builder has.
 It aims for GNOME-Settings-style parity: live system state and control, so
 day-to-day administration doesn't require a terminal. Bread-ecosystem
 configs are edited **non-destructively** (comments and unmodeled keys stay).
-Panels with a daemon (bread, breadbox, breadcrumbs, breadsearch, breadclip)
+Panels with a daemon (bread, breadbox, breadcrumbs, breadclip)
 also get live systemd status + Start/Stop/Restart/Logs.
 
 | Panel | What it does |
@@ -262,7 +266,7 @@ also get live systemd status + Start/Stop/Restart/Logs.
 | Launcher (breadbox) | `breadbox/config.toml`: launcher contexts |
 | Clipboard (breadclip) | breadclipd service control + "open history" |
 | Notes (breadpad) | `breadpad/breadpad.toml`: settings, model + ollama, reminders, calendar |
-| File Search (breadsearch) | `breadsearch/config.toml`: index/search/model + breadmill service |
+| File Search (breadsearch) | `breadsearch/config.toml`: index/search/model + breadmill service (needs `bakery install breadsearch`; not shipped by default) |
 | Daemon (bread) | `breadd.toml`: daemon, lua, modules, adapters, events, notifications |
 | Packages | `bakery` installed list + updates, pacman system update |
 | AUR | Search via `yay`; installing opens a terminal (AUR build scripts need review) |
@@ -299,7 +303,7 @@ directly.
 | `breadpad` | Quick-capture scratchpad/notes popup with AI classification and optional CalDAV calendar sync | `SUPER+U` |
 | `breadman` | The fuller notes manager view (browse/organize); ships from the same `breadpad` package as a second binary | `SUPER+M` |
 | `breadclip` | Clipboard history. `breadclipd` is the background daemon that actually records history; `breadclip` is the GTK4 popup that browses it | `SUPER+V` / `SUPER+Shift+V` |
-| `breadsearch` | Semantic system-wide search (indexes files/notes, embeds locally; CPU/ROCm/CUDA backend configurable). `breadmill` is its indexing daemon. | via breadbox, or BOS Settings → File Search |
+| `breadsearch` | Semantic system-wide search (indexes files/notes, embeds locally; CPU/ROCm/CUDA backend configurable). `breadmill` is its indexing daemon. Not installed by default: `bakery install breadsearch`. | via breadbox, or BOS Settings → File Search |
 | `breadhelp` | Onboarding + in-session help/cheatsheet. Content lives at `/usr/local/share/breadhelp/content` (bakery `content.tar.gz`, baked into the image). | `SUPER+/` |
 
 **System**

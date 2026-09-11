@@ -8,7 +8,7 @@ subdirectory's `.forgejo/workflows/<name>.yml` (in this repo) for how each
 one publishes on a push to `packaging/<name>/**`.
 
 Every bread-ecosystem app (bakery, bread, breadbar, breadbox, breadcrumbs,
-breadpad, breadpaper, breadmon, breadsearch, breadclip, breadshot,
+breadpad, breadpaper, breadmon, breadclip, breadshot,
 bos-settings, breadhelp, ...) is bakery-managed, not pacman-packaged; see
 `iso/bread-lockfile.toml` (`required_bins` + `optional_bins`), which
 `build-local.sh` uses as the name list when baking this machine's bakery

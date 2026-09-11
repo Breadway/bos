@@ -448,7 +448,7 @@ fi
 # systemd --user units in /usr/lib/systemd/user are not enabled for new
 # accounts unless enabled --global (or the user enables them). Do that here
 # so a later `useradd -m` starts breadd / breadbox-sync / breadclipd /
-# breadcrumbs / breadmill on first login. Safe if the helper is missing.
+# breadcrumbs on first login. Safe if the helper is missing.
 if [[ -x /usr/local/bin/bos-enable-bakery-user-units ]]; then
     /usr/local/bin/bos-enable-bakery-user-units \
         || echo "WARN: enabling bakery user units globally failed"

@@ -10,7 +10,6 @@
     { "command": "bash -c 'command -v breadlock >/dev/null && exec breadlock listen'", "label": "Lock command bus (breadlock listen)", "enabled": true },
     { "command": "bash -c 'command -v breadbox >/dev/null && exec breadbox listen'", "label": "Launcher command bus (breadbox listen)", "enabled": true },
     { "command": "bash -c 'command -v breadhelp >/dev/null && exec breadhelp listen'", "label": "Help command bus (breadhelp listen)", "enabled": true },
-    { "command": "bash -c 'command -v breadsearch >/dev/null && exec breadsearch listen'", "label": "Search command bus (breadsearch listen)", "enabled": true },
     { "command": "bash -c 'command -v breadpad >/dev/null && exec breadpad listen'", "label": "Capture command bus (breadpad listen)", "enabled": true }
   ]
 }
