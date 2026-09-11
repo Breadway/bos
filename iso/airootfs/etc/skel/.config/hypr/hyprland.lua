@@ -222,7 +222,6 @@ hl.on("hyprland.start", function()
             "bash -c 'command -v breadlock >/dev/null && exec breadlock listen'",
             "bash -c 'command -v breadbox >/dev/null && exec breadbox listen'",
             "bash -c 'command -v breadhelp >/dev/null && exec breadhelp listen'",
-            "bash -c 'command -v breadsearch >/dev/null && exec breadsearch listen'",
             "bash -c 'command -v breadpad >/dev/null && exec breadpad listen'",
         }
     end

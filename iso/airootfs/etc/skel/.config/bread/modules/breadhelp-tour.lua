@@ -5,7 +5,7 @@
 -- id, so this module doesn't need to know whether a tour is even running.
 --
 -- `bread.window.opened`/`bread.workspace.changed` are already normalized by
--- breadd. Layer-surface opens/closes (breadbox, breadclip, breadsearch) are
+-- breadd. Layer-surface opens/closes (breadbox, breadclip) are
 -- NOT normalized; `openlayer`/`closelayer` fall through to the generic
 -- `bread.hyprland.event` topic, which `on_raw` filters by raw kind.
 --

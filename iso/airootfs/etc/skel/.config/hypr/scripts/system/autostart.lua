@@ -25,7 +25,6 @@ local DEFAULT_EXTRA = {
     { command = "bash -c 'command -v breadlock >/dev/null && exec breadlock listen'", enabled = true },
     { command = "bash -c 'command -v breadbox >/dev/null && exec breadbox listen'", enabled = true },
     { command = "bash -c 'command -v breadhelp >/dev/null && exec breadhelp listen'", enabled = true },
-    { command = "bash -c 'command -v breadsearch >/dev/null && exec breadsearch listen'", enabled = true },
     { command = "bash -c 'command -v breadpad >/dev/null && exec breadpad listen'", enabled = true },
 }
 
