@@ -22,55 +22,122 @@ tag (with date) at tag time.
 
 ### What's different and why
 
-Breadsearch (semantic file search) is no longer installed by default.
-It was a memory-heavy background service most people never used; it
-is still one command away with `bakery install breadsearch`. Boot and
-session switching are visibly smoother: the splash screen now stays
-on screen until the desktop actually paints, instead of flashing to a
-bare text console, most noticeable right after boot and when greetd
-restarts the login screen. The `[breadway]` package repository is now
-cryptographically signed and verified end to end, closing a
-supply-chain gap where the ISO trusted an unsigned build artifact
-tree. A GTK4 rendering bug that could make the whole shell (launcher,
-clipboard popup, bar, settings) render solid black on virtual
-machines and some real hardware is fixed, and shell blur and
-transparency effects now work for the first time. Docking a laptop
-into external monitors is zero-config. Assorted packaging and CI
-hardening keeps ISO builds reproducible.
+This is a large release: every bakery-channel binary BOS ships got a
+real promotion pass (see below), not just a version bump. The
+headline changes: breadsearch is no longer installed by default
+(still one command away with `bakery install breadsearch`); the
+`[breadway]` package repository is cryptographically signed end to
+end; boot and session switching no longer flash to a bare text
+console; the shell (breadbar, breadbox, bread-theme) got a large
+declarative theming overhaul, including a new vertical/side-docked
+bar layout, several new built-in themes, and an embedded launcher
+capsule in the bar itself; per-monitor theming is now correct
+end-to-end, including a bos-settings bug where the accent color could
+silently fall back to a stale global palette. Three real security
+hardenings landed: breadcrumbs no longer leaks Wi-Fi passwords onto
+argv/shell history, bread's module-host canonicalizes path grants and
+execs without a shell, and bos-settings hardens privileged command
+operands against injection. breadman (the note-taking app,
+`breadpad` package) was rebuilt from GTK4 onto Tauri 2 + Svelte.
+breadclip gained real clipboard-history pinning, config, and a fix
+for the bug where pasting from history had nowhere to paste into.
+breadcrumbs moved from shelling out to `nmcli` to talking to
+NetworkManager directly over D-Bus, plus a feature batch (captive
+portal detection, scheduled profiles, exit-node failover, 802.1x,
+per-network DNS). Docking a laptop into external monitors is now
+zero-config.
 
 ### bread-ecosystem binary version changes (since v0.6.1)
 
 Checked directly against `iso/bread-lockfile.toml` as it stood at the
-`v0.6.1` tag, not just the previous bread-ecosystem tag, so this is
-what actually shipped last time, not an assumption. Every pin not
-listed below is unchanged since v0.6.1: `bread` 0.8.0, `breadbar`
-0.3.2, `breadbox` 0.3.2, `breadcrumbs` 2.1.8, `breadpad` 0.5.2,
-`breadpaper` 0.1.13, `breadmon` 0.1.4, `breadclip` 0.2.3, `breadshot`
-0.1.3, `bos-settings` 0.8.1, `breadhelp` 0.2.5.
+`v0.6.1` tag (not just the previous bread-ecosystem tag), and against
+the live `dl.breadway.dev/index.json` for the versions that actually
+shipped, so this reflects what was really promoted to stable, not
+what merely got tagged. `breadshot` is unchanged since v0.6.1
+(0.1.3); every other pinned binary moved.
 
-- **`bread-theme` 0.7.3 -> 0.7.4** (real functional change). Adds
-  per-output palettes and window-scoped theme binding: each
-  Hyprland/GDK connector can now have its own palette and stylesheet
-  under `$XDG_RUNTIME_DIR/bread/{palettes,themes}/`, and GTK apps bind
-  a widget-level CSS provider so two windows in the same process can
-  follow different wallpapers. This is the change that makes
-  per-monitor theming possible in the first place, and it is also
-  what exposed the bos-settings accent bug tracked as BSET-10 (the
-  Tauri settings window still fell back to the old single global
-  palette on outputs it could not name).
-- **`bakery` 0.7.3 -> 0.7.4** (no functional change). `bakery` and
-  `bread-theme` share one workspace version in the bread-ecosystem
-  monorepo (`version.workspace = true`), so bakery's pin ticks up in
-  lockstep with any workspace release even when, as here, only
-  `bread-theme` actually changed.
-- **`bread-emit`, `bread-module-host`**: version unchanged (`bread`
-  stays 0.8.0). Moved from `optional_bins` to `required_bins` in BOS's
-  own lockfile; bread 0.8.0 already shipped both, the ISO just was not
-  requiring them yet.
-- **`breadsearch`, `breadmill`**: version unchanged upstream (still
-  0.3.2 / bundled). Dropped from BOS's `required_bins` entirely, so
-  neither is installed by default; still one command away with
-  `bakery install breadsearch`.
+- **`bread-theme` 0.7.3 -> 0.7.12.** The largest single change in this
+  release. Per-output palettes and window-scoped theme binding (each
+  Hyprland/GDK connector can have its own palette and stylesheet, and
+  GTK apps bind a widget-level CSS provider so two windows in one
+  process can follow different wallpapers) is what exposed the
+  bos-settings accent bug below. On top of that: a declarative shell
+  theme manifest system (`[[bar.widget]]`, `[panel]`/`[osd]` tables,
+  chrome tokens, typography threading), Hyprland layer-rule generation
+  from the theme, vertical/horizontal bar orientation support, four
+  new built-in themes (Loaf, Daylight, glass-workbench, spotlight),
+  a `bread_theme::write_wal_cache` API so consumers stop hand-rolling
+  pywal's cache format, and a string of per-monitor correctness fixes
+  (bind lifecycle races, hot-reload watching the wrong path, chip
+  height token, control-panel radius).
+- **`bakery` 0.7.3 -> 0.7.12.** Shares a workspace version with
+  `bread-theme` in the bread-ecosystem monorepo, so most of this bump
+  is lockstep, not bakery-specific. One real fix: a failed
+  data-archive download no longer aborts the whole install.
+- **`bread` 0.8.0 -> 0.9.0.** New `bread init` Hyprland compositor
+  layer-rule integration. Security fix: `bread-module-host`
+  canonicalizes path grants and execs without a shell. `bread-emit`
+  and `bread-module-host` are now packaged on all tracks and, in BOS's
+  own lockfile, moved from optional to required (bread 0.8.0 already
+  shipped both, BOS just was not requiring them).
+- **`breadbar` 0.3.3 -> 0.4.0.** Vertical (side-docked) bar layout.
+  Consumes the new shell-theme manifest system end to end. Security
+  fix: stopped leaking the Wi-Fi password onto `nmcli`/breadcrumbs
+  argv. An embedded launcher capsule (phases 6b/6c: keyboard open,
+  query modes, search-state geometry). Notification/OSD polish
+  (click-through-except-buttons, dismiss button, entrance/exit
+  animations, no more focus stealing) and several workspace-pill and
+  chip animation fixes. Fixed a subprocess zombie leak on self-restart.
+- **`breadbox` 0.3.3 -> 0.4.0.** Adopted the shared `bread-launcher`
+  crate for matching/ranking/rows instead of its own copy. Fixed the
+  launcher overlay painting opaque instead of transparent. Theme is
+  now re-read per popup open instead of once per process. Added a
+  tracing subscriber for observability.
+- **`breadcrumbs` 2.1.8 -> 2.2.0.** Talks to NetworkManager directly
+  over D-Bus instead of shelling out to `nmcli`, tested against an
+  in-process D-Bus fake. Security fix: the Wi-Fi PSK no longer reaches
+  argv or shell history on `add` (fed to `nmcli --ask` on stdin
+  instead) or on the new password-free `join <ssid>` command. Feature
+  batch: captive-portal detection, scheduled profiles, exit-node
+  failover, 802.1x, per-network DNS. Config/state files gained file
+  locking so `watch` no longer races a concurrent one-shot command.
+  A single D-Bus device's hiccup no longer aborts the whole scan.
+- **`breadclip` 0.2.4 -> 0.3.0.** History DB hardening plus a proper
+  user config and pin/primary schema. Watch-driven capture with a
+  flock-based singleton and a copied-secret ignore-rule heuristic,
+  now user-configurable. Fixed the bug where the history popup stole
+  keyboard focus and never gave it back, so pasting from history had
+  nowhere to go; fixed the overlay painting opaque instead of
+  transparent.
+- **`bos-settings` 0.8.2 -> 0.9.0.** Security fix: privileged command
+  operands are now hardened against injection. Settings redesign to
+  hub-based navigation, plus per-monitor wallpaper and a shell-theme
+  picker, canonical accent mapping with live per-output/monitor-move
+  updates, and the window titlebar dropped. Fixed the bug where the
+  accent color fell back to a stale global pywal palette when Tauri
+  could not name the current monitor by its Hyprland connector
+  (the same per-output theming change in bread-theme above is what
+  exposed this). `cargo fmt --check` is now gated in CI.
+- **`breadpad` 0.5.3 -> 0.6.0.** breadman (the quick-capture note app)
+  was rebuilt from a bare GTK4 window onto Tauri 2 + Svelte, and both
+  `breadpad` and `breadman` windows now bind per-output app CSS
+  instead of one shared stylesheet.
+- **`breadpaper` 0.1.14 -> 0.1.15.** The global `~/.cache/wal/colors.json`
+  and shared `theme.css` now sync from the focused output on a
+  per-monitor wallpaper set, and per-output theme state is
+  deduplicated and pruned, so non-multi-monitor-aware consumers stop
+  drifting from what is actually on screen.
+- **`breadmon` 0.1.4 -> 0.1.5.** Unsaved edits are now guarded against
+  a background refresh or a failed apply overwriting them, and undo
+  steps are coalesced.
+- **`breadhelp` 0.2.6 -> 0.2.7.** Help copy now matches BOS's live
+  keybinds and reflects breadsearch being opt-in (semantic search).
+  The help window is skipped on a silent every-login autostart.
+- **`bread-emit`, `bread-module-host`**: see the `bread` entry above,
+  version unchanged, requirement status changed.
+- **`breadsearch`, `breadmill`**: version unchanged upstream. Dropped
+  from BOS's `required_bins` entirely, so neither installs by
+  default; still one command away with `bakery install breadsearch`.
 
 ### BOS changes (ISO / installer / packaging / CI)
 
@@ -82,7 +149,7 @@ listed below is unchanged since v0.6.1: `bread` 0.8.0, `breadbar`
   `plymouth-quit` now retains the last splash frame instead of
   clearing the framebuffer, `getty@tty1` is masked so a greetd
   restart cannot flash a login prompt, and the live/session scripts
-  blank tty1 around the Hyprland handoff. (#13, pending merge)
+  blank tty1 around the Hyprland handoff. (#13)
 - Flipped the `[breadway]` pacman repository to the signed,
   GPG-verified `dl.breadway.dev/arch` endpoint; the ISO, the live
   medium, and Calamares installs all trust the repo key instead of
@@ -107,3 +174,12 @@ listed below is unchanged since v0.6.1: `bread` 0.8.0, `breadbar`
   of root (fixes an unreadable-signature publish failure), don't fail
   signed-repo publish on a signature chmod, and scrub the internal
   runner hostname from public workflow files.
+
+### Known issues at release time
+
+- The self-hosted CI runner's release-track workflows for several
+  repos were found to have a real concurrency bug (a fixed, non-`mktemp`
+  temp path gets wiped by a concurrent job's cleanup) during this
+  release's promotion pass; tracked as ECO-28, not yet fixed upstream.
+  Does not affect what shipped, since every promotion in this release
+  was individually verified live before being pinned here.
