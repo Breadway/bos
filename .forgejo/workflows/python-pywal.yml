@@ -6,6 +6,8 @@ name: Build and publish python-pywal
 # pattern as calamares / bibata / powerlevel10k / yay-bin.
 on:
   push:
+    # Without branches:, tag pushes also match this path filter.
+    branches: ['**']
     paths:
       - 'packaging/python-pywal/**'
   workflow_dispatch:

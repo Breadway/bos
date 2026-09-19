@@ -5,6 +5,8 @@ name: Build and publish bibata-cursor-theme
 # It's the prebuilt -bin variant, so no build deps beyond base-devel.
 on:
   push:
+    # Without branches:, tag pushes also match this path filter.
+    branches: ['**']
     paths:
       - 'packaging/bibata/**'
   workflow_dispatch:

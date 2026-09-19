@@ -57,6 +57,8 @@ BREADWAY_KEY_FPR="56203B86A110695AE7F310934AF3323D678EB5E2"
 BREADWAY_KEY_SRC="$REPO/iso/airootfs/etc/pacman.d/breadway-repo.asc"
 if ! pacman-key --list-keys "$BREADWAY_KEY_FPR" &>/dev/null; then
   echo "=== trusting [breadway] repo key ($BREADWAY_KEY_FPR) in the host pacman keyring ==="
+  # Fresh containers (CI archlinux:latest) have no master key; --lsign-key needs one.
+  pacman-key --init
   pacman-key --add "$BREADWAY_KEY_SRC"
   pacman-key --lsign-key "$BREADWAY_KEY_FPR"
 fi
