@@ -4,6 +4,8 @@ name: Build and publish calamares
 # in-house PKGBUILD and publishes the built package to the [breadway] repo.
 on:
   push:
+    # Without branches:, tag pushes also match this path filter.
+    branches: ['**']
     paths:
       - 'packaging/calamares/**'
   workflow_dispatch:
