@@ -18,7 +18,9 @@ Updating this file is part of the BOS release process: refresh the
 `[Unreleased]` section as work lands, then rename it to the release
 tag (with date) at tag time.
 
-## [Unreleased] - targeting 0.6.2
+## [Unreleased]
+
+## [0.6.2] - 2026-09-19
 
 ### What's different and why
 
