@@ -164,6 +164,11 @@ what merely got tagged. `breadshot` is unchanged since v0.6.1
   on real hardware. Wired up the previously-unread shell layer-rule
   JSON (blur, ignore-alpha, per-namespace motion) that bread-theme
   had been generating but BOS never applied.
+- Fixed the live ISO's plymouth splash never rendering on UEFI boots: the
+  GRUB menu entries were missing `splash` on the kernel command line, so
+  plymouthd silently fell back to text mode while the boot service still
+  reported success. Added the same `quiet splash` parameter set already
+  used on the BIOS/syslinux boot path. (#17)
 - Added an external-monitors bread module for zero-config docking.
 - Post-install audit sweep: resolve the target user's UID after
   `liveuser` is deleted so Snapper and skel target the right account,
