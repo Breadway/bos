@@ -34,9 +34,14 @@ jobs:
             "https://git.breadway.dev/${GITHUB_REPOSITORY}.git" /home/builder/src
           chown -R builder:builder /home/builder/src
           su builder -c "cd /home/builder/src/packaging/calamares && makepkg -f --noconfirm --nocheck"
-          PKG=$(find /home/builder/src/packaging/calamares -name '*.pkg.tar.zst' | head -1)
-          curl -fsS -X PUT \
+          PKG=$(find /home/builder/src/packaging/calamares -name '*.pkg.tar.zst' ! -name '*-debug-*' | head -1)
+          code=$(curl -sS -o /tmp/pkg-upload.body -w "%{http_code}" -X PUT \
             -H "Authorization: token ${PUBLISH_TOKEN}" \
             -H "Content-Type: application/octet-stream" \
             --data-binary "@${PKG}" \
-            "https://git.breadway.dev/api/packages/Breadway/arch/os"
+            "https://git.breadway.dev/api/packages/Breadway/arch/os")
+          case "$code" in
+            200|201|204) echo "published ${PKG} ($code)" ;;
+            409) echo "already in registry: ${PKG}" ;;
+            *) echo "upload failed HTTP ${code}"; cat /tmp/pkg-upload.body; exit 1 ;;
+          esac
