@@ -41,6 +41,12 @@ jobs:
     steps:
       - name: Install build dependencies
         run: |
+          # Fresh archlinux:latest has no pacman master key. --init before
+          # pacman -Syu so the keyring hook can lsign, and so build-local.sh
+          # can --lsign-key the [breadway] repo key. Kept in the workflow (not
+          # only in build-local.sh) so workflow_dispatch from a later main can
+          # rebuild an older tag whose build-local.sh does not init yet.
+          pacman-key --init
           # grub is required by profiledef.sh bootmodes=('uefi.grub'):
           # mkarchiso validates grub-install on the *builder*, not the image.
           # archiso pulls syslinux/squashfs-tools/libisoburn; it does not pull grub.

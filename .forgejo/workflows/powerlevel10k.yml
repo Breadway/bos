@@ -5,6 +5,8 @@ name: Build and publish powerlevel10k
 # Builds gitstatus + libgit2 from source, so it needs cmake + zsh beyond base-devel.
 on:
   push:
+    # Without branches:, tag pushes also match this path filter.
+    branches: ['**']
     paths:
       - 'packaging/powerlevel10k/**'
   workflow_dispatch:
