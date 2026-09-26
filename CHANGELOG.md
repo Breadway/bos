@@ -22,10 +22,15 @@ tag (with date) at tag time.
 
 - Skel: the curated default palette moved from
   `.cache/wal/colors.json` to `.cache/bread/palette.json`; `.zshrc` now
-  imports `.cache/bread/sequences` instead of `.cache/wal/sequences`.
-  `python-pywal` dropped from `iso/packages.x86_64`, its AUR republish
-  packaging/CI workflow, and the signed `[breadway]` repo publish script,
-  now that bread-theme extracts palettes natively.
+  imports `.cache/bread/sequences` instead of `.cache/wal/sequences`
+  (honouring `$XDG_CACHE_HOME` if set). `python-pywal` dropped from
+  `iso/packages.x86_64`, its AUR republish packaging/CI workflow, and the
+  signed `[breadway]` repo publish script, now that bread-theme extracts
+  palettes natively.
+- Skel: added `.config/breadpaper/current.json` seeding the `"*"` output
+  to the default background, so `breadpaper get` (and bos-settings'
+  Wallpaper page) has something to read on a fresh install now that
+  `get()` no longer falls back to pywal's `~/.cache/wal/wal`.
 
 ## [0.6.2] - 2026-09-19
 
