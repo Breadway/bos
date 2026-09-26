@@ -97,6 +97,8 @@ export PATH="$HOME/.local/bin:$PATH"
 
 # Import bread-theme's terminal colour sequences (drives the terminal colours
 # from the current palette; written by bread-theme whenever it changes).
-if [ -f "$HOME/.cache/bread/sequences" ]; then
-    cat "$HOME/.cache/bread/sequences"
+_bread_cache_home="${XDG_CACHE_HOME:-$HOME/.cache}"
+if [ -f "$_bread_cache_home/bread/sequences" ]; then
+    cat "$_bread_cache_home/bread/sequences"
 fi
+unset _bread_cache_home
