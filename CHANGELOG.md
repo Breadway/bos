@@ -20,6 +20,13 @@ tag (with date) at tag time.
 
 ## [Unreleased]
 
+- Skel: the curated default palette moved from
+  `.cache/wal/colors.json` to `.cache/bread/palette.json`; `.zshrc` now
+  imports `.cache/bread/sequences` instead of `.cache/wal/sequences`.
+  `python-pywal` dropped from `iso/packages.x86_64`, its AUR republish
+  packaging/CI workflow, and the signed `[breadway]` repo publish script,
+  now that bread-theme extracts palettes natively.
+
 ## [0.6.2] - 2026-09-19
 
 ### What's different and why

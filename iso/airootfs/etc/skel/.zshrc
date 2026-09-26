@@ -1,4 +1,4 @@
-# BOS default zsh config: Powerlevel10k prompt + plugins + pywal palette.
+# BOS default zsh config: Powerlevel10k prompt + plugins + bread-theme palette.
 #
 # Mirrors the BOS dev shell, but sources plugins from the distro packages
 # (/usr/share/zsh/...) instead of oh-my-zsh, so there's no framework to manage.
@@ -95,7 +95,8 @@ export PATH="$HOME/.local/bin:$PATH"
 # Powerlevel10k prompt configuration.
 [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
 
-# Import pywal colour palette (drives the terminal colours from the wallpaper).
-if [ -f "$HOME/.cache/wal/sequences" ]; then
-    cat "$HOME/.cache/wal/sequences"
+# Import bread-theme's terminal colour sequences (drives the terminal colours
+# from the current palette; written by bread-theme whenever it changes).
+if [ -f "$HOME/.cache/bread/sequences" ]; then
+    cat "$HOME/.cache/bread/sequences"
 fi
