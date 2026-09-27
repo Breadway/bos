@@ -27,6 +27,29 @@ tag (with date) at tag time.
   `iso/packages.x86_64`, its AUR republish packaging/CI workflow, and the
   signed `[breadway]` repo publish script, now that bread-theme extracts
   palettes natively.
+- **Upgrade note for existing installs**: the two changes above only affect
+  `skel`, the template new user accounts are created from; an existing
+  account's own `~/.zshrc` and `~/.cache/wal/` are not touched by a BOS
+  package upgrade. If your `.zshrc` predates this change it still does
+  `cat ~/.cache/wal/sequences 2>/dev/null` on every new shell: that file is
+  no longer written by anything (breadpaper's native extractor writes
+  `~/.cache/bread/sequences` instead), so new terminals stop getting live
+  OSC colour sequences on wallpaper change until you edit `.zshrc` by hand
+  to `cat ~/.cache/bread/sequences 2>/dev/null` (or `$XDG_CACHE_HOME` if
+  you set one), matching skel's new line. `python-pywal` itself is not
+  removed from an existing install either: it becomes an orphan package
+  once nothing depends on it, visible via `pacman -Qtdq` and removable
+  with `sudo pacman -Rns python-pywal` if you no longer use it directly.
+  BOS has no post-upgrade hook mechanism today that could rewrite a user's
+  `.zshrc` safely (bakery only exposes a package's own `post_install`,
+  which runs the same on every install and has no concept of "this is an
+  upgrade of a file the user may have since customised"); a real fix would
+  need a one-time, opt-in migration step, e.g. `bos-upgrade-hook` invoked
+  from a pacman `post_upgrade` action on the meta-package that only edits
+  `.zshrc` if it still contains the exact stock `~/.cache/wal/sequences`
+  line (skip silently otherwise, so a customised file is never touched),
+  logging what it changed. Not implemented here: flagged for a follow-up
+  issue rather than added invasively as part of this change.
 - Skel: added `.config/breadpaper/current.json` seeding the `"*"` output
   to the default background, so `breadpaper get` (and bos-settings'
   Wallpaper page) has something to read on a fresh install now that
