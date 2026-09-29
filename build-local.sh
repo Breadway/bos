@@ -25,6 +25,14 @@ OUT="${OUT:-$REPO/out}"
 STAGE=/tmp/bos-iso-stage
 rm -rf "$STAGE" && cp -a "$REPO/iso" "$STAGE"
 
+# Keep the build's repository trust separate from the host's pacman keyring.
+# mkarchiso uses this staged config for package operations, so the same GPGDir
+# is used while preparing the build and while assembling the airootfs.
+BUILD_GPG_DIR="$STAGE/pacman-gnupg"
+sed -i "/^\[options\]$/a GPGDir = $BUILD_GPG_DIR" "$STAGE/pacman.conf"
+install -d -m 0700 "$BUILD_GPG_DIR"
+trap 'rm -rf "$BUILD_GPG_DIR"' EXIT
+
 # LOCAL_REPO=/path/to/dir splices a local pacman repo in front of [breadway],
 # so an uncommitted breadlock (or AUR-republish) build can be tested in the
 # ISO without tagging a release and running the signed-repo publish. The dir
@@ -49,18 +57,20 @@ fi
 # [breadway] now points at the signed public repo https://dl.breadway.dev/arch
 # (SigLevel = Required), no Forgejo-registry URL rewrite needed anymore.
 #
-# Trust the [breadway] repo key in *this* build host's pacman keyring so
-# `pacstrap` can verify [breadway] packages while assembling the airootfs.
+# Populate this build's temporary pacman keyring with Arch's trusted keys and
+# the [breadway] repo key so `pacstrap` can verify both repositories while
+# assembling the airootfs.
 # The same key is baked into the image at etc/pacman.d/breadway-repo.asc and
 # re-trusted on the live medium / installed target (calamares/post-install.sh).
 BREADWAY_KEY_FPR="56203B86A110695AE7F310934AF3323D678EB5E2"
 BREADWAY_KEY_SRC="$REPO/iso/airootfs/etc/pacman.d/breadway-repo.asc"
-if ! pacman-key --list-keys "$BREADWAY_KEY_FPR" &>/dev/null; then
-  echo "=== trusting [breadway] repo key ($BREADWAY_KEY_FPR) in the host pacman keyring ==="
+if ! pacman-key --config "$STAGE/pacman.conf" --list-keys "$BREADWAY_KEY_FPR" &>/dev/null; then
+  echo "=== trusting [breadway] repo key ($BREADWAY_KEY_FPR) in the temporary build keyring ==="
   # Fresh containers (CI archlinux:latest) have no master key; --lsign-key needs one.
-  pacman-key --init
-  pacman-key --add "$BREADWAY_KEY_SRC"
-  pacman-key --lsign-key "$BREADWAY_KEY_FPR"
+  pacman-key --config "$STAGE/pacman.conf" --init
+  pacman-key --config "$STAGE/pacman.conf" --populate archlinux
+  pacman-key --config "$STAGE/pacman.conf" --add "$BREADWAY_KEY_SRC"
+  pacman-key --config "$STAGE/pacman.conf" --lsign-key "$BREADWAY_KEY_FPR"
 fi
 
 if [ "${FAST_BUILD:-0}" = "1" ]; then
