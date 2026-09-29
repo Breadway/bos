@@ -17,6 +17,18 @@ set -uo pipefail
 ROOT_SRC="$(findmnt -no SOURCE / | sed 's/\[.*\]//')"
 if [[ "$(lsblk -no TYPE "$ROOT_SRC" 2>/dev/null)" == "crypt" ]]; then
     ROOT_ENCRYPTED=1
+    ROOT_MAPPER="$(basename -- "$ROOT_SRC")"
+    LUKS_PARENT="$(lsblk -no PKNAME "$ROOT_SRC" 2>/dev/null | head -n1)"
+    if [[ -n "$LUKS_PARENT" ]]; then
+        LUKS_DEVICE="/dev/$LUKS_PARENT"
+    else
+        LUKS_DEVICE="$(cryptsetup status "$ROOT_MAPPER" 2>/dev/null \
+            | awk '$1 == "device:" { print $2; exit }')"
+    fi
+    ROOT_LUKS_UUID=""
+    if [[ -n "$LUKS_DEVICE" ]]; then
+        ROOT_LUKS_UUID="$(cryptsetup luksUUID "$LUKS_DEVICE" 2>/dev/null || true)"
+    fi
 else
     ROOT_ENCRYPTED=0
 fi
@@ -142,7 +154,7 @@ if [[ -f /etc/mkinitcpio.conf ]]; then
     # unlocked root); both already present in stock mkinitcpio.conf's
     # default HOOKS regardless of which base hook is in use.
     if [[ "$ROOT_ENCRYPTED" == "1" ]] \
-       && ! grep -qE '^HOOKS=.*\bencrypt\b' /etc/mkinitcpio.conf; then
+       && ! grep -qE "^HOOKS=.*[[:space:]]${ENCRYPT_HOOK}([[:space:]]|\\))" /etc/mkinitcpio.conf; then
         sed -i "s/^\(HOOKS=.*\bblock\b\)/\1 ${ENCRYPT_HOOK}/" /etc/mkinitcpio.conf \
             || echo "WARN: adding ${ENCRYPT_HOOK} hook failed"
     fi
@@ -172,6 +184,54 @@ if [[ "$ROOT_ENCRYPTED" == "1" ]] && [[ -f /etc/default/grub ]] \
    && ! grep -q '^GRUB_ENABLE_CRYPTODISK=' /etc/default/grub; then
     echo 'GRUB_ENABLE_CRYPTODISK=y' >> /etc/default/grub \
         || echo "WARN: adding GRUB_ENABLE_CRYPTODISK failed"
+fi
+
+# The initramfs key is stored in the encrypted /boot tree. GRUB has already
+# unlocked that tree to load the kernel, so the initramfs can use the keyfile
+# instead of asking for the passphrase a second time. Keep this in sync with
+# the hook selected before `mkinitcpio -P` by prepare-encrypted-root.sh.
+if [[ "$ROOT_ENCRYPTED" == "1" ]] && [[ -n "${ROOT_LUKS_UUID:-}" ]] \
+   && [[ -n "${ROOT_MAPPER:-}" ]] && [[ -f /etc/default/grub ]]; then
+    if grep -qE '^HOOKS=.*\bsystemd\b' /etc/mkinitcpio.conf 2>/dev/null; then
+        ROOT_CRYPT_PARAMS=("rd.luks.name=${ROOT_LUKS_UUID}=${ROOT_MAPPER}")
+    else
+        ROOT_CRYPT_PARAMS=("cryptdevice=UUID=${ROOT_LUKS_UUID}:${ROOT_MAPPER}")
+    fi
+    [[ -f /crypto_keyfile.bin ]] \
+        && ROOT_CRYPT_PARAMS+=("cryptkey=rootfs:/crypto_keyfile.bin")
+    python3 - /etc/default/grub "${ROOT_CRYPT_PARAMS[@]}" <<'PY'
+import pathlib
+import shlex
+import sys
+
+path = pathlib.Path(sys.argv[1])
+parameters = sys.argv[2:]
+keys = ("cryptdevice=", "rd.luks.name=", "cryptkey=")
+lines = path.read_text().splitlines()
+updated = False
+for index, line in enumerate(lines):
+    if not line.startswith("GRUB_CMDLINE_LINUX="):
+        continue
+    value = line.split("=", 1)[1]
+    try:
+        words = shlex.split(value)
+    except ValueError:
+        words = [value.strip().strip("'\"")]
+    words = [word for word in words if not word.startswith(keys)]
+    words.extend(parameters)
+    escaped = " ".join(words).replace("\\", "\\\\").replace('"', '\\"')
+    lines[index] = f'GRUB_CMDLINE_LINUX="{escaped}"'
+    updated = True
+    break
+if not updated:
+    lines.append('GRUB_CMDLINE_LINUX="' + " ".join(parameters) + '"')
+path.write_text("\n".join(lines) + "\n")
+PY
+    if [[ "$?" != "0" ]]; then
+        echo "WARN: setting encrypted-root GRUB parameters failed"
+    fi
+elif [[ "$ROOT_ENCRYPTED" == "1" ]]; then
+    echo "WARN: could not determine the encrypted root LUKS UUID; GRUB parameters were not updated"
 fi
 
 # Rebuild every preset (default + fallback that bos-copy-kernel wrote) so the
