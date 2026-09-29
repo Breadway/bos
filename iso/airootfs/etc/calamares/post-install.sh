@@ -174,8 +174,10 @@ if [[ "$ROOT_ENCRYPTED" == "1" ]] && [[ -f /etc/default/grub ]] \
         || echo "WARN: adding GRUB_ENABLE_CRYPTODISK failed"
 fi
 
-# Rebuild every preset (default + fallback that bos-copy-kernel wrote) so the
-# microcode + plymouth HOOKS above are actually baked into the initramfs.
+# Rebuild every installed kernel preset. bos-copy-kernel wrote the stock linux
+# presets, and its cached linux-lts install added the LTS preset before the
+# initcpio module ran. This rebuild bakes the microcode + plymouth HOOKS above
+# into every installed kernel's initramfs.
 mkinitcpio -P || echo "WARN: mkinitcpio -P failed"
 
 # ---------------------------------------------------------------------------

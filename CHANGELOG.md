@@ -22,6 +22,9 @@ tag (with date) at tag time.
 
 - Hypridle now locks the session before turning the display off after eight
   minutes of idle time.
+- Installer: stage a signed `linux-lts` package in the ISO for offline installs,
+  install it before mkinitcpio and GRUB generation, and save its kernel with
+  sbctl when Secure Boot keys are enrolled.
 - ISO build: `build-local.sh` now trusts the `[breadway]` repository key in a
   temporary pacman keyring that is removed when the build exits, leaving the
   build host's pacman keyring unchanged.
