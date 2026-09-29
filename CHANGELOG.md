@@ -85,7 +85,7 @@ silently fall back to a stale global palette. Three real security
 hardenings landed: breadcrumbs no longer leaks Wi-Fi passwords onto
 argv/shell history, bread's module-host canonicalizes path grants and
 execs without a shell, and bos-settings hardens privileged command
-operands against injection. breadman (the note-taking app,
+operands against injection. breadman (the fuller notes manager in the
 `breadpad` package) was rebuilt from GTK4 onto Tauri 2 + Svelte.
 breadclip gained real clipboard-history pinning, config, and a fix
 for the bug where pasting from history had nowhere to paste into.
@@ -166,7 +166,7 @@ what merely got tagged. `breadshot` is unchanged since v0.6.1
   could not name the current monitor by its Hyprland connector
   (the same per-output theming change in bread-theme above is what
   exposed this). `cargo fmt --check` is now gated in CI.
-- **`breadpad` 0.5.3 -> 0.6.0.** breadman (the quick-capture note app)
+- **`breadpad` 0.5.3 -> 0.6.0.** breadman (the fuller notes manager)
   was rebuilt from a bare GTK4 window onto Tauri 2 + Svelte, and both
   `breadpad` and `breadman` windows now bind per-output app CSS
   instead of one shared stylesheet.
