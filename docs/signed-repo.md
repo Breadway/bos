@@ -147,7 +147,8 @@ All three steps have landed:
 
 1. **Key trusted.** The public key is committed at
    `iso/airootfs/etc/pacman.d/breadway-repo.asc`. `build-local.sh`
-   `pacman-key --add` + `--lsign-key`s it into the build host keyring;
+   `pacman-key --add` + `--lsign-key`s it into a temporary build keyring
+   configured only for that ISO build, leaving the host keyring unchanged;
    `customize_airootfs.sh` does the same in the airootfs;
    `calamares/post-install.sh` re-does it in the target chroot.
 2. **`Server`** in `iso/pacman.conf` and `iso/airootfs/etc/pacman.conf`

@@ -20,6 +20,9 @@ tag (with date) at tag time.
 
 ## [Unreleased]
 
+- ISO build: `build-local.sh` now trusts the `[breadway]` repository key in a
+  temporary pacman keyring that is removed when the build exits, leaving the
+  build host's pacman keyring unchanged.
 - Skel: the curated default palette moved from
   `.cache/wal/colors.json` to `.cache/bread/palette.json`; `.zshrc` now
   imports `.cache/bread/sequences` instead of `.cache/wal/sequences`
