@@ -20,6 +20,12 @@ tag (with date) at tag time.
 
 ## [Unreleased]
 
+### Changed
+
+- Local ISO builds now stage lockfile-pinned bakery binaries from the signed
+  index by default. Set `BAKE_FROM_HOME=1` to use the builder's installed
+  bakery versions for development.
+
 ## [0.6.2] - 2026-09-19
 
 ### What's different and why
