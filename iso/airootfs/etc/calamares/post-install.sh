@@ -361,14 +361,20 @@ if command -v snapper &>/dev/null; then
         sed -i 's/TIMELINE_CREATE="yes"/TIMELINE_CREATE="no"/' /etc/snapper/configs/root
         sed -i 's/NUMBER_CLEANUP="no"/NUMBER_CLEANUP="yes"/' /etc/snapper/configs/root
         sed -i 's/NUMBER_MIN_AGE="[^"]*"/NUMBER_MIN_AGE="1800"/' /etc/snapper/configs/root
-        sed -i 's/NUMBER_LIMIT="[^"]*"/NUMBER_LIMIT="10"/' /etc/snapper/configs/root
-        sed -i 's/NUMBER_LIMIT_IMPORTANT="[^"]*"/NUMBER_LIMIT_IMPORTANT="5"/' /etc/snapper/configs/root
+        snapper -c root setup-quota \
+            || echo "WARN: Snapper Btrfs quota setup failed; space-based snapshot cleanup may be unavailable"
         # set-config (not sed): snapper's own template text for this line has
         # drifted across versions before, and a sed that doesn't match just
         # silently no-ops, leaving ALLOW_USERS empty and every non-root
         # `snapper` call (bos-settings' Snapshots page included) failing with
         # "No permissions." forever. set-config is the stable API regardless
         # of template wording.
+        snapper -c root set-config \
+            "NUMBER_LIMIT=2-20" \
+            "NUMBER_LIMIT_IMPORTANT=4-10" \
+            "FREE_LIMIT=0.2" \
+            "SPACE_LIMIT=0.5" \
+            || echo "WARN: setting root snapshot retention failed"
         [[ -n "$MAIN_USER" ]] && \
             snapper -c root set-config "ALLOW_USERS=$MAIN_USER"
     else

@@ -20,6 +20,8 @@ tag (with date) at tag time.
 
 ## [Unreleased]
 
+- Root Snapper cleanup now keeps 2-20 normal and 4-10 important snapshots,
+  while pruning older snapshots when filesystem space thresholds are reached.
 - Skel: the curated default palette moved from
   `.cache/wal/colors.json` to `.cache/bread/palette.json`; `.zshrc` now
   imports `.cache/bread/sequences` instead of `.cache/wal/sequences`
