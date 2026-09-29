@@ -5,8 +5,24 @@
 # this script installs GRUB and does the rest of setup. Calamares' own
 # `bootloader`/`grubcfg` modules are NOT used; in this archiso layout they leave
 # the ESP empty and abort; the explicit grub-install below is verified to boot.
-# Best-effort: do NOT use `set -e`; a single failure here must not abort the rest.
+# Continue best-effort setup after failures, but report boot-critical failures
+# to Calamares at the end so it cannot show the success page for an unbootable
+# install.
 set -uo pipefail
+
+CRITICAL_FAILED=()
+record_critical_failure() {
+    CRITICAL_FAILED+=("$1")
+    echo "ERROR: $1"
+}
+
+# /var/log may be mounted over its original directory while this script builds
+# the btrfs @log subvolume. Capture output under /tmp, then copy the complete
+# log into /var/log after all mounts are in place.
+INSTALL_LOG_TMP=/tmp/bos-install.log
+: > "$INSTALL_LOG_TMP"
+exec > >(tee "$INSTALL_LOG_TMP") 2>&1
+INSTALL_LOG_TEE_PID=$!
 
 # Whether Calamares encrypted the root partition (LUKS), checked once here,
 # used below to conditionally wire mkinitcpio's encrypt hook and GRUB's
@@ -175,8 +191,14 @@ if [[ "$ROOT_ENCRYPTED" == "1" ]] && [[ -f /etc/default/grub ]] \
 fi
 
 # Rebuild every preset (default + fallback that bos-copy-kernel wrote) so the
-# microcode + plymouth HOOKS above are actually baked into the initramfs.
-mkinitcpio -P || echo "WARN: mkinitcpio -P failed"
+# microcode + plymouth HOOKS above are actually baked into the initramfs. The
+# installed kernel and its initramfs are required for a bootable system.
+if [[ ! -f /boot/vmlinuz-linux ]]; then
+    record_critical_failure "installed kernel /boot/vmlinuz-linux is missing"
+fi
+if ! mkinitcpio -P; then
+    record_critical_failure "mkinitcpio -P failed"
+fi
 
 # ---------------------------------------------------------------------------
 # Install GRUB. /boot now has the kernel + initramfs, and the mount module has
@@ -194,29 +216,50 @@ mkinitcpio -P || echo "WARN: mkinitcpio -P failed"
 #            ignores/loses the NVRAM entry still finds a bootloader.
 #   BIOS: MBR install onto the disk hosting /.
 # ---------------------------------------------------------------------------
+GRUB_INSTALL_SUCCEEDED=0
 if command -v grub-install &>/dev/null; then
     CRYPT_MODULES=()
     [[ "$ROOT_ENCRYPTED" == "1" ]] && CRYPT_MODULES=(--modules="cryptodisk luks luks2")
     if [[ -d /sys/firmware/efi ]]; then
         grub-install --target=x86_64-efi --efi-directory=/boot/efi \
             --bootloader-id=BOS --recheck "${CRYPT_MODULES[@]}" \
+            && GRUB_INSTALL_SUCCEEDED=1 \
             || echo "WARN: grub-install (nvram) failed"
         grub-install --target=x86_64-efi --efi-directory=/boot/efi \
             --removable --recheck "${CRYPT_MODULES[@]}" \
+            && GRUB_INSTALL_SUCCEEDED=1 \
             || echo "WARN: grub-install (removable) failed"
     else
         ROOT_DEV="$(findmnt -no SOURCE / | sed 's/\[.*\]//')"
         ROOT_DISK="$(lsblk -no pkname "$ROOT_DEV" 2>/dev/null)"
         if [[ -n "$ROOT_DISK" ]]; then
             grub-install --target=i386-pc --recheck "${CRYPT_MODULES[@]}" "/dev/$ROOT_DISK" \
+                && GRUB_INSTALL_SUCCEEDED=1 \
                 || echo "WARN: grub-install (BIOS) failed"
         else
             echo "WARN: could not determine the disk hosting / (root device: ${ROOT_DEV:-unknown}); BIOS grub-install skipped"
         fi
     fi
+else
+    echo "WARN: grub-install command is missing"
+fi
+if [[ "$GRUB_INSTALL_SUCCEEDED" != "1" ]]; then
+    record_critical_failure "no grub-install command succeeded"
 fi
 if command -v grub-mkconfig &>/dev/null; then
-    grub-mkconfig -o /boot/grub/grub.cfg || echo "WARN: grub-mkconfig failed"
+    if ! grub-mkconfig -o /boot/grub/grub.cfg; then
+        record_critical_failure "grub-mkconfig failed"
+    fi
+else
+    record_critical_failure "grub-mkconfig command is missing"
+fi
+if [[ ! -f /boot/grub/grub.cfg ]]; then
+    record_critical_failure "/boot/grub/grub.cfg was not created"
+elif ! grep -q 'vmlinuz-linux' /boot/grub/grub.cfg; then
+    record_critical_failure "/boot/grub/grub.cfg does not reference vmlinuz-linux"
+fi
+if [[ -d /sys/firmware/efi && ! -f /boot/efi/EFI/BOOT/BOOTX64.EFI ]]; then
+    record_critical_failure "UEFI fallback loader /boot/efi/EFI/BOOT/BOOTX64.EFI is missing"
 fi
 
 # ---------------------------------------------------------------------------
@@ -476,4 +519,22 @@ if [[ -n "$MAIN_USER" && -d /etc/skel ]]; then
     sudo -u "$MAIN_USER" xdg-user-dirs-update || true
 fi
 
-echo "BOS post-install complete."
+INSTALL_STATUS=0
+if (( ${#CRITICAL_FAILED[@]} > 0 )); then
+    echo "Critical install steps failed:"
+    printf '  - %s\n' "${CRITICAL_FAILED[@]}"
+    echo "BOS post-install failed. Review /var/log/bos-install.log before retrying."
+    INSTALL_STATUS=1
+else
+    echo "BOS post-install complete."
+fi
+
+# Drain tee before copying so the target log contains the final status too.
+exec >/dev/null 2>&1
+wait "$INSTALL_LOG_TEE_PID" || INSTALL_STATUS=1
+if install -m 0644 "$INSTALL_LOG_TMP" /var/log/bos-install.log; then
+    rm -f "$INSTALL_LOG_TMP"
+else
+    INSTALL_STATUS=1
+fi
+exit "$INSTALL_STATUS"
