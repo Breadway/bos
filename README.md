@@ -130,11 +130,14 @@ Push `origin` (and `github` when mirroring). Do not treat origin as GitHub.
 
 ## Building the ISO
 
-`build-local.sh` builds the image natively (no container) and copies this
-machine's bakery-installed bread binaries + breadhelp content from the
-builder's `~/.local` into the image at `/usr/local` (bins, share/data,
-desktop files, licenses) and `/usr/lib/systemd/user` (units). Per-user
-bakery state (`installed.json` + index cache) is seeded in `/etc/skel`.
+`build-local.sh` builds the image natively (no container). By default it
+downloads the lockfile-pinned bakery binaries into a temporary home, checking
+the signed index and artifact hashes before copying the binaries + breadhelp
+content into the image at `/usr/local` (bins, share/data, desktop files,
+licenses) and `/usr/lib/systemd/user` (units). Per-user bakery state
+(`installed.json` + index cache) is seeded in `/etc/skel`. To bake your
+currently installed bakery versions for local development, set
+`BAKE_FROM_HOME=1`.
 User units are `systemctl --global enable`'d so a later `useradd -m`
 starts them on first login. BOS opts in via `/etc/bakery/config.toml`
 (`prefix = "/usr/local"`); default bakery without that file is still
@@ -144,6 +147,7 @@ still grub-btrfs, not `snapper rollback`.
 ```sh
 sudo ./build-local.sh              # release-quality (xz squashfs)
 sudo FAST_BUILD=1 ./build-local.sh # fast dev iteration (zstd squashfs)
+sudo BAKE_FROM_HOME=1 ./build-local.sh # use this user's installed versions
 ```
 
 The ISO lands in `out/bos-<date>-x86_64.iso`. The script pins
@@ -152,11 +156,12 @@ to the Tailscale-reachable Forgejo registry for the build, and **exits
 non-zero** if any **required** lockfile binary (or breadhelp content) is
 missing. Optional bins are skipped with a warning.
 
-CI stages the builder from the **minisign-verified** stable bakery index
-(`index.json` + `index.json.minisig`) and prefers lockfile `[versions]`
-URLs (`https://dl.breadway.dev/<pkg>/<ver>/...`) when set, so two bakes
-of the same commit fetch the same bits. Local builds still snapshot the
-builder.
+CI and default local builds stage the builder from the **minisign-verified**
+stable bakery index (`index.json` + `index.json.minisig`) and prefer lockfile
+`[versions]` URLs (`https://dl.breadway.dev/<pkg>/<ver>/...`) when set, so two
+bakes of the same commit fetch the same bits. The temporary local staging home
+is removed when the build exits. `BAKE_FROM_HOME=1` opts into copying the
+builder's existing installation instead.
 
 ### Why some packages are in-house
 
