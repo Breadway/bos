@@ -20,6 +20,10 @@ tag (with date) at tag time.
 
 ## [Unreleased]
 
+- When UEFI firmware is in Setup Mode, the installer now builds GRUB with
+  shim-lock disabled, SBAT metadata, and the filesystem, crypto, and boot
+  modules it needs. It then enrolls and saves signatures for both GRUB EFI
+  files and the kernel so sbctl can re-sign them after package updates.
 - Skel: the curated default palette moved from
   `.cache/wal/colors.json` to `.cache/bread/palette.json`; `.zshrc` now
   imports `.cache/bread/sequences` instead of `.cache/wal/sequences`
