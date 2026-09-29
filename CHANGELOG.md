@@ -20,6 +20,10 @@ tag (with date) at tag time.
 
 ## [Unreleased]
 
+- Installer: require passwords to be at least 8 characters, consistently in
+  Calamares and libpwquality. For encrypted installs, use at least 12
+  characters; the password page shows a non-blocking warning for shorter
+  passwords when LUKS is selected.
 - Hypridle now locks the session before turning the display off after eight
   minutes of idle time.
 - ISO build: `build-local.sh` now trusts the `[breadway]` repository key in a
