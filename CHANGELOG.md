@@ -20,6 +20,10 @@ tag (with date) at tag time.
 
 ## [Unreleased]
 
+- Encrypted Calamares installs now register a boot keyfile and configure the
+  mkinitcpio unlock hook before initramfs generation. GRUB records the LUKS
+  container and mapper so the initramfs can unlock root without asking for a
+  second passphrase; the smoke test checks the encrypted boot parameters.
 - Skel: the curated default palette moved from
   `.cache/wal/colors.json` to `.cache/bread/palette.json`; `.zshrc` now
   imports `.cache/bread/sequences` instead of `.cache/wal/sequences`

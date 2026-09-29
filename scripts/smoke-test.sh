@@ -113,6 +113,13 @@ echo "== bootloader (EFI) =="
 check "GRUB EFI binary present" \
     "[ -f /boot/efi/EFI/BOS/grubx64.efi ] || [ -f /boot/efi/EFI/BOOT/BOOTX64.EFI ]"
 check "grub.cfg present" "[ -f /boot/grub/grub.cfg ]"
+ROOT_DEVICE="$(findmnt -no SOURCE / | sed 's/\[.*\]//')"
+if [[ "$(lsblk -no TYPE "$ROOT_DEVICE" 2>/dev/null)" == "crypt" ]]; then
+    check "encrypted root has an initramfs unlock parameter" \
+        "grep -Eq '(^| )(cryptdevice=|rd.luks.name=)' /proc/cmdline"
+else
+    note "root is not encrypted: skipping initramfs unlock parameter check"
+fi
 
 echo
 printf 'Result: \033[32m%d passed\033[0m, \033[31m%d failed\033[0m\n' "$pass" "$fail"
