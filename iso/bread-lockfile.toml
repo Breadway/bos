@@ -8,13 +8,15 @@
 #
 # A flat `bins` list is still accepted and treated as required_bins.
 #
-# CI populates the builder from the minisign-verified stable bakery index
-# (https://dl.breadway.dev/index.json). Optional [versions] (or [[pin]]
-# tables with package + version) pin bakery package versions so two ISO
-# bakes of the same git commit fetch the same bits:
+# CI and default local builds populate a temporary home from the
+# minisign-verified stable bakery index (https://dl.breadway.dev/index.json).
+# Optional [versions] or [[pin]] tables with package and version pin bakery
+# package versions so two ISO bakes of the same git commit fetch the same
+# bits:
 #   https://dl.breadway.dev/<pkg>/<ver>/...
-# Bump pins after new bakery stables land. Local builds still snapshot
-# whatever is installed on the builder.
+# Bump pins after new bakery stables land. CI and default local builds stage
+# these pinned versions. `BAKE_FROM_HOME=1` is an opt-in local development
+# override that uses whatever is installed on the builder.
 #
 # Not shipped (even if they appear in the index): breadcast, breadarr,
 # breadsearch/breadmill (semantic search is opt-in: `bakery install
