@@ -20,6 +20,47 @@ tag (with date) at tag time.
 
 ## [Unreleased]
 
+- Skel: the curated default palette moved from
+  `.cache/wal/colors.json` to `.cache/bread/palette.json`; `.zshrc` now
+  imports `.cache/bread/sequences` instead of `.cache/wal/sequences`
+  (honouring `$XDG_CACHE_HOME` if set). `python-pywal` dropped from
+  `iso/packages.x86_64`, its AUR republish packaging/CI workflow, and the
+  signed `[breadway]` repo publish script, now that bread-theme extracts
+  palettes natively.
+- **Upgrade note for existing installs**: the two changes above only affect
+  `skel`, the template new user accounts are created from; an existing
+  account's own `~/.zshrc` and `~/.cache/wal/` are not touched by a BOS
+  package upgrade. If your `.zshrc` predates this change it still does
+  `cat ~/.cache/wal/sequences 2>/dev/null` on every new shell: that file is
+  no longer written by anything (breadpaper's native extractor writes
+  `~/.cache/bread/sequences` instead), so new terminals stop getting live
+  OSC colour sequences on wallpaper change until you edit `.zshrc` by hand
+  to `cat ~/.cache/bread/sequences 2>/dev/null` (or `$XDG_CACHE_HOME` if
+  you set one), matching skel's new line. `python-pywal` itself is not
+  removed from an existing install either, and it will not show up as an
+  orphan: `iso/packages.x86_64` installed it explicitly (not as a
+  dependency of something else), and pacstrap/Calamares preserve that
+  install reason, so `pacman -Qtdq` (which only lists packages installed
+  as a dependency) will never list it. It simply stays installed, and now
+  that `[breadway]` no longer republishes it, it stops receiving updates.
+  Remove it yourself once you've confirmed nothing else depends on it
+  (check the `Required By` field of `pacman -Qi python-pywal`) with
+  `sudo pacman -Rns python-pywal`.
+  BOS has no post-upgrade hook mechanism today that could rewrite a user's
+  `.zshrc` safely (bakery only exposes a package's own `post_install`,
+  which runs the same on every install and has no concept of "this is an
+  upgrade of a file the user may have since customised"); a real fix would
+  need a one-time, opt-in migration step, e.g. `bos-upgrade-hook` invoked
+  from a pacman `post_upgrade` action on the meta-package that only edits
+  `.zshrc` if it still contains the exact stock `~/.cache/wal/sequences`
+  line (skip silently otherwise, so a customised file is never touched),
+  logging what it changed. Not implemented here: flagged for a follow-up
+  issue rather than added invasively as part of this change.
+- Skel: added `.config/breadpaper/current.json` seeding the `"*"` output
+  to the default background, so `breadpaper get` (and bos-settings'
+  Wallpaper page) has something to read on a fresh install now that
+  `get()` no longer falls back to pywal's `~/.cache/wal/wal`.
+
 ## [0.6.2] - 2026-09-19
 
 ### What's different and why
