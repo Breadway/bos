@@ -435,14 +435,23 @@ fi
 
 # ---------------------------------------------------------------------------
 # Firewall: deny inbound by default, allow outbound, and permit inbound mDNS so
-# avahi printer/service discovery keeps working. Best-effort; rule application
-# happens at boot; here we only persist the policy + enable the unit.
+# avahi printer/service discovery keeps working. Calamares runs in a chroot
+# sharing the live system's network namespace, so never enable or reload UFW
+# here. Keep it disabled while writing the rule files, then mark it enabled so
+# ufw.service applies the rules on the installed system's first boot.
 # ---------------------------------------------------------------------------
 if command -v ufw &>/dev/null; then
-    ufw default deny incoming  || echo "WARN: ufw default deny incoming failed"
-    ufw default allow outgoing || echo "WARN: ufw default allow outgoing failed"
-    ufw allow 5353/udp         || echo "WARN: ufw allow mDNS failed"
-    ufw --force enable         || echo "WARN: ufw enable failed"
+    if sed -i -E 's/^[[:space:]]*ENABLED=.*/ENABLED=no/' /etc/ufw/ufw.conf; then
+        sed -i -E 's/^[[:space:]]*DEFAULT_INPUT_POLICY=.*/DEFAULT_INPUT_POLICY="DROP"/' \
+            /etc/default/ufw || echo "WARN: ufw default deny incoming failed"
+        sed -i -E 's/^[[:space:]]*DEFAULT_OUTPUT_POLICY=.*/DEFAULT_OUTPUT_POLICY="ACCEPT"/' \
+            /etc/default/ufw || echo "WARN: ufw default allow outgoing failed"
+        ufw allow 5353/udp || echo "WARN: ufw allow mDNS failed"
+        sed -i -E 's/^[[:space:]]*ENABLED=.*/ENABLED=yes/' /etc/ufw/ufw.conf \
+            || echo "WARN: ufw enable configuration failed"
+    else
+        echo "WARN: could not disable ufw while writing installer rules; skipping firewall setup"
+    fi
 fi
 
 # The whole bread ecosystem (bakery, bread, breadbar, breadbox, breadcrumbs,
