@@ -20,6 +20,8 @@ tag (with date) at tag time.
 
 ## [Unreleased]
 
+- Hypridle now locks the session before turning the display off after eight
+  minutes of idle time.
 - ISO build: `build-local.sh` now trusts the `[breadway]` repository key in a
   temporary pacman keyring that is removed when the build exits, leaving the
   build host's pacman keyring unchanged.
