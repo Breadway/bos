@@ -335,7 +335,7 @@ cheatsheet in-session; first boot shows a short welcome (once).
 | `SUPER+E` / `SUPER+B` | Files (nautilus) / Browser (zen) |
 | `SUPER+U` / `SUPER+M` | Notes (breadpad) / notes manager (breadman) |
 | `SUPER+,` / `SUPER+/` | BOS Settings / keybind cheatsheet |
-| `SUPER+L` / `SUPER+N` | Lock / log out |
+| `SUPER+L` / `SUPER+Shift+Escape` | Lock / log out |
 | `SUPER+Backspace` | Close window |
 | `SUPER+F` | Fullscreen |
 | `SUPER+I` | Toggle floating |
