@@ -20,6 +20,9 @@ tag (with date) at tag time.
 
 ## [Unreleased]
 
+- Installer finalization now records critical boot failures, returns a failure
+  to Calamares instead of showing the success page, and writes a full log to
+  `/var/log/bos-install.log`.
 - Skel: the curated default palette moved from
   `.cache/wal/colors.json` to `.cache/bread/palette.json`; `.zshrc` now
   imports `.cache/bread/sequences` instead of `.cache/wal/sequences`
