@@ -7,7 +7,7 @@
 _pkgname="calamares"
 pkgname="$_pkgname"
 pkgver=3.4.2
-pkgrel=2
+pkgrel=3
 pkgdesc="Distribution-independent installer framework"
 url="https://codeberg.org/Calamares/calamares"
 license=("GPL-3.0-or-later")
@@ -31,8 +31,19 @@ makedepends=(
 )
 
 _pkgext="tar.gz"
-source=("$_pkgname-$pkgver.$_pkgext"::"$url/releases/download/v$pkgver/$_pkgname-$pkgver.$_pkgext")
-sha256sums=('733bbbb00dc9f84874bd5c22960952f317ea2537565431179fa2152b2fbfdccc')
+source=(
+  "$_pkgname-$pkgver.$_pkgext"::"$url/releases/download/v$pkgver/$_pkgname-$pkgver.$_pkgext"
+  'bos-conditional-password-warning.patch'
+)
+sha256sums=(
+  '733bbbb00dc9f84874bd5c22960952f317ea2537565431179fa2152b2fbfdccc'
+  '3364ea1aba2f43b803307af2b9a60359deb46ef64c42fb59ee9f5486c9d44364'
+)
+
+prepare() {
+  cd "$_pkgname-$pkgver"
+  patch --forward --strip=1 --input="$srcdir/bos-conditional-password-warning.patch"
+}
 
 build() {
   local _skip_modules=(
