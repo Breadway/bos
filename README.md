@@ -73,7 +73,7 @@ wiring up dotfiles, no per-tool bakery installs.
 The baked name list is [`iso/bread-lockfile.toml`](iso/bread-lockfile.toml)
 (plus optional `[versions]` / `[[pin]]` so CI fetches
 `https://dl.breadway.dev/<pkg>/<ver>/...`). `build-local.sh` fails if any
-**required** binary is missing on the builder.
+**required** binary is missing from the staging home.
 
 ## Repo layout
 
@@ -139,6 +139,8 @@ licenses) and `/usr/lib/systemd/user` (units). Per-user bakery state
 (`installed.json` + index cache) is seeded in `/etc/skel`. To bake your
 currently installed bakery versions for local development, set
 `BAKE_FROM_HOME=1`.
+The `[breadway]` repository key is trusted in a temporary build keyring; the
+host pacman keyring is left unchanged.
 User units are `systemctl --global enable`'d so a later `useradd -m`
 starts them on first login. BOS opts in via `/etc/bakery/config.toml`
 (`prefix = "/usr/local"`); default bakery without that file is still
@@ -157,7 +159,7 @@ to the Tailscale-reachable Forgejo registry for the build, and **exits
 non-zero** if any **required** lockfile binary (or breadhelp content) is
 missing. Optional bins are skipped with a warning.
 
-CI and default local builds stage the builder from the **minisign-verified**
+CI and default local builds stage a temporary home from the **minisign-verified**
 stable bakery index (`index.json` + `index.json.minisig`) and prefer lockfile
 `[versions]` URLs (`https://dl.breadway.dev/<pkg>/<ver>/...`) when set, so two
 bakes of the same commit fetch the same bits. The temporary local staging home

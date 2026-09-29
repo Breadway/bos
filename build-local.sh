@@ -25,13 +25,20 @@ OUT="${OUT:-$REPO/out}"
 STAGE=/tmp/bos-iso-stage
 rm -rf "$STAGE" && cp -a "$REPO/iso" "$STAGE"
 
-# Keep the build's repository trust separate from the host's pacman keyring.
-# mkarchiso uses this staged config for package operations, so the same GPGDir
-# is used while preparing the build and while assembling the airootfs.
+BAKERY_TMP_HOME=""
+BUILD_GPG_DIR=""
+cleanup_build_temps() {
+  [[ -z "$BAKERY_TMP_HOME" ]] || rm -rf -- "$BAKERY_TMP_HOME"
+  [[ -z "$BUILD_GPG_DIR" ]] || rm -rf -- "$BUILD_GPG_DIR"
+}
+trap cleanup_build_temps EXIT
+
+# Build package trust only in this staged config, never in the host keyring.
+# mkarchiso reuses the same GPGDir for package operations while assembling the
+# live image. The cleanup trap removes this keyring on success or failure.
 BUILD_GPG_DIR="$STAGE/pacman-gnupg"
 sed -i "/^\[options\]$/a GPGDir = $BUILD_GPG_DIR" "$STAGE/pacman.conf"
 install -d -m 0700 "$BUILD_GPG_DIR"
-trap 'rm -rf "$BUILD_GPG_DIR"' EXIT
 
 # LOCAL_REPO=/path/to/dir splices a local pacman repo in front of [breadway],
 # so an uncommitted breadlock (or AUR-republish) build can be tested in the
@@ -79,20 +86,21 @@ if [ "${FAST_BUILD:-0}" = "1" ]; then
 fi
 grep airootfs_image_tool_options "$STAGE/profiledef.sh"
 
-# --- Bake this machine's bakery-installed bread ecosystem into the image ------
+# --- Bake bakery binaries and data into the image -----------------------------
 # The bread desktop apps are bakery-managed (release binaries from
 # dl.breadway.dev / GitHub), not pacman. bakery needs DNS at install time,
 # which the live/installed image doesn't have, so instead of running bakery
-# on the target, we copy the binaries + bakery manifest this builder already
-# has. Builder home stays user-layout (~/.local); the *image* is system-prefix
+# on the target, we stage the pinned binaries and copy them + their manifest.
+# Builder state stays temporary by default; the *image* is system-prefix
 # /usr/local so apps live on @ and ride snapper/grub-btrfs snapshots.
 # installed.json + index cache stay per-user in skel. Copied at build time
 # so the binaries never bloat the git repo.
 #
-# CI should prefer the stable bakery index when populating the builder home.
-# Local builds still snapshot the builder. required_bins fail the bake if
-# missing; optional_bins are skipped with a warning (a hollow ISO is worse
-# than a failed build). A flat `bins` list is treated as all-required.
+# CI and default local builds stage pinned packages from the signed stable
+# index. BAKE_FROM_HOME=1 opts into the builder's current bakery installation.
+# required_bins fail the bake if missing; optional_bins are skipped with a
+# warning (a hollow ISO is worse than a failed build). A flat `bins` list is
+# treated as all-required.
 LOCKFILE="$REPO/iso/bread-lockfile.toml"
 if [[ ! -f "$LOCKFILE" ]]; then
   echo "ERROR: bakery lockfile missing: $LOCKFILE" >&2
@@ -132,7 +140,6 @@ if [[ ${#REQUIRED_BINS[@]} -eq 0 ]]; then
   exit 1
 fi
 
-BAKERY_TMP_HOME=""
 if [[ "${BAKE_FROM_HOME:-0}" == "1" ]]; then
   LAPTOP_HOME="${LAPTOP_HOME:-$(getent passwd "${SUDO_USER:-$USER}" | cut -d: -f6)}"
   echo "=== using builder bakery installation from $LAPTOP_HOME (BAKE_FROM_HOME=1) ==="
@@ -141,7 +148,6 @@ elif [[ "${CI_BUILD:-0}" == "1" && -n "${LAPTOP_HOME:-}" ]]; then
   echo "=== using pre-staged bakery home $LAPTOP_HOME ==="
 else
   BAKERY_TMP_HOME="$(mktemp -d "${TMPDIR:-/tmp}/bos-bakery-home.XXXXXXXX")"
-  trap 'rm -rf -- "$BAKERY_TMP_HOME"' EXIT
   LAPTOP_HOME="$BAKERY_TMP_HOME"
   echo "=== staging pinned bakery binaries into temporary home $LAPTOP_HOME ==="
   python3 "$REPO/scripts/ci-stage-bakery.py" --home "$LAPTOP_HOME"
