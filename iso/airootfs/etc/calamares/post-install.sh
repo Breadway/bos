@@ -194,21 +194,49 @@ mkinitcpio -P || echo "WARN: mkinitcpio -P failed"
 #            ignores/loses the NVRAM entry still finds a bootloader.
 #   BIOS: MBR install onto the disk hosting /.
 # ---------------------------------------------------------------------------
+# Decide whether this install will enroll Secure Boot keys before installing
+# GRUB, so the EFI binaries are built with the correct verifier policy and
+# their required modules are embedded from the start.
+SECURE_BOOT_SETUP=0
+SETUP_MODE="False"
+if [[ -d /sys/firmware/efi ]] && command -v sbctl &>/dev/null; then
+    SETUP_MODE="$(sbctl status --json 2>/dev/null | python3 -c \
+        'import json,sys; print(json.load(sys.stdin).get("setup_mode", False))' 2>/dev/null)"
+    [[ "$SETUP_MODE" == "True" ]] && SECURE_BOOT_SETUP=1
+fi
+
+GRUB_INSTALL_FLAGS=()
+if [[ "$SECURE_BOOT_SETUP" == "1" ]]; then
+    GRUB_MODULES=(
+        all_video btrfs cat configfile cryptodisk echo fat font gfxterm
+        gcry_rijndael gcry_sha1 gcry_sha256 gcry_sha512 halt linux ls luks luks2
+        normal part_gpt part_msdos png reboot search search_fs_uuid tpm
+    )
+    if [[ "$ROOT_ENCRYPTED" == "1" ]]; then
+        GRUB_MODULES+=(gcry_rmd160)
+    fi
+    GRUB_INSTALL_FLAGS+=(
+        --disable-shim-lock
+        --sbat /usr/share/grub/sbat.csv
+        --modules="${GRUB_MODULES[*]}"
+    )
+elif [[ "$ROOT_ENCRYPTED" == "1" ]]; then
+    GRUB_INSTALL_FLAGS+=(--modules="cryptodisk luks luks2")
+fi
+
 if command -v grub-install &>/dev/null; then
-    CRYPT_MODULES=()
-    [[ "$ROOT_ENCRYPTED" == "1" ]] && CRYPT_MODULES=(--modules="cryptodisk luks luks2")
     if [[ -d /sys/firmware/efi ]]; then
         grub-install --target=x86_64-efi --efi-directory=/boot/efi \
-            --bootloader-id=BOS --recheck "${CRYPT_MODULES[@]}" \
+            --bootloader-id=BOS --recheck "${GRUB_INSTALL_FLAGS[@]}" \
             || echo "WARN: grub-install (nvram) failed"
         grub-install --target=x86_64-efi --efi-directory=/boot/efi \
-            --removable --recheck "${CRYPT_MODULES[@]}" \
+            --removable --recheck "${GRUB_INSTALL_FLAGS[@]}" \
             || echo "WARN: grub-install (removable) failed"
     else
         ROOT_DEV="$(findmnt -no SOURCE / | sed 's/\[.*\]//')"
         ROOT_DISK="$(lsblk -no pkname "$ROOT_DEV" 2>/dev/null)"
         if [[ -n "$ROOT_DISK" ]]; then
-            grub-install --target=i386-pc --recheck "${CRYPT_MODULES[@]}" "/dev/$ROOT_DISK" \
+            grub-install --target=i386-pc --recheck "${GRUB_INSTALL_FLAGS[@]}" "/dev/$ROOT_DISK" \
                 || echo "WARN: grub-install (BIOS) failed"
         else
             echo "WARN: could not determine the disk hosting / (root device: ${ROOT_DEV:-unknown}); BIOS grub-install skipped"
@@ -233,17 +261,24 @@ fi
 # Best-effort and silent-skip (not a WARN) when out of Setup Mode; that's
 # the expected state on most real hardware, not a failure.
 # ---------------------------------------------------------------------------
-if [[ -d /sys/firmware/efi ]] && command -v sbctl &>/dev/null; then
-    SETUP_MODE="$(sbctl status --json 2>/dev/null | python3 -c \
-        'import json,sys; print(json.load(sys.stdin).get("setup_mode", False))' 2>/dev/null)"
-    if [[ "$SETUP_MODE" == "True" ]]; then
-        sbctl create-keys || echo "WARN: sbctl create-keys failed"
-        sbctl enroll-keys --microsoft || echo "WARN: sbctl enroll-keys failed"
-        sbctl sign-all -g || echo "WARN: sbctl sign-all failed"
-        echo "Secure Boot: keys enrolled and boot files signed."
-    else
-        echo "Secure Boot: firmware not in Setup Mode; skipped (run 'sudo sbctl enroll-keys --microsoft && sudo sbctl sign-all -g' manually later if desired)."
-    fi
+if [[ "$SECURE_BOOT_SETUP" == "1" ]]; then
+    sbctl create-keys || echo "WARN: sbctl create-keys failed"
+    sbctl enroll-keys --microsoft || echo "WARN: sbctl enroll-keys failed"
+    for boot_file in \
+        /boot/efi/EFI/BOS/grubx64.efi \
+        /boot/efi/EFI/BOOT/BOOTX64.EFI \
+        /boot/vmlinuz-linux; do
+        if [[ -f "$boot_file" ]]; then
+            sbctl sign -s "$boot_file" \
+                || echo "WARN: sbctl could not save and sign $boot_file"
+        else
+            echo "WARN: Secure Boot file missing, not signing: $boot_file"
+        fi
+    done
+    sbctl sign-all -g || echo "WARN: sbctl sign-all failed"
+    echo "Secure Boot: keys enrolled and boot files signed."
+elif [[ -d /sys/firmware/efi ]] && command -v sbctl &>/dev/null; then
+    echo "Secure Boot: firmware not in Setup Mode; skipped (run 'sudo sbctl enroll-keys --microsoft && sudo sbctl sign-all -g' manually later if desired)."
 fi
 
 # ---------------------------------------------------------------------------
