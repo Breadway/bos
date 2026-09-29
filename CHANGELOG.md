@@ -37,9 +37,15 @@ tag (with date) at tag time.
   OSC colour sequences on wallpaper change until you edit `.zshrc` by hand
   to `cat ~/.cache/bread/sequences 2>/dev/null` (or `$XDG_CACHE_HOME` if
   you set one), matching skel's new line. `python-pywal` itself is not
-  removed from an existing install either: it becomes an orphan package
-  once nothing depends on it, visible via `pacman -Qtdq` and removable
-  with `sudo pacman -Rns python-pywal` if you no longer use it directly.
+  removed from an existing install either, and it will not show up as an
+  orphan: `iso/packages.x86_64` installed it explicitly (not as a
+  dependency of something else), and pacstrap/Calamares preserve that
+  install reason, so `pacman -Qtdq` (which only lists packages installed
+  as a dependency) will never list it. It simply stays installed, and now
+  that `[breadway]` no longer republishes it, it stops receiving updates.
+  Remove it yourself once you've confirmed nothing else depends on it
+  (check the `Required By` field of `pacman -Qi python-pywal`) with
+  `sudo pacman -Rns python-pywal`.
   BOS has no post-upgrade hook mechanism today that could rewrite a user's
   `.zshrc` safely (bakery only exposes a package's own `post_install`,
   which runs the same on every install and has no concept of "this is an
