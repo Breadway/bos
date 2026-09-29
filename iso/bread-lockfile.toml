@@ -47,14 +47,14 @@ required_bins = [
 # should match the signed index so CI can verify sha256.
 # [[pin]] { package, version } is accepted as well and merged (conflict = bake error).
 [versions]
-bakery = "0.7.12"
+bakery = "0.8.0"
 bread = "0.9.0"
-bread-theme = "0.7.12"
+bread-theme = "0.8.0"
 breadbar = "0.4.0"
 breadbox = "0.4.0"
 breadcrumbs = "2.2.0"
 breadpad = "0.6.0"
-breadpaper = "0.1.15"
+breadpaper = "0.2.0"
 breadmon = "0.1.5"
 breadclip = "0.3.0"
 breadshot = "0.1.3"
