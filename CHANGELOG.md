@@ -25,6 +25,9 @@ tag (with date) at tag time.
 - ISO build: `build-local.sh` now trusts the `[breadway]` repository key in a
   temporary pacman keyring that is removed when the build exits, leaving the
   build host's pacman keyring unchanged.
+- Installer firewall setup now persists UFW policy and the enabled setting
+  without applying rules to the live session; `ufw.service` applies them on
+  the installed system's first boot.
 - Skel: the curated default palette moved from
   `.cache/wal/colors.json` to `.cache/bread/palette.json`; `.zshrc` now
   imports `.cache/bread/sequences` instead of `.cache/wal/sequences`
