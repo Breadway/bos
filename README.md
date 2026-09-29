@@ -13,7 +13,8 @@ wiring up dotfiles, no per-tool bakery installs.
 ## What you get
 
 - **Compositor**: Hyprland with a native-Lua config (`hyprland.lua`), curated
-  keybinds, snappy animations, blur, and pywal-driven colours on a black base.
+  keybinds, snappy animations, blur, and bread-theme colours (native palette
+  extraction from the wallpaper) on a black base.
 - **bread ecosystem**, baked into `/usr/local` from bakery-managed binaries
   (no network needed at install time; per-user bakery state is seeded in
   `/etc/skel`): the `bread`/`breadd` automation daemon
@@ -261,7 +262,7 @@ also get live systemd status + Start/Stop/Restart/Logs.
 | Date & Time | Timezone, NTP sync toggle |
 | Display (Hyprland) | Connected monitors + open `hyprland.lua` in editor |
 | Users | Add/remove accounts, change passwords |
-| Wallpaper (breadpaper) | Set wallpaper, drives the pywal-derived accent palette |
+| Wallpaper (breadpaper) | Set wallpaper, drives the bread-theme-extracted accent palette |
 | Bar (breadbar) | `breadbar/style.css` override, live-reloads on save |
 | Launcher (breadbox) | `breadbox/config.toml`: launcher contexts |
 | Clipboard (breadclip) | breadclipd service control + "open history" |
@@ -294,7 +295,7 @@ directly.
 | `breadbar` | Top status bar: workspaces, clock, system stats, tray, **and** the notification daemon (one process, not two) | runs at login |
 | `breadbox` | Application launcher (fuzzy search, per-context results via `breadbox-sync`) | `SUPER+Space` |
 | `breadlock` | Idle lock screen. Also provides `breadgreet`, the login greeter hosted under `cage` via greetd (same project, two binaries, one visual identity from login to lock). **pacman**, not bakery. | `SUPER+L` (via `loginctl lock-session`, picked up by `hypridle`); `breadgreet` runs automatically at boot |
-| `bread-theme` | The shared palette engine every bread app renders through: fixed dark base colors, with only the accent slots following the current wallpaper's pywal palette. `bread-theme generate` regenerates the stylesheet; hyprland.lua calls it automatically on wallpaper change. | invoked automatically, rarely run by hand |
+| `bread-theme` | The shared palette engine every bread app renders through: fixed dark base colors, with only the accent slots following the current wallpaper's extracted palette. `bread-theme generate` regenerates the stylesheet; hyprland.lua calls it automatically on wallpaper change. | invoked automatically, rarely run by hand |
 
 **Productivity**
 
@@ -311,7 +312,7 @@ directly.
 | Tool | Role | Launch |
 |------|------|--------|
 | `breadcrumbs` | Location-aware Wi-Fi profile state machine, with optional Tailscale integration: switches network behavior based on which saved network you're on | CLI, or BOS Settings → Wi-Fi Profiles |
-| `breadpaper` | Wallpaper manager: sets the wallpaper via `awww`, generates the pywal accent palette from it, and reloads every bread-theme app | BOS Settings → Wallpaper |
+| `breadpaper` | Wallpaper manager: sets the wallpaper via `awww`, generates the accent palette from it, and reloads every bread-theme app | BOS Settings → Wallpaper |
 | `breadmon` | TUI monitor layout manager (resolution/position/scaling); the interactive counterpart to BOS Settings' read-only Display panel | `breadmon` in a terminal |
 | `breadshot` | Screenshot utility wrapping `grim`/`slurp`/`wl-copy` with Hyprland-aware geometry (multi-monitor-safe region select) | `breadshot`, or `SUPER+Shift+S/C/P` |
 
