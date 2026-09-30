@@ -20,6 +20,9 @@ tag (with date) at tag time.
 
 ## [Unreleased]
 
+- Graphics: include Intel VA-API decoding and Intel/AMD Vulkan drivers,
+  with vainfo and vulkaninfo tools for hardware verification.
+
 - Audio: include `sof-firmware` and `alsa-firmware` in the ISO for laptop
   speakers and microphones that require Sound Open Firmware or legacy ALSA
   firmware.
