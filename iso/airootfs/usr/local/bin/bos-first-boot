@@ -28,7 +28,22 @@ notify() {
 }
 
 json_escape() {
-    printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'
+    local value="$1" char code i
+    for ((i = 0; i < ${#value}; i++)); do
+        char="${value:i:1}"
+        case "$char" in
+            '\') printf '\\\\' ;;
+            '"') printf '\\"' ;;
+            *)
+                printf -v code '%d' "'$char"
+                if ((code < 32)); then
+                    printf '\\u%04x' "$code"
+                else
+                    printf '%s' "$char"
+                fi
+                ;;
+        esac
+    done
 }
 
 iso_now() {
