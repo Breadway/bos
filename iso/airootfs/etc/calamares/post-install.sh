@@ -31,13 +31,9 @@ rm -f /usr/local/bin/bos-live-setup /usr/local/bin/bos-launch-calamares
 rm -f /etc/sudoers.d/99-bos-live
 userdel -r liveuser 2>/dev/null || true
 
-# Live ISO creates liveuser as UID 1000; Calamares then creates the real
-# account as 1001. Capture AFTER userdel so Snapper ALLOW_USERS and skel
-# copy the installed user, not the deleted live account.
+# The live account uses UID 60001, leaving UID 1000 for Calamares' first
+# installed account. Capture it after removing live-only account data.
 MAIN_USER="$(getent passwd 1000 | cut -d: -f1 || true)"
-if [[ -z "$MAIN_USER" || "$MAIN_USER" == "liveuser" ]]; then
-    MAIN_USER="$(getent passwd | awk -F: '$3 >= 1000 && $3 < 60000 && $1 != "liveuser" { print $1; exit }')"
-fi
 
 # unpackfs copies the entire live squashfs onto the target. Remove live-only
 # packages (Calamares + archiso boot chain + memtest/EFI-shell payloads) so
