@@ -58,12 +58,17 @@ if [[ "$nvidia_present" != "1" ]]; then
     fi
 fi
 if [[ "$nvidia_present" == "1" ]]; then
+    nvidia_plan_json=null
+    if command -v bos-nvidia-setup >/dev/null 2>&1; then
+        nvidia_plan_json="$(bos-nvidia-setup --dry-run --json 2>/dev/null || printf null)"
+    fi
     cat >"$NVIDIA_OFFER" <<EOF
 {
   "detected": true,
   "pci": "$(json_escape "$nvidia_pci")",
   "driver_on_iso": false,
   "auto_install": false,
+  "driver_plan": $nvidia_plan_json,
   "message": "NVIDIA GPU detected. The proprietary driver is not on the ISO.",
   "offered_at": "$(iso_now)"
 }
