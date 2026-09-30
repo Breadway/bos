@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Exercise offline signing with throwaway keys, no user keyring or live repo."""
 import hashlib
+import json
 import os
 from pathlib import Path
 import subprocess
@@ -54,9 +55,16 @@ with tempfile.TemporaryDirectory(prefix="bos-signing-test-") as temporary:
     env["GNUPGHOME"] = str(base / "repo")
     package_dir = base / "packages"
     package_dir.mkdir()
-    (package_dir / ".PKGINFO").write_text("pkgname = test-package\npkgbase = test-package\npkgver = 1.0-1\npkgdesc = signing fixture\nsize = 0\narch = x86_64\n")
-    archive = package_dir / "test-package-1.0-1-x86_64.pkg.tar.zst"
-    run(["tar", "--zstd", "-cf", str(archive), ".PKGINFO"], env, cwd=package_dir)
+    approved = {}
+    names = json.loads((ROOT / "packaging/provenance/approved-packages.json").read_text())["packages"]
+    for name in names:
+        (package_dir / ".PKGINFO").write_text(f"pkgname = {name}\npkgbase = {name}\npkgver = 1.0-1\npkgdesc = signing fixture\nsize = 0\narch = x86_64\n")
+        archive = package_dir / f"{name}-1.0-1-x86_64.pkg.tar.zst"
+        run(["tar", "--zstd", "-cf", str(archive), ".PKGINFO"], env, cwd=package_dir)
+        approved[name] = {"filename": archive.name, "pkgver": "1.0-1", "arch": "x86_64", "sha256": hashlib.sha256(archive.read_bytes()).hexdigest(), "source": {"kind": "throwaway-test"}}
+    policy = base / "policy.json"
+    policy.write_text(json.dumps({"schema": 1, "packages": approved}))
+    env["BREADWAY_PROVENANCE_FILE"] = str(policy)
     publisher = ["bash", str(ROOT / "scripts/ci-publish-signed-repo.sh")]
     env |= {"BREADWAY_SIGN_ONLY": "1", "BREADWAY_REPO_DIR": str(package_dir)}
     run(publisher, env)
