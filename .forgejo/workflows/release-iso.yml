@@ -107,19 +107,16 @@ jobs:
           VERSION="${{ steps.vars.outputs.version }}"
           ISO_NAME="bos-${VERSION}-x86_64.iso"
 
-          # Use an existing release for this tag if one exists (e.g. created
-          # manually or by a prior re-run), otherwise create a fresh one.
-          EXISTING=$(curl -sf \
+          # Candidates are immutable. Re-running a tag must never replace a
+          # candidate that an offline operator may already have approved.
+          RELEASE_HTTP=$(curl -sS -o /tmp/existing-release.json -w '%{http_code}' \
             -H "Authorization: token ${FORGEJO_TOKEN}" \
-            "http://localhost:3002/api/v1/repos/${GITHUB_REPOSITORY}/releases/tags/${TAG}" \
-            2>/dev/null || true)
-          RELEASE_ID=$(echo "${EXISTING}" | python3 -c \
-            "import json,sys; d=json.load(sys.stdin); print(d.get('id',''))" 2>/dev/null || true)
-
-          if [ -n "${RELEASE_ID}" ]; then
-            # Never replace assets of an already published, signed release.
-            printf '%s' "$EXISTING" | python3 -c 'import json,sys; sys.exit(0 if json.load(sys.stdin).get("draft") is True else "Refusing to modify a published release")'
-          fi
+            "http://localhost:3002/api/v1/repos/${GITHUB_REPOSITORY}/releases/tags/${TAG}")
+          case "$RELEASE_HTTP" in
+            404) RELEASE_ID="" ;;
+            200) echo 'Release/candidate already exists; refusing all mutations' >&2; exit 1 ;;
+            *) echo "Cannot verify candidate absence: HTTP $RELEASE_HTTP" >&2; exit 1 ;;
+          esac
           if [ -z "${RELEASE_ID}" ]; then
             RELEASE=$(curl -fsS -X POST \
               -H "Authorization: token ${FORGEJO_TOKEN}" \
@@ -136,25 +133,17 @@ jobs:
           fi
           echo "Using release ID: ${RELEASE_ID}"
 
+          require_draft() {
+            curl -fsS -H "Authorization: token ${FORGEJO_TOKEN}" \
+              "http://localhost:3002/api/v1/repos/${GITHUB_REPOSITORY}/releases/${RELEASE_ID}" \
+              | python3 -c 'import json,sys; sys.exit(0 if json.load(sys.stdin).get("draft") is True else "Candidate is no longer draft, refusing mutation")'
+          }
+
           upload_asset() {
             local file="$1" name
             name="$(basename "$file")"
-            local asset_id
-            asset_id=$(curl -sf \
-              -H "Authorization: token ${FORGEJO_TOKEN}" \
-              "http://localhost:3002/api/v1/repos/${GITHUB_REPOSITORY}/releases/${RELEASE_ID}/assets" \
-              | python3 -c "
-          import json,sys
-          assets=json.load(sys.stdin)
-          match=[a['id'] for a in assets if a['name']=='${name}']
-          print(match[0] if match else '')
-          " 2>/dev/null || true)
-            if [ -n "${asset_id}" ]; then
-              curl -fsS -X DELETE \
-                -H "Authorization: token ${FORGEJO_TOKEN}" \
-                "http://localhost:3002/api/v1/repos/${GITHUB_REPOSITORY}/releases/${RELEASE_ID}/assets/${asset_id}"
-              echo "Removed existing ${name} asset"
-            fi
+            require_draft
+            # No replacement/deletion: an existing name is an error.
             curl -fsS -X POST \
               -H "Authorization: token ${FORGEJO_TOKEN}" \
               -F "attachment=@${file};filename=${name}" \
@@ -164,15 +153,8 @@ jobs:
 
           upload_asset "/bos-out/${ISO_NAME}"
           upload_asset "/bos-out/SHA256SUMS"
-          # A rebuilt draft invalidates any signature from an earlier candidate.
-          curl -fsS -H "Authorization: token ${FORGEJO_TOKEN}" \
-            "http://localhost:3002/api/v1/repos/${GITHUB_REPOSITORY}/releases/${RELEASE_ID}/assets" \
-            | python3 -c 'import json,sys; print("\n".join(str(a["id"]) for a in json.load(sys.stdin) if a["name"] == "SHA256SUMS.asc"))' \
-            | while read -r stale_id; do
-                [ -z "$stale_id" ] || curl -fsS -X DELETE \
-                  -H "Authorization: token ${FORGEJO_TOKEN}" \
-                  "http://localhost:3002/api/v1/repos/${GITHUB_REPOSITORY}/releases/${RELEASE_ID}/assets/${stale_id}"
-              done
+          require_draft
+          echo 'Candidate ready only after this workflow completes successfully; offline signer must wait for completion.'
 
       # Public release publication, GitHub announcement and stable promotion
       # happen only after the offline signer approves this exact candidate.
