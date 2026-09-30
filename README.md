@@ -115,9 +115,11 @@ bos/
 └── DESIGN.md                      # historical plan
 ```
 
-Live binds are `iso/airootfs/etc/skel/.config/hypr/binds.json` (`Super+L` →
-`loginctl lock-session`, breadshot on `Super+Shift+S/C/P`, `Super+U`
-breadpad). Do not treat `dotfiles/hypr/keybinds.conf` as current.
+Live binds are `iso/airootfs/etc/skel/.config/hypr/binds.json`. Hyprland loads
+them from this file, and Breadhelp uses the same entries for its cheatsheet.
+`Super+Escape` locks the session; `Super+Shift+Escape` logs out, matching the
+modifier pattern used for directional window actions. Do not treat
+`dotfiles/hypr/keybinds.conf` as current.
 
 ## Branches and remotes
 
@@ -339,7 +341,7 @@ cheatsheet in-session; first boot shows a short welcome (once).
 | `SUPER+E` / `SUPER+B` | Files (nautilus) / Browser (zen) |
 | `SUPER+U` / `SUPER+M` | Notes (breadpad) / notes manager (breadman) |
 | `SUPER+,` / `SUPER+/` | BOS Settings / keybind cheatsheet |
-| `SUPER+L` / `SUPER+Shift+Escape` | Lock / log out |
+| `SUPER+Escape` / `SUPER+Shift+Escape` | Lock / log out |
 | `SUPER+Backspace` | Close window |
 | `SUPER+F` | Fullscreen |
 | `SUPER+I` | Toggle floating |
@@ -349,9 +351,9 @@ cheatsheet in-session; first boot shows a short welcome (once).
 | `SUPER+V` / `SUPER+Shift+V` | Clipboard history (breadclip) |
 | `SUPER+Tab` | Last window |
 | `SUPER+Shift+S/C/P` | Screenshot region→file / region→clipboard / screen→file |
-| `SUPER+arrows` | Move focus |
-| `SUPER+Shift+h/j/k/l` | Move window |
-| `SUPER+Shift+arrows` | Resize window |
+| `SUPER+arrows` / `SUPER+h/j/k/l` | Move focus |
+| `SUPER+Shift+arrows` / `SUPER+Shift+h/j/k/l` | Move window |
+| `SUPER+Ctrl+arrows` / `SUPER+Ctrl+h/j/k/l` | Resize window |
 | `SUPER+1..0` | Switch to workspace 1–10 |
 | `SUPER+Shift+1..0` | Move window to workspace |
 | `SUPER+[ / ]` | Previous / next workspace |
