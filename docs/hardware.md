@@ -35,9 +35,9 @@ The installer does not provide a supported Windows dual-boot setup. Plan to
 use a whole disk for BOS; it will not shrink a Windows installation to make
 room alongside it.
 
-Hibernation is not configured by default. BOS enables compressed zram swap in
-memory, which does not preserve a session across power loss. The installer
-does not create a disk-backed swap area for hibernation.
+The installer offers no disk-backed swap choices. BOS uses compressed zram
+swap in memory, which does not preserve a session across power loss. Disk
+swap and hibernation are not supported by the installer.
 
 ## Recovery
 
