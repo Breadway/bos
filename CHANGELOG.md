@@ -20,6 +20,9 @@ tag (with date) at tag time.
 
 ## [Unreleased]
 
+- Installer: offer only the no-disk-swap choice. BOS uses zram swap, and
+  installer-created swap files or partitions would break btrfs snapshots or
+  advertise hibernation without a configured resume path.
 - Installer: require passwords to be at least 8 characters, consistently in
   Calamares and libpwquality. For encrypted installs, use at least 12
   characters; the password page shows a non-blocking warning for shorter
