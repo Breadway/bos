@@ -101,6 +101,9 @@ wireplumber
 pipewire-pulse
 pipewire-alsa
 pipewire-jack
+# Audio firmware for Sound Open Firmware and legacy ALSA devices.
+sof-firmware
+alsa-firmware
 
 # Network
 networkmanager
