@@ -1,4 +1,6 @@
 # BOS in-house rebuild of zsh-theme-powerlevel10k (AUR-only upstream).
+# Upstream support is limited and most bugs may not be fixed. BOS knowingly
+# keeps this pinned build as its shipped default; review before changing the pin.
 # Republished to [breadway] so the ISO can pull the BOS default prompt via pacman
 # (same pattern as bibata / zen-browser-bin). Upstream maintainer header kept below.
 # Maintainer: Mark Wagie <mark dot wagie at proton dot me>
