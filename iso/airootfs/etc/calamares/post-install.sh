@@ -437,8 +437,9 @@ fi
 # Firewall: deny inbound by default, allow outbound, and permit inbound mDNS so
 # avahi printer/service discovery keeps working. Calamares runs in a chroot
 # sharing the live system's network namespace, so never enable or reload UFW
-# here. Keep it disabled while writing the rule files, then mark it enabled so
-# ufw.service applies the rules on the installed system's first boot.
+# here. Even `ufw allow` probes iptables and creates live kernel tables when
+# disabled, so persist rule files directly. ufw.service applies them on the
+# installed system's first boot.
 # ---------------------------------------------------------------------------
 if command -v ufw &>/dev/null; then
     if sed -i -E 's/^[[:space:]]*ENABLED=.*/ENABLED=no/' /etc/ufw/ufw.conf; then
@@ -446,7 +447,26 @@ if command -v ufw &>/dev/null; then
             /etc/default/ufw || echo "WARN: ufw default deny incoming failed"
         sed -i -E 's/^[[:space:]]*DEFAULT_OUTPUT_POLICY=.*/DEFAULT_OUTPUT_POLICY="ACCEPT"/' \
             /etc/default/ufw || echo "WARN: ufw default allow outgoing failed"
-        ufw allow 5353/udp || echo "WARN: ufw allow mDNS failed"
+        for family in 4 6; do
+            if [[ "$family" == 4 ]]; then
+                rules_file=/etc/ufw/user.rules
+                rules_chain=ufw-user-input
+                rules_network=0.0.0.0/0
+            else
+                rules_file=/etc/ufw/user6.rules
+                rules_chain=ufw6-user-input
+                rules_network=::/0
+            fi
+            mdns_rule="-A $rules_chain -p udp --dport 5353 -j ACCEPT"
+            if [[ -f "$rules_file" ]] && grep -q '^### END RULES ###$' "$rules_file"; then
+                if ! grep -qFx -- "$mdns_rule" "$rules_file"; then
+                    sed -i "/^### END RULES ###/i ### tuple ### allow udp 5353 $rules_network any $rules_network in\\n$mdns_rule\\n" \
+                        "$rules_file" || echo "WARN: persisting UFW IPv$family mDNS rule failed"
+                fi
+            else
+                echo "WARN: UFW IPv$family rule file is missing or unrecognized"
+            fi
+        done
         sed -i -E 's/^[[:space:]]*ENABLED=.*/ENABLED=yes/' /etc/ufw/ufw.conf \
             || echo "WARN: ufw enable configuration failed"
     else
