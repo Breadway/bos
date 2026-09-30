@@ -20,6 +20,13 @@ tag (with date) at tag time.
 
 ## [Unreleased]
 
+- Audio: include `sof-firmware` and `alsa-firmware` in the ISO for laptop
+  speakers and microphones that require Sound Open Firmware or legacy ALSA
+  firmware.
+- Installer: require passwords to be at least 8 characters, consistently in
+  Calamares and libpwquality. For encrypted installs, use at least 12
+  characters; the password page shows a non-blocking warning for shorter
+  passwords when LUKS is selected.
 - Hypridle now locks the session before turning the display off after eight
   minutes of idle time.
 - Installer: stage a signed `linux-lts` package in the ISO for offline installs,
@@ -28,6 +35,8 @@ tag (with date) at tag time.
 - ISO build: `build-local.sh` now trusts the `[breadway]` repository key in a
   temporary pacman keyring that is removed when the build exits, leaving the
   build host's pacman keyring unchanged.
+- Skel: move the Hyprland log out shortcut from `SUPER+N` to
+  `SUPER+Shift+Escape` so one accidental keypress cannot close the session.
 - Skel: the curated default palette moved from
   `.cache/wal/colors.json` to `.cache/bread/palette.json`; `.zshrc` now
   imports `.cache/bread/sequences` instead of `.cache/wal/sequences`
