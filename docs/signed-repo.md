@@ -7,7 +7,7 @@ releases until an offline signer verifies and signs them.
 
 ## Identity and trust inventory
 
-| Purpose | Public fingerprint | Public key | Private-key location |
+| Purpose | Public fingerprint | Public key | Intended private-key location after activation |
 | --- | --- | --- | --- |
 | Installed `[breadway]` repository | `56203B86A110695AE7F310934AF3323D678EB5E2` | `iso/airootfs/etc/pacman.d/breadway-repo.asc` | Dedicated offline repository signer, never an Actions runner |
 | Future ISO `SHA256SUMS` | Not provisioned yet, activation blocked | Replace `KEYS.asc` with a distinct expiring ISO-only identity in a reviewed change | Separate offline ISO signer, never an Actions runner |
@@ -51,8 +51,9 @@ Actions avoids depending on an unsupported environment restriction. See
 
 `release-iso.yml` still builds in a privileged Arch container. It writes
 `SHA256SUMS` and uploads the ISO and checksum file to an **unsigned draft**.
-It refuses to replace assets of an already published release. Rebuilding a
-candidate removes an obsolete checksum signature. It does not publish a
+It refuses every mutation if a release or candidate already exists for that
+tag. Candidates are immutable; retries cannot delete or replace assets. Each
+upload rechecks that the new candidate is still a draft. It does not publish a
 GitHub announcement or advance `stable` before approval.
 
 On the offline ISO signer, use the reviewed checkout and a downloaded candidate:
@@ -68,6 +69,16 @@ exactly one BOS ISO basename in `SHA256SUMS`, verifies the bytes, and signs only
 that file. It refuses an Actions environment. This verifies integrity and key
 purpose; the release operator must independently approve the build source and
 acceptance evidence before signing.
+
+Exclude signer/publication activity while the candidate build is active. The
+release operator must check that its Actions run completed successfully and is
+no longer running before downloading, signing, uploading a signature or
+publishing. A release missing either uploaded file or associated success
+handoff must not be signed. Immediate draft-state checks do not provide a
+transaction against an operator publishing concurrently, so this exclusion is
+an operational activation requirement. Failed candidates remain unsigned
+drafts for investigation, and a rerun is refused until the operator has
+explicitly disposed of that failed candidate through the release procedure.
 
 Upload `SHA256SUMS.asc` to the same draft, verify its signature with the new
 ISO public key and verify the downloaded ISO checksum, then publish the draft
