@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=Zen Browser
+Comment=A privacy-focused web browser
+Exec=zen-browser %u
+Icon=zen-browser
+Type=Application
+MimeType=application/pdf;application/xhtml+xml;application/xml;text/html;text/xml;x-scheme-handler/http;x-scheme-handler/https;x-scheme-handler/mailto;
+StartupWMClass=zen
+Categories=Network;WebBrowser;
+Terminal=false

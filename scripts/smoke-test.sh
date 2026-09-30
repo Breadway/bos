@@ -38,6 +38,9 @@ check "snapper root config exists" "[ -f /etc/snapper/configs/root ]"
 check "snap-pac hook present"      "pacman -Qq snap-pac"
 check "grub-btrfs present"         "pacman -Qq grub-btrfs"
 
+echo "== audio firmware =="
+check "sof-firmware installed" "pacman -Qq sof-firmware"
+
 echo "== enabled system services =="
 for unit in NetworkManager.service greetd.service bluetooth.service tlp.service \
             cups.socket avahi-daemon.socket ufw.service systemd-timesyncd.service; do
