@@ -24,6 +24,21 @@ The same probe leaves a HiDPI hint at `~/.local/state/bos/hidpi-hint.json`
 when scale > 1 or the panel is dense; it never rewrites `monitors.json`.
 A VM without `/dev/dri` gets a notification only.
 
+## Compatibility and install limits
+
+BOS is an x86-64 image. It cannot boot on Apple Silicon Macs. Intel Macs with
+the T2 security chip need external boot enabled in Recovery settings. Their
+keyboard and trackpad also need a patched kernel, which the BOS ISO does not
+include, so they are not supported out of the box.
+
+The installer does not provide a supported Windows dual-boot setup. Plan to
+use a whole disk for BOS; it will not shrink a Windows installation to make
+room alongside it.
+
+Hibernation is not configured by default. BOS enables compressed zram swap in
+memory, which does not preserve a session across power loss. The installer
+does not create a disk-backed swap area for hibernation.
+
 ## Recovery
 
 An update that breaks the system is recovered by **reboot → GRUB

@@ -22,6 +22,20 @@ tag (with date) at tag time.
 
 - Root Snapper cleanup now keeps 2-20 normal and 4-10 important snapshots,
   while pruning older snapshots when filesystem space thresholds are reached.
+- Audio: include `sof-firmware` and `alsa-firmware` in the ISO for laptop
+  speakers and microphones that require Sound Open Firmware or legacy ALSA
+  firmware.
+- Installer: require passwords to be at least 8 characters, consistently in
+  Calamares and libpwquality. For encrypted installs, use at least 12
+  characters; the password page shows a non-blocking warning for shorter
+  passwords when LUKS is selected.
+- Hypridle now locks the session before turning the display off after eight
+  minutes of idle time.
+- ISO build: `build-local.sh` now trusts the `[breadway]` repository key in a
+  temporary pacman keyring that is removed when the build exits, leaving the
+  build host's pacman keyring unchanged.
+- Skel: move the Hyprland log out shortcut from `SUPER+N` to
+  `SUPER+Shift+Escape` so one accidental keypress cannot close the session.
 - Skel: the curated default palette moved from
   `.cache/wal/colors.json` to `.cache/bread/palette.json`; `.zshrc` now
   imports `.cache/bread/sequences` instead of `.cache/wal/sequences`
@@ -82,7 +96,7 @@ silently fall back to a stale global palette. Three real security
 hardenings landed: breadcrumbs no longer leaks Wi-Fi passwords onto
 argv/shell history, bread's module-host canonicalizes path grants and
 execs without a shell, and bos-settings hardens privileged command
-operands against injection. breadman (the note-taking app,
+operands against injection. breadman (the fuller notes manager in the
 `breadpad` package) was rebuilt from GTK4 onto Tauri 2 + Svelte.
 breadclip gained real clipboard-history pinning, config, and a fix
 for the bug where pasting from history had nowhere to paste into.
@@ -163,7 +177,7 @@ what merely got tagged. `breadshot` is unchanged since v0.6.1
   could not name the current monitor by its Hyprland connector
   (the same per-output theming change in bread-theme above is what
   exposed this). `cargo fmt --check` is now gated in CI.
-- **`breadpad` 0.5.3 -> 0.6.0.** breadman (the quick-capture note app)
+- **`breadpad` 0.5.3 -> 0.6.0.** breadman (the fuller notes manager)
   was rebuilt from a bare GTK4 window onto Tauri 2 + Svelte, and both
   `breadpad` and `breadman` windows now bind per-output app CSS
   instead of one shared stylesheet.
