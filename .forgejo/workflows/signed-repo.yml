@@ -21,6 +21,7 @@ on:
       - Build and publish bibata-cursor-theme
       - Build and publish powerlevel10k
       - Build and publish yay-bin
+      - Build and publish latest Zen Browser
     types: [completed]
 
 concurrency:
