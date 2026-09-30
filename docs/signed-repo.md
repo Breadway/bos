@@ -1,98 +1,108 @@
-# Signed `[breadway]` repo
+# Signing isolation for BOS
 
-**Status: live.** The ISO's `[breadway]` section is `SigLevel = Required`
-and points at `https://dl.breadway.dev/arch/$arch`, where every
-`.pkg.tar.zst` and the db carry a detached `.sig` from the BOS release key
-(`56203B86…`, `KEYS.asc`, `releases@breadway.dev`). That key is trusted in
-the pacman keyring at build time (`build-local.sh`), on the live medium
-(`iso/airootfs/root/customize_airootfs.sh`), and on the installed target
-(`iso/airootfs/etc/calamares/post-install.sh`).
+The existing published pacman repository and historical ISOs use the same
+legacy key. The new workflows prepare **unsigned candidates**. They do not
+import or reference any signing private key, and ISO candidates remain draft
+releases until an offline signer verifies and signs them.
 
-Forgejo publishing is unchanged: `package.yml` / packaging workflows still
-PUT unsigned `.pkg.tar.zst` to Forgejo's Arch registry. The signed tree at
-`dl.breadway.dev/arch` is rebuilt from that registry by
-`.forgejo/workflows/signed-repo.yml` + `scripts/ci-publish-signed-repo.sh`.
+## Identity and trust inventory
 
-The rest of this doc is the original stand-up / verification procedure,
-kept for reference and for re-verifying after key rotation.
+| Purpose | Public fingerprint | Public key | Private-key location |
+| --- | --- | --- | --- |
+| Installed `[breadway]` repository | `56203B86A110695AE7F310934AF3323D678EB5E2` | `iso/airootfs/etc/pacman.d/breadway-repo.asc` | Dedicated offline repository signer, never an Actions runner |
+| Future ISO `SHA256SUMS` | Not provisioned yet, activation blocked | Replace `KEYS.asc` with a distinct expiring ISO-only identity in a reviewed change | Separate offline ISO signer, never an Actions runner |
+| Historical ISO releases | `56203B86A110695AE7F310934AF3323D678EB5E2` | Existing `KEYS.asc`, retain historical public copy when replaced | Verification only; stop using the repository key for new ISOs |
 
-## Stand up `dl.breadway.dev/arch`
+The existing repository primary key expires on 2028-07-03 UTC. The installed
+image trusts only `breadway-repo.asc` for `[breadway]`; it does not import
+`KEYS.asc`. This change does not rotate keys or alter installed trust.
+The offline ISO signer refuses the legacy shared identity, so an unprovisioned
+installation cannot silently continue sharing a key.
 
-CI job: **Publish signed `[breadway]` repo**
-(`.forgejo/workflows/signed-repo.yml`), host runner: **no
-container**, so it can write `/srv/breadway-dl` like bakery releases.
-breadlock `package.yml` uses `archlinux:latest` and cannot see host `/srv`.
+## Activation checklist, required before the next release or repo update
 
-Use the same release-signing key already in CI:
+1. Provision a separate ISO-only signing identity with a finite expiry, for
+   example one year, on an offline machine without the repository private key.
+   Commit its public half as `KEYS.asc` and record its full fingerprint above in
+   a reviewed PR. Preserve the legacy public key for historical downloads.
+2. Place the repository private key only on a separate dedicated signing host,
+   with a private `GNUPGHOME`. It must not run Forgejo Actions or mount runner
+   storage. Remove access from the ISO build host and every other runner.
+3. Remove the old `GPG_PRIVATE_KEY` secret from repository and organization
+   Actions stores. Renaming it or putting two secrets in the same Forgejo
+   repository does not isolate workflows. Review all workflows and scheduled
+   jobs before declaring the former runner unable to access it. Because the
+   shared key was exposed to a runner, separately assess whether rotation is
+   required; do not silently replace installed trust.
+4. Protect `main`, release tags and signing policy files so only reviewed
+   changes reach the offline signer. The signer uses a reviewed checkout from
+   that protected branch, never a script supplied inside an untrusted artifact.
+5. Verify the signing tests below and perform a candidate publication with
+   the provisioned identities. Check both fingerprints, confirm the image only
+   trusts the repository key, and prove Actions has no signing private key.
 
-- Public half: [`KEYS.asc`](../KEYS.asc)
-  (`5620 3B86 A110 695A E7F3  1093 4AF3 323D 678E B5E2`,
-  `releases@breadway.dev`)
-- Private half: the `GPG_PRIVATE_KEY` Forgejo secret (armoured secret key,
-  no passphrase). Same secret `release-iso.yml` uses to sign `SHA256SUMS`.
-  The workflow **fails** if this secret is missing.
+These are deployment steps, not evidence of a completed production migration.
+Forgejo v15 documents secrets at repository and organization scope, not a
+workflow-only trust boundary. Keeping all private signing material outside
+Actions avoids depending on an unsupported environment restriction. See
+[Forgejo secrets](https://forgejo.org/docs/v15.0/user/actions/basic-concepts/).
 
-Layout (example for `x86_64`):
+## ISO candidates and offline approval
 
-```
-https://dl.breadway.dev/arch/x86_64/
-  breadlock-<ver>-1-x86_64.pkg.tar.zst
-  breadlock-<ver>-1-x86_64.pkg.tar.zst.sig
-  breadway.db
-  breadway.db.sig
-  breadway.files
-  breadway.files.sig
-```
+`release-iso.yml` still builds in a privileged Arch container. It writes
+`SHA256SUMS` and uploads the ISO and checksum file to an **unsigned draft**.
+It refuses to replace assets of an already published release. Rebuilding a
+candidate removes an obsolete checksum signature. It does not publish a
+GitHub announcement or advance `stable` before approval.
 
-On disk: `/srv/breadway-dl/arch/x86_64/` (nginx already serves
-`/srv/breadway-dl` as `https://dl.breadway.dev/`).
-
-The job collects the current ISO `[breadway]` set from the Forgejo Arch
-registry (breadlock + calamares, zen-browser-bin, bibata-cursor-theme-bin,
-zsh-theme-powerlevel10k, yay-bin). Leftover bakery-channel pacman packages
-still sitting in that registry are **not** copied. Optional
-`BREADWAY_PKG_DIR` on the runner overrides individual files.
-
-Then it detach-signs each `.pkg.tar.zst` as a **binary** sidecar (pacman
-wants `.sig`, not armoured `.asc`) and builds the database with
-`repo-add -s`:
-
-```sh
-export GNUPGHOME=/tmp/gnupg-breadway-repo
-mkdir -m 700 -p "$GNUPGHOME"
-printf '%s\n' "$GPG_PRIVATE_KEY" | gpg --batch --import
-
-gpg --batch --yes --local-user releases@breadway.dev \
-    --detach-sign breadlock-<ver>-1-x86_64.pkg.tar.zst
-# → breadlock-<ver>-1-x86_64.pkg.tar.zst.sig
-
-cd /srv/breadway-dl/arch/x86_64
-repo-add -s -k releases@breadway.dev breadway.db.tar.gz *.pkg.tar.zst
-```
-
-`repo-add -s` writes `breadway.db.tar.gz.sig` (and the `.files` pair).
-Pacman fetches `<section>.db` + `<section>.db.sig` from `Server`.
-
-## Dispatch the workflow
-
-Forgejo UI: **Actions → "Publish signed [breadway] repo" → Run workflow**.
-Select `main`.
-
-API (`workflow_dispatch`):
+On the offline ISO signer, use the reviewed checkout and a downloaded candidate:
 
 ```sh
-curl -fsS -X POST \
-  -H "Authorization: token ${RELEASE_TOKEN}" \
-  -H "Content-Type: application/json" \
-  "https://git.breadway.dev/api/v1/repos/Breadway/bos/actions/workflows/signed-repo.yml/dispatches" \
-  -d '{"ref":"main"}'
+export GNUPGHOME=/secure/bos-iso-signing
+bash scripts/sign-iso-checksums.sh /staging/bos-candidate
 ```
 
-It also runs after the in-repo AUR republish workflows complete
-(`calamares` / `bibata` / `powerlevel10k` / `yay-bin` / latest Zen Browser).
-breadlock lives in another repo; that job can fire this one with
-`repository_dispatch` event `publish-signed-repo` (or dispatch from the UI
-after a breadlock tag).
+The script checks the pinned public identity is expiring, is distinct from the
+repository identity, and exists in the dedicated secret keyring. It accepts
+exactly one BOS ISO basename in `SHA256SUMS`, verifies the bytes, and signs only
+that file. It refuses an Actions environment. This verifies integrity and key
+purpose; the release operator must independently approve the build source and
+acceptance evidence before signing.
+
+Upload `SHA256SUMS.asc` to the same draft, verify its signature with the new
+ISO public key and verify the downloaded ISO checksum, then publish the draft
+through Forgejo. Announce the signed release on GitHub and fast-forward the
+`stable` marker only after approval. Do not publish a candidate missing its
+signature. This manual approval replaces automatic signing and promotion.
+
+## Repository candidates and offline publication
+
+`signed-repo.yml` runs only for `main`, downloads the current package set and
+uploads `unsigned-breadway-candidate` with Forgejo's supported v3 artifact
+protocol. It has no signing secret and cannot write the published repository.
+See [Forgejo artifacts](https://forgejo.org/docs/v15.0/user/actions/advanced-features/#artifacts).
+
+On the dedicated offline repository signer, inspect package provenance before
+accepting any candidate. Registry metadata alone is not trustworthy. A separate
+package allowlist/provenance policy is required to prevent signing substituted
+registry bytes. Use the reviewed checkout, not scripts in the candidate.
+
+```sh
+export GNUPGHOME=/secure/bos-repo-signing
+BREADWAY_SIGN_ONLY=1 BREADWAY_REPO_DIR=/staging/verified-packages \
+  bash scripts/ci-publish-signed-repo.sh
+```
+
+The script pins the key to `breadway-repo.asc`, requires an unexpired identity
+with finite expiry, signs package sidecars and builds signed pacman databases
+with `repo-add -s`. It refuses Actions environments and does not install host
+packages or import secret material from environment variables. Install `gpg`,
+`repo-add`, `python3`, `tar` and `zstd` on the dedicated signer beforehand.
+
+Transfer the verified signed tree to `/srv/breadway-dl/arch/x86_64/` only after
+independent approval. Verify `breadway.db.sig`, package signatures and the
+installed system's `pacman -Sy` before announcing an update. Existing releases
+remain served while new candidates await signing.
 
 ### Zen Browser release lag
 
@@ -114,78 +124,30 @@ scheduled poll.
 Run `scripts/test-ci-verify-zen-release-asset.sh` to verify the pinned Zen
 1.22.3b release archive and confirm that a modified copy is rejected.
 
-## Verify
+## Expiry and rotation
 
-Confirm the signed db is actually served **before** touching ISO
-`SigLevel` or `Server`:
+Review expiry every quarter and start renewal at least 30 days before expiry.
+`signing-key-policy.py` fails closed on expired, revoked, non-signing or
+non-expiring identities and enforces the full primary fingerprint.
 
-```sh
-curl -fsSIL https://dl.breadway.dev/arch/x86_64/breadway.db
-curl -fsSIL https://dl.breadway.dev/arch/x86_64/breadway.db.sig
-```
+For ISO rotation, provision a new ISO-only expiring key offline, publish its
+fingerprint and public half in a reviewed change, and retain old public keys
+for historical verification. Sign subsequent checksums with the new identity.
 
-Both must be HTTP 200. A 404 on `breadway.db.sig` means do **not** flip
-`SigLevel` to `Required`.
+For repository rotation, distribute and verify the replacement public key to
+existing installations before changing the signing identity. Ship it in the
+ISO keyring and update every pinned repository fingerprint together. Verify a
+transition with a disposable installed-system test. Never rotate the repository
+key solely by replacing a CI secret or deleting the old public key.
 
-Import `KEYS.asc` and check the detached signatures:
-
-```sh
-gpg --import KEYS.asc
-curl -fsSL -o /tmp/breadway.db https://dl.breadway.dev/arch/x86_64/breadway.db
-curl -fsSL -o /tmp/breadway.db.sig https://dl.breadway.dev/arch/x86_64/breadway.db.sig
-gpg --verify /tmp/breadway.db.sig /tmp/breadway.db
-```
-
-On a throwaway Arch box (not the ISO tree):
+## Isolated verification
 
 ```sh
-sudo pacman-key --add KEYS.asc
-sudo pacman-key --lsign-key 56203B86A110695AE7F310934AF3323D678EB5E2
-
-# Temporary /etc/pacman.conf snippet; do not commit this to the ISO:
-# [breadway]
-# SigLevel = Required
-# Server = https://dl.breadway.dev/arch/$arch
-
-sudo pacman -Sy
+python3 scripts/test-offline-signing.py
 ```
 
-`pacman -Sy` must fetch `breadway.db` + `breadway.db.sig` without
-"missing or invalid signature". Then `pacman -Si breadlock` (and the AUR
-republishes) should list the `[breadway]` section.
-
-## breadlock `package.yml` sidecar
-
-[`breadlock` `package.yml`](https://git.breadway.dev/Breadway/breadlock/src/branch/main/.forgejo/workflows/package.yml)
-still `makepkg`s and PUTs the archive at Forgejo's registry. That path
-stays; Never installs keep working. The signed tree is rebuilt by the bos
-workflow above (registry fetch + sign + `repo-add -s`), not by writing
-`/srv` from breadlock's container.
-
-## The ISO flip (done)
-
-All three steps have landed:
-
-1. **Key trusted.** The public key is committed at
-   `iso/airootfs/etc/pacman.d/breadway-repo.asc`. `build-local.sh`
-   `pacman-key --add` + `--lsign-key`s it into a temporary build keyring
-   configured only for that ISO build, leaving the host keyring unchanged;
-   `customize_airootfs.sh` does the same in the airootfs;
-   `calamares/post-install.sh` re-does it in the target chroot.
-2. **`Server`** in `iso/pacman.conf` and `iso/airootfs/etc/pacman.conf`
-   points at `https://dl.breadway.dev/arch/$arch`, section renamed to
-   `[breadway]` (matching `breadway.db`).
-3. **`SigLevel = Required`** on that section.
-
-### Re-verify after any build
-
-In a VM booted from a fresh ISO:
-
-```sh
-sudo pacman -Sy            # must fetch breadway.db + .sig, no signature error
-sudo pacman -Si breadlock  # lists the [breadway] section
-sudo pacman -S --noconfirm yay-bin   # installs with no key prompt
-```
-
-Then run the installer and, on the installed system, `sudo pacman -Sy`
-again; the target keyring must already trust `56203B86…`.
+The test creates temporary, unrelated expiring keys. It verifies package and
+database signatures, a distinct ISO checksum signature, rejection of altered
+ISO bytes and generic checksum lists, rejection of reused/non-expiring keys,
+and refusal to sign on Actions. It uses no personal keyring or real signing
+material and leaves the live repository unchanged.
