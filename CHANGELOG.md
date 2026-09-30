@@ -20,6 +20,9 @@ tag (with date) at tag time.
 
 ## [Unreleased]
 
+- Keybinds: use arrows or H/J/K/L for focus, add Shift to move and Ctrl to
+  resize. Lock with Super+Escape; logout remains Super+Shift+Escape.
+
 - Audio: include `sof-firmware` and `alsa-firmware` in the ISO for laptop
   speakers and microphones that require Sound Open Firmware or legacy ALSA
   firmware.
