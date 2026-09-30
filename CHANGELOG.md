@@ -29,6 +29,8 @@ tag (with date) at tag time.
 - ISO build: `build-local.sh` now trusts the `[breadway]` repository key in a
   temporary pacman keyring that is removed when the build exits, leaving the
   build host's pacman keyring unchanged.
+- Skel: move the Hyprland log out shortcut from `SUPER+N` to
+  `SUPER+Shift+Escape` so one accidental keypress cannot close the session.
 - Skel: the curated default palette moved from
   `.cache/wal/colors.json` to `.cache/bread/palette.json`; `.zshrc` now
   imports `.cache/bread/sequences` instead of `.cache/wal/sequences`
