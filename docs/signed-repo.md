@@ -89,9 +89,22 @@ curl -fsS -X POST \
 ```
 
 It also runs after the in-repo AUR republish workflows complete
-(`calamares` / `bibata` / `powerlevel10k` / `yay-bin`). breadlock lives in
-another repo; that job can fire this one with `repository_dispatch` event
-`publish-signed-repo` (or dispatch from the UI after a breadlock tag).
+(`calamares` / `bibata` / `powerlevel10k` / `yay-bin` / latest Zen Browser).
+breadlock lives in another repo; that job can fire this one with
+`repository_dispatch` event `publish-signed-repo` (or dispatch from the UI
+after a breadlock tag).
+
+### Zen Browser release lag
+
+The in-house `zen-browser-bin` PKGBUILD pins the official upstream release
+archive with a SHA-256 checksum. A scheduled Forgejo Actions workflow polls
+Zen's stable GitHub release feed every six hours, compares its version with
+the signed `[breadway]` database, and builds and uploads the release only
+when `[breadway]` is behind. The signed-repository workflow runs after that
+build completes, so the intended maximum release-to-repository lag is six
+hours while the runner and upstream release service are available. A failed
+poll or publish is visible as a failed Actions run; use workflow dispatch to
+retry it sooner than the next scheduled poll.
 
 ## Verify
 
