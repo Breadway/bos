@@ -37,6 +37,10 @@ wiring up dotfiles, no per-tool bakery installs.
   non-destructively, plus snapshots, bakery/pacman updates, and day-to-day
   machine administration.
 - **Login**: greetd + breadgreet (under `cage`) → Hyprland session.
+- **Shell**: Zsh with the Powerlevel10k prompt. Upstream reports limited
+  maintenance and says most bugs may not be fixed. BOS knowingly keeps its
+  pinned in-house package as the shipped default; review upstream support
+  before updating the pin or choosing a replacement.
 - **Boot splash**: Plymouth `bos` theme (logo + spinner, black background).
 - **Theming**: global dark across GTK3 (Adwaita-dark), GTK4/libadwaita
   (`color-scheme: prefer-dark`), and Qt (qt5ct/qt6ct Fusion dark); Papirus-Dark
