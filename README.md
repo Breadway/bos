@@ -171,7 +171,10 @@ builder.
 AUR-only. BOS keeps a PKGBUILD for each under `packaging/` and republishes
 the built package to the `[breadway]` repo via a Forgejo Actions workflow
 (built on the self-hosted runner, published with a scoped registry
-token). `[breadway]` is **not** where bakery/breadbar/bos-settings live.
+token). Zen stable releases are checked every six hours and published to
+`[breadway]` when the signed repository is behind; the watcher checks the
+archive against GitHub's release-asset digest before building it.
+`[breadway]` is **not** where bakery/breadbar/bos-settings live.
 
 ### Verifying a release
 
