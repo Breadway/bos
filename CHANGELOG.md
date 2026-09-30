@@ -20,6 +20,9 @@ tag (with date) at tag time.
 
 ## [Unreleased]
 
+- Installer: reserve UID 1000 for the installed account by assigning the
+  temporary live user UID 60001, outside normal account allocation.
+
 - Audio: include `sof-firmware` and `alsa-firmware` in the ISO for laptop
   speakers and microphones that require Sound Open Firmware or legacy ALSA
   firmware.
