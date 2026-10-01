@@ -22,7 +22,7 @@
 
     { "action": "layout", "layout": "togglesplit", "key": "T", "label": "Toggle split direction", "category": "windows" },
     { "action": "focus_last", "key": "Tab", "label": "Focus last window", "category": "windows" },
-    { "action": "exit", "key": "N", "label": "Exit Hyprland (log out)", "category": "windows" },
+    { "action": "exit", "key": "Escape", "mods": ["SUPER", "SHIFT"], "label": "Exit Hyprland (log out)", "category": "windows" },
 
     { "action": "exec", "command": "breadshot region -o ~/Pictures/Screenshots", "key": "S", "mods": ["SUPER", "SHIFT"], "label": "Screenshot: select region -> file", "category": "screenshots" },
     { "action": "exec", "command": "breadshot region --clipboard-only", "key": "C", "mods": ["SUPER", "SHIFT"], "label": "Screenshot: select region -> clipboard", "category": "screenshots" },
