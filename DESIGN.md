@@ -20,6 +20,23 @@ taken as current:
 
 ---
 
+## Theming decision: native palette extraction
+
+BOS uses the native Rust palette extractor in `bread-theme`. It does not
+adopt `pywal16` or `wallust`, and it no longer packages `python-pywal`.
+
+`bread-theme` already provides the palette extraction API used by the desktop
+apps and now performs extraction in-process, without invoking `wal` or
+ImageMagick. Its implementation was checked against pywal's output so the
+existing wallpaper colours are preserved. Keeping extraction in the shared
+library avoids maintaining a BOS-only Python package and keeps the extractor
+and its consumers on one API. The migration to bread-theme's cache and the
+removal of BOS's pywal package are complete (bread-ecosystem ECO-29 through
+ECO-33; BOS-50 and BOS-51).
+
+The implementation PR retains pywal-compatible cache helpers for external
+consumers, but BOS no longer depends on that cache or on the `wal` executable.
+
 # Original plan (kept for history)
 
 ## Context

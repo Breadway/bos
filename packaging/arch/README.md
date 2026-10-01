@@ -2,13 +2,13 @@ Arch packaging
 ==============
 
 This directory only holds `PKGBUILD`s for third-party AUR packages BOS
-republishes to the `[breadway]` pacman repo (`calamares`, `bibata`,
-`powerlevel10k`, `yay-bin`), not the user's own code. See each
+republishes to the `[breadway]` pacman repo (`calamares`, `zen-browser-bin`,
+`bibata`, `powerlevel10k`, `yay-bin`), not the user's own code. See each
 subdirectory's `.forgejo/workflows/<name>.yml` (in this repo) for how each
 one publishes on a push to `packaging/<name>/**`.
 
 Every bread-ecosystem app (bakery, bread, breadbar, breadbox, breadcrumbs,
-breadpad, breadpaper, breadmon, breadclip, breadshot,
+breadpad, breadpaper, breadclip, breadshot,
 bos-settings, breadhelp, ...) is bakery-managed, not pacman-packaged; see
 `iso/bread-lockfile.toml` (`required_bins` + `optional_bins`), which
 `build-local.sh` uses as the name list when baking this machine's bakery
