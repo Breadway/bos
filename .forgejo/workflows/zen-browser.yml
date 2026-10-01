@@ -22,7 +22,7 @@ jobs:
           PUBLISH_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
         run: |
           set -euo pipefail
-          pacman -Syu --noconfirm base-devel curl jq python zstd
+          pacman -Syu --noconfirm base-devel curl git jq python zstd
           useradd -m builder
           install -d -o builder -g builder /home/builder/src /home/builder/zen-output
           git config --global --add safe.directory '*'
