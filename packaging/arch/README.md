@@ -2,8 +2,8 @@ Arch packaging
 ==============
 
 This directory only holds `PKGBUILD`s for third-party AUR packages BOS
-republishes to the `[breadway]` pacman repo (`calamares`, `bibata`,
-`powerlevel10k`, `yay-bin`), not the user's own code. See each
+republishes to the `[breadway]` pacman repo (`calamares`, `zen-browser-bin`,
+`bibata`, `powerlevel10k`, `yay-bin`), not the user's own code. See each
 subdirectory's `.forgejo/workflows/<name>.yml` (in this repo) for how each
 one publishes on a push to `packaging/<name>/**`.
 
