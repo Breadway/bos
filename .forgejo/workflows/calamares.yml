@@ -4,9 +4,12 @@ name: Build and publish calamares
 # in-house PKGBUILD and publishes the built package to the [breadway] repo.
 on:
   push:
-    # Path-only triggers also fire on tags. Restrict to work branches so
-    # ISO's force-push of `stable` (the release marker) does not republish.
+    # Build work branches for validation. Only main can publish packages.
     branches: ['main', 'fix/**', 'feature/**']
+    paths:
+      - 'packaging/calamares/**'
+  pull_request:
+    branches: ['main']
     paths:
       - 'packaging/calamares/**'
   workflow_dispatch:
@@ -17,9 +20,7 @@ jobs:
     container:
       image: archlinux:latest
     steps:
-      - name: Build and publish
-        env:
-          PUBLISH_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
+      - name: Build package
         run: |
           set -euo pipefail
           pacman -Syu --noconfirm base-devel git cmake ninja \
@@ -27,14 +28,21 @@ jobs:
             kcoreaddons kpmcore libpwquality qt6-declarative qt6-svg yaml-cpp
           useradd -m builder
           git config --global --add safe.directory '*'
-          # Clone the branch/tag that triggered this run (not the default
-          # branch); same as bibata.yml/powerlevel10k.yml/yay-bin.yml, so a
-          # push to a feature branch (or a release tag) builds and publishes
-          # from that ref, not whatever happens to be on the default branch.
-          git clone --depth 1 --branch "${GITHUB_REF_NAME}" \
+          # Fetch the exact triggering ref. For pull_request events this is
+          # the PR merge ref, while push and dispatch events use branch refs.
+          git clone --no-checkout \
             "https://git.breadway.dev/${GITHUB_REPOSITORY}.git" /home/builder/src
+          git -C /home/builder/src fetch --depth=1 origin "${GITHUB_REF}"
+          git -C /home/builder/src checkout --detach FETCH_HEAD
           chown -R builder:builder /home/builder/src
           su builder -c "cd /home/builder/src/packaging/calamares && makepkg -f --noconfirm --nocheck"
+
+      - name: Publish package
+        if: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
+        env:
+          PUBLISH_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
+        run: |
+          set -euo pipefail
           PKG=$(find /home/builder/src/packaging/calamares -name '*.pkg.tar.zst' ! -name '*-debug-*' | head -1)
           code=$(curl -sS -o /tmp/pkg-upload.body -w "%{http_code}" -X PUT \
             -H "Authorization: token ${PUBLISH_TOKEN}" \

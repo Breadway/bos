@@ -1,0 +1,56 @@
+name: Build and publish latest Zen Browser
+
+# Poll the official stable release feed every six hours. A new package is
+# built only when the signed [breadway] repository is behind upstream.
+on:
+  schedule:
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: zen-browser-update
+  cancel-in-progress: false
+
+jobs:
+  zen-browser:
+    runs-on: [self-hosted]
+    container:
+      image: archlinux:latest
+    steps:
+      - name: Build and publish a newer stable release
+        env:
+          PUBLISH_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
+        run: |
+          set -euo pipefail
+          pacman -Syu --noconfirm base-devel curl jq python zstd
+          useradd -m builder
+          install -d -o builder -g builder /home/builder/src /home/builder/zen-output
+          git config --global --add safe.directory '*'
+          git clone --depth 1 --branch main \
+            "https://git.breadway.dev/${GITHUB_REPOSITORY}.git" /home/builder/src
+          chown -R builder:builder /home/builder/src
+          cp /home/builder/src/scripts/ci-build-latest-zen-browser.sh /home/builder/
+          chown builder:builder /home/builder/ci-build-latest-zen-browser.sh
+          su builder -s /bin/bash -c 'bash /home/builder/ci-build-latest-zen-browser.sh'
+
+          shopt -s nullglob
+          packages=(/home/builder/zen-output/*.pkg.tar.zst)
+          shopt -u nullglob
+          if (( ${#packages[@]} == 0 )); then
+            echo 'The signed [breadway] repository already has the latest stable Zen release.'
+            exit 0
+          fi
+
+          if [[ -z "${PUBLISH_TOKEN:-}" ]]; then
+            echo 'REGISTRY_TOKEN is missing; refusing to publish an unregistered package.' >&2
+            exit 1
+          fi
+          code=$(curl -sS -o /tmp/zen-upload.body -w '%{http_code}' -X PUT \
+            -H "Authorization: token ${PUBLISH_TOKEN}" \
+            -H 'Content-Type: application/octet-stream' \
+            --data-binary "@${packages[0]}" \
+            'https://git.breadway.dev/api/packages/Breadway/arch/os')
+          case "$code" in
+            200|201|204|409) echo "published or already registered ${packages[0]} ($code)" ;;
+            *) echo "package upload failed HTTP ${code}"; cat /tmp/zen-upload.body; exit 1 ;;
+          esac

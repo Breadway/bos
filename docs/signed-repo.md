@@ -89,9 +89,30 @@ curl -fsS -X POST \
 ```
 
 It also runs after the in-repo AUR republish workflows complete
-(`calamares` / `bibata` / `powerlevel10k` / `yay-bin`). breadlock lives in
-another repo; that job can fire this one with `repository_dispatch` event
-`publish-signed-repo` (or dispatch from the UI after a breadlock tag).
+(`calamares` / `bibata` / `powerlevel10k` / `yay-bin` / latest Zen Browser).
+breadlock lives in another repo; that job can fire this one with
+`repository_dispatch` event `publish-signed-repo` (or dispatch from the UI
+after a breadlock tag).
+
+### Zen Browser release lag
+
+The in-house `zen-browser-bin` PKGBUILD pins the official upstream release
+archive with a SHA-256 checksum. A scheduled Forgejo Actions workflow polls
+Zen's stable GitHub release feed every six hours, reads the Linux archive's
+`digest` from the release asset metadata, and compares the downloaded bytes
+against that independently supplied value before building. GitHub documents
+this field in its [release assets API](https://docs.github.com/en/rest/releases/assets).
+The watcher compares the version with the signed `[breadway]` database and
+builds and uploads the release only when `[breadway]` is behind. Missing or
+malformed upstream digests and mismatched archives fail closed. The
+signed-repository workflow runs after that build completes, so the intended
+maximum release-to-repository lag is six hours while the runner and upstream
+release service are available. A failed poll or publish is visible as a
+failed Actions run; use workflow dispatch to retry it sooner than the next
+scheduled poll.
+
+Run `scripts/test-ci-verify-zen-release-asset.sh` to verify the pinned Zen
+1.22.3b release archive and confirm that a modified copy is rejected.
 
 ## Verify
 
@@ -147,7 +168,8 @@ All three steps have landed:
 
 1. **Key trusted.** The public key is committed at
    `iso/airootfs/etc/pacman.d/breadway-repo.asc`. `build-local.sh`
-   `pacman-key --add` + `--lsign-key`s it into the build host keyring;
+   `pacman-key --add` + `--lsign-key`s it into a temporary build keyring
+   configured only for that ISO build, leaving the host keyring unchanged;
    `customize_airootfs.sh` does the same in the airootfs;
    `calamares/post-install.sh` re-does it in the target chroot.
 2. **`Server`** in `iso/pacman.conf` and `iso/airootfs/etc/pacman.conf`
