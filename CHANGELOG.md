@@ -24,6 +24,10 @@ tag (with date) at tag time.
   mkinitcpio unlock hook before initramfs generation. GRUB records the LUKS
   container and mapper so the initramfs can unlock root without asking for a
   second passphrase; the smoke test checks the encrypted boot parameters.
+- When UEFI firmware is in Setup Mode, the installer now builds GRUB with
+  shim-lock disabled, SBAT metadata, and the filesystem, crypto, and boot
+  modules it needs. It then enrolls and saves signatures for both GRUB EFI
+  files and the kernel so sbctl can re-sign them after package updates.
 - Audio: include `sof-firmware` and `alsa-firmware` in the ISO for laptop
   speakers and microphones that require Sound Open Firmware or legacy ALSA
   firmware.
