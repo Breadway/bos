@@ -241,12 +241,17 @@ plymouth
 gst-plugins-good
 gst-plugins-bad
 gst-plugins-ugly
-# Hardware video acceleration (VA-API): lets the AMD/Intel GPU decode H.264/HEVC/
-# VP9 in mpv, VLC, and browsers instead of the CPU (cooler, longer battery on
-# video). The open Mesa VA-API backend (radeonsi_drv_video.so etc.) now ships in
-# the `mesa` package itself (pulled in already), so only libva (deps) + the
-# `vainfo` verification tool need listing here.
+# Hardware video acceleration (VA-API): AMD's radeonsi backend ships in mesa,
+# while Broadwell and newer Intel GPUs need intel-media-driver separately.
+# libva-utils supplies vainfo for checking the selected hardware driver.
+intel-media-driver
 libva-utils
+# Mesa's Vulkan ICDs are separate packages from its OpenGL/AMD VA-API drivers.
+# Include both vendor ICDs and the loader so apps can select the available GPU.
+vulkan-radeon
+vulkan-intel
+vulkan-icd-loader
+vulkan-tools
 # GUI audio mixer: useful when output device needs manual switching.
 pavucontrol
 

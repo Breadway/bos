@@ -38,6 +38,8 @@ tag (with date) at tag time.
   advertise hibernation without a configured resume path.
 - Package cache: include pacman-contrib and enable weekly paccache cleanup,
   retaining the latest three cached versions of each package.
+- Graphics: include Intel VA-API decoding and Intel/AMD Vulkan drivers,
+  with vainfo and vulkaninfo tools for hardware verification.
 
 - Audio: include `sof-firmware` and `alsa-firmware` in the ISO for laptop
   speakers and microphones that require Sound Open Firmware or legacy ALSA
