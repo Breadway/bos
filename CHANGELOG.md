@@ -42,6 +42,8 @@ tag (with date) at tag time.
   with vainfo and vulkaninfo tools for hardware verification.
 - Installer: reserve UID 1000 for the installed account by assigning the
   temporary live user UID 60001, outside normal account allocation.
+- Keybinds: use arrows or H/J/K/L for focus, add Shift to move and Ctrl to
+  resize. Lock with Super+Escape; logout remains Super+Shift+Escape.
 
 - Audio: include `sof-firmware` and `alsa-firmware` in the ISO for laptop
   speakers and microphones that require Sound Open Firmware or legacy ALSA
