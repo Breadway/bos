@@ -1,18 +1,20 @@
 #!/usr/bin/env bash
 # Collect the current [breadway] ISO packages, detach-sign them with the
-# BOS release key (releases@breadway.dev), and publish a signed pacman db
+# repository-only key on an offline signing host, and publish a signed pacman db
 # under /srv/breadway-dl/arch/x86_64/ (https://dl.breadway.dev/arch/x86_64/).
 #
 # Does not change ISO SigLevel and does not write to the Forgejo Arch
 # registry; existing package.yml / packaging/*.yml PUTs stay as they are.
 #
 # Required env:
-#   GPG_PRIVATE_KEY   armoured secret key (same secret as release-iso.yml)
+#   GNUPGHOME         dedicated offline repository signing keyring
+# Private keys are never imported from Actions or environment variables.
 # Optional env:
 #   BREADWAY_DEST     publish dir (default /srv/breadway-dl/arch/x86_64)
 #   BREADWAY_PKG_DIR  extra directory of .pkg.tar.zst to prefer over the registry
 #   BREADWAY_REGISTRY Forgejo Arch registry base
 #   BREADWAY_SIGN_ONLY=1   skip collect; sign+index BREADWAY_REPO_DIR only
+#   BREADWAY_COLLECT_ONLY=1   prepare an unsigned candidate, no keyring needed
 set -euo pipefail
 
 PACKAGES=(
@@ -27,18 +29,21 @@ PACKAGES=(
 ARCH="${BREADWAY_ARCH:-x86_64}"
 REGISTRY="${BREADWAY_REGISTRY:-https://git.breadway.dev/api/packages/Breadway/arch/os}"
 DEST="${BREADWAY_DEST:-/srv/breadway-dl/arch/${ARCH}}"
-KEY_ID="${BREADWAY_KEY_ID:-releases@breadway.dev}"
+KEY_ID=""
 DB_NAME="${BREADWAY_REGISTRY_DB:-Breadway.os.git.breadway.dev.db}"
 REPO_DIR="${BREADWAY_REPO_DIR:-}"
 
-SCRIPT_PATH="$(readlink -f "${BASH_SOURCE[0]}")"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+PUBLIC_KEY="${BREADWAY_REPO_PUBLIC_KEY_FILE:-$SCRIPT_DIR/../iso/airootfs/etc/pacman.d/breadway-repo.asc}"
 
 die() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
 
 need_key() {
-  if [[ -z "${GPG_PRIVATE_KEY:-}" ]]; then
-    die "GPG_PRIVATE_KEY is missing; refusing to publish an unsigned [breadway] repo."
-  fi
+  [[ -n "${GNUPGHOME:-}" && "$GNUPGHOME" == /* && -d "$GNUPGHOME" ]] \
+    || die "GNUPGHOME must be an existing dedicated offline signing keyring"
+  [[ "${CI:-false}" != true && -z "${GITHUB_ACTIONS:-}" && -z "${FORGEJO_ACTIONS:-}" ]] \
+    || die "repository signing is forbidden on an Actions runner"
+  KEY_ID="$(python3 "$SCRIPT_DIR/signing-key-policy.py" "$PUBLIC_KEY" --secret)"
 }
 
 urlencode() {
@@ -51,11 +56,6 @@ pkginfo_name() {
   awk -F ' = ' '$1=="pkgname" {print $2; exit}' <<<"$info"
 }
 
-import_key() {
-  export GNUPGHOME="${GNUPGHOME:-$(mktemp -d "${TMPDIR:-/tmp}/gnupg-breadway-repo.XXXXXX")}"
-  mkdir -m 700 -p "$GNUPGHOME"
-  printf '%s\n' "$GPG_PRIVATE_KEY" | gpg --batch --import
-}
 
 detach_sign_pkgs() {
   local pkg
@@ -85,62 +85,16 @@ repo_add_signed() {
   find . -maxdepth 1 -type f -exec chmod a+r {} + || true
 }
 
-ensure_arch_tools() {
-  if ! command -v gpg >/dev/null 2>&1; then
-    command -v pacman >/dev/null 2>&1 || die "gpg not on PATH"
-    pacman -Sy --noconfirm --needed gnupg
-  fi
-  command -v repo-add >/dev/null 2>&1 || die "repo-add not on PATH"
-  command -v gpg >/dev/null 2>&1 || die "gpg not on PATH"
-}
-
 sign_and_index() {
   local dir="$1"
   [[ -d "$dir" ]] || die "repo dir missing: $dir"
+  command -v repo-add >/dev/null 2>&1 || die "install repo-add on the dedicated signer first"
   need_key
-  ensure_arch_tools
-  import_key
   (
     cd "$dir"
     detach_sign_pkgs
     repo_add_signed
   )
-}
-
-container_runtime() {
-  if command -v docker >/dev/null 2>&1; then
-    printf '%s\n' docker
-  elif command -v podman >/dev/null 2>&1; then
-    printf '%s\n' podman
-  else
-    return 1
-  fi
-}
-
-sign_and_index_anywhere() {
-  local dir="$1"
-  if command -v repo-add >/dev/null 2>&1 && command -v gpg >/dev/null 2>&1; then
-    sign_and_index "$dir"
-    return
-  fi
-  local rt
-  rt="$(container_runtime)" || die \
-    "need host gpg+repo-add, or docker/podman to run archlinux:latest (no Forgejo container: host must see /srv/breadway-dl)"
-  # Host job + bind-mount, same reason bakery writes /srv without container:.
-  # Run as the runner user: root-owned 0600 .sig files made chmod/nginx fail
-  # (run 1050) and would block the next `rm -rf` of a previous tree.
-  "$rt" run --rm --network=host \
-    --user "$(id -u):$(id -g)" \
-    -e HOME=/tmp \
-    -e TMPDIR=/tmp \
-    -e GPG_PRIVATE_KEY \
-    -e BREADWAY_SIGN_ONLY=1 \
-    -e BREADWAY_REPO_DIR=/repo \
-    -e BREADWAY_KEY_ID="$KEY_ID" \
-    -v "$dir:/repo" \
-    -v "$SCRIPT_PATH:/ci-publish-signed-repo.sh:ro" \
-    archlinux:latest \
-    bash /ci-publish-signed-repo.sh
 }
 
 parse_registry_db() {
@@ -270,7 +224,7 @@ if [[ "${BREADWAY_SIGN_ONLY:-0}" == 1 ]]; then
   exit 0
 fi
 
-need_key
+if [[ "${BREADWAY_COLLECT_ONLY:-0}" != 1 ]]; then need_key; fi
 
 DEST_PARENT="$(dirname "$DEST")"
 mkdir -p "$DEST_PARENT" || die "cannot create $DEST_PARENT (runner must write /srv/breadway-dl)"
@@ -278,9 +232,6 @@ STAGE="$(mktemp -d "$DEST_PARENT/.stage-XXXXXX")"
 cleanup() {
   if [[ -n "${STAGE:-}" && -d "${STAGE:-}" ]]; then
     rm -rf "$STAGE"
-  fi
-  if [[ -n "${GNUPGHOME:-}" && "$GNUPGHOME" == *gnupg-breadway-repo* ]]; then
-    rm -rf "$GNUPGHOME"
   fi
 }
 trap cleanup EXIT
@@ -296,12 +247,12 @@ if (( ${#missing[@]} > 0 )); then
   die "missing packages after collect: ${missing[*]}"
 fi
 
-sign_and_index_anywhere "$STAGE"
+if [[ "${BREADWAY_COLLECT_ONLY:-0}" != 1 ]]; then sign_and_index "$STAGE"; fi
 
 # Do not publish helper junk if a container left any.
 rm -f "$STAGE/.sign.sh"
 
 publish_tree
 
-printf 'published signed [breadway] repo -> %s\n' "$DEST"
+printf 'prepared [breadway] tree (collect-only=%s) -> %s\n' "${BREADWAY_COLLECT_ONLY:-0}" "$DEST"
 ls -lh "$DEST"
