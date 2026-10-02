@@ -31,6 +31,8 @@ tag (with date) at tag time.
 - Installer finalization now records critical boot failures, returns a failure
   to Calamares instead of showing the success page, and writes a full log to
   `/var/log/bos-install.log`.
+- Root Snapper cleanup now keeps 2-20 normal and 4-10 important snapshots,
+  while pruning older snapshots when filesystem space thresholds are reached.
 - Audio: include `sof-firmware` and `alsa-firmware` in the ISO for laptop
   speakers and microphones that require Sound Open Firmware or legacy ALSA
   firmware.
