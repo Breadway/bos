@@ -28,6 +28,9 @@ tag (with date) at tag time.
   shim-lock disabled, SBAT metadata, and the filesystem, crypto, and boot
   modules it needs. It then enrolls and saves signatures for both GRUB EFI
   files and the kernel so sbctl can re-sign them after package updates.
+- Installer finalization now records critical boot failures, returns a failure
+  to Calamares instead of showing the success page, and writes a full log to
+  `/var/log/bos-install.log`.
 - Audio: include `sof-firmware` and `alsa-firmware` in the ISO for laptop
   speakers and microphones that require Sound Open Firmware or legacy ALSA
   firmware.
