@@ -30,7 +30,7 @@ ARCH="${BREADWAY_ARCH:-x86_64}"
 REGISTRY="${BREADWAY_REGISTRY:-https://git.breadway.dev/api/packages/Breadway/arch/os}"
 DEST="${BREADWAY_DEST:-/srv/breadway-dl/arch/${ARCH}}"
 KEY_ID=""
-DB_NAME="${BREADWAY_REGISTRY_DB:-Breadway.os.git.breadway.dev.db}"
+PROVENANCE="${BREADWAY_PROVENANCE_FILE:-$(dirname -- "${BASH_SOURCE[0]}")/../packaging/provenance/approved-packages.json}"
 REPO_DIR="${BREADWAY_REPO_DIR:-}"
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
@@ -89,6 +89,7 @@ sign_and_index() {
   local dir="$1"
   [[ -d "$dir" ]] || die "repo dir missing: $dir"
   command -v repo-add >/dev/null 2>&1 || die "install repo-add on the dedicated signer first"
+  python3 "$SCRIPT_DIR/package-provenance.py" verify "$PROVENANCE" "$dir" "${PACKAGES[@]}"
   need_key
   (
     cd "$dir"
@@ -97,49 +98,6 @@ sign_and_index() {
   )
 }
 
-parse_registry_db() {
-  local db="$1"
-  python3 - "$db" "${PACKAGES[@]}" <<'PY'
-import sys, tarfile
-
-db = sys.argv[1]
-want = set(sys.argv[2:])
-found = {}
-with tarfile.open(db, "r:*") as tf:
-    for member in tf.getmembers():
-        if not member.name.endswith("/desc") or not member.isfile():
-            continue
-        fh = tf.extractfile(member)
-        if fh is None:
-            continue
-        text = fh.read().decode()
-        fields = {}
-        key = None
-        buf = []
-        def flush():
-            if key is not None:
-                fields[key] = "\n".join(buf).strip()
-        for line in text.splitlines():
-            if line.startswith("%") and line.endswith("%") and len(line) > 2:
-                flush()
-                key = line.strip("%")
-                buf = []
-            else:
-                buf.append(line)
-        flush()
-        name = fields.get("NAME", "")
-        filename = fields.get("FILENAME", "")
-        if name in want and filename:
-            found[name] = filename
-
-missing = sorted(want - set(found))
-if missing:
-    sys.stderr.write("registry db missing packages: " + " ".join(missing) + "\n")
-    raise SystemExit(1)
-for name in sys.argv[2:]:
-    print(f"{name}\t{found[name]}")
-PY
-}
 
 copy_local_overrides() {
   local dir="$1"
@@ -180,23 +138,26 @@ has_pkg_named() {
 }
 
 collect_from_registry() {
-  local work db name filename enc url
-  work="$(mktemp -d "${TMPDIR:-/tmp}/breadway-db.XXXXXX")"
-  db="$work/$DB_NAME"
-  curl -fL --retry 3 --retry-delay 2 -o "$db" "$REGISTRY/$ARCH/$DB_NAME" \
-    || die "failed to fetch $REGISTRY/$ARCH/$DB_NAME"
+  local work manifest name filename enc url
+  work="$(mktemp -d "${TMPDIR:-/tmp}/breadway-provenance.XXXXXX")"
+  manifest="$work/packages.tsv"
+  # Abort on invalid policy before requesting registry bytes. Metadata from the
+  # registry never chooses the approved version, filename or digest.
+  python3 "$SCRIPT_DIR/package-provenance.py" list "$PROVENANCE" "${PACKAGES[@]}" > "$manifest" \
+    || { rm -rf "$work"; die "invalid approved package policy"; }
   while IFS=$'\t' read -r name filename; do
     if has_pkg_named "$name"; then
-      printf 'using local %s, skip registry\n' "$name"
+      printf 'using local %s, will verify against approved digest\n' "$name"
       continue
     fi
     enc="$(urlencode "$filename")"
     url="$REGISTRY/$ARCH/$enc"
-    printf 'fetch %s\n' "$filename"
+    printf 'fetch approved %s\n' "$filename"
     curl -fL --retry 3 --retry-delay 2 -o "$STAGE/$filename" "$url" \
-      || die "failed to fetch $url"
-  done < <(parse_registry_db "$db")
+      || { rm -rf "$work"; die "failed to fetch $url"; }
+  done < "$manifest"
   rm -rf "$work"
+  python3 "$SCRIPT_DIR/package-provenance.py" verify "$PROVENANCE" "$STAGE" "${PACKAGES[@]}"
 }
 
 publish_tree() {
