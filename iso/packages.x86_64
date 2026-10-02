@@ -1,5 +1,7 @@
 # Base system
 base
+# Weekly package-cache cleanup, retaining the latest three package versions.
+pacman-contrib
 linux
 # linux-firmware metapackage pulls every mandatory vendor blob (incl. nvidia).
 # List the subpackages we actually need so nvidia (~103 MiB, nouveau-only,
@@ -210,7 +212,7 @@ yay-bin
 # breadlock is the only bread* pacman package here (it needs a root-owned
 # /etc/pam.d/breadlock). Everything else, bakery, bread/breadd/bread-emit/
 # bread-module-host, breadbar, breadbox, breadcrumbs, breadpad, breadpaper,
-# bread-theme, breadmon, breadclip, breadshot, bos-settings,
+# bread-theme, breadclip, breadshot, bos-settings,
 # breadhelp, is bakery-managed and baked into /usr/local at ISO build
 # time from iso/bread-lockfile.toml (see build-local.sh). breadcast,
 # breadarr, and breadsearch/breadmill are not shipped (breadsearch is
