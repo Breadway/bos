@@ -22,6 +22,7 @@ file_permissions=(
     ["/etc/shadow"]="0:0:400"
     ["/etc/sudoers.d/99-bos-live"]="0:0:440"
     ["/etc/calamares/post-install.sh"]="0:0:755"
+    ["/usr/local/bin/bos-sign-lts-kernel"]="0:0:755"
     ["/usr/local/bin/bos-live-setup"]="0:0:755"
     ["/usr/local/bin/bos-launch-calamares"]="0:0:755"
     ["/usr/local/bin/bos-copy-kernel"]="0:0:755"

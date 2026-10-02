@@ -22,7 +22,6 @@ wiring up dotfiles, no per-tool bakery installs.
   them), `breadbar` (status bar + notifications), `breadbox` (launcher),
   `breadclip` (clipboard history), `breadcrumbs` (Wi-Fi profiles),
   `breadpad`/`breadman` (notes), `breadpaper` (wallpaper + theme),
-  `breadmon` (monitor layout TUI),
   `breadshot` (screenshots), `bread-theme` (the shared palette engine),
   `breadhelp` (onboarding + cheatsheet), `bos-settings` (control panel),
   and the `bakery` package manager. Most of those apps are zero-config on
@@ -68,16 +67,17 @@ wiring up dotfiles, no per-tool bakery installs.
 
 | Channel | What |
 |---------|------|
-| **Bakery, required** | `bakery`, `bread` / `breadd`, `breadbar`, `breadbox` / `breadbox-sync`, `breadcrumbs`, `breadpad` / `breadman`, `breadpaper`, `bread-theme`, `breadmon`, `breadclip` / `breadclipd`, `breadshot`, `bos-settings`, `breadhelp` (+ breadhelp content under `/usr/local/share/breadhelp/`) |
+| **Bakery, required** | `bakery`, `bread` / `breadd`, `breadbar`, `breadbox` / `breadbox-sync`, `breadcrumbs`, `breadpad` / `breadman`, `breadpaper`, `bread-theme`, `breadclip` / `breadclipd`, `breadshot`, `bos-settings`, `breadhelp` (+ breadhelp content under `/usr/local/share/breadhelp/`) |
 | **Bakery, optional** | `bread-emit`, `bread-module-host`: baked when the verified stable index publishes them; skipped (not a failed bake) until bread ships them |
 | **pacman (`packages.x86_64`)** | `breadlock`, plus the rest of the distro (Hyprland, Calamares, Zen, …) |
 | **Not shipped (installable)** | `breadsearch` / `breadmill` (semantic file search): not baked, add it after install with `bakery install breadsearch` |
 | **Not shipped** | `breadcast`, `breadarr` |
+| **Deprecated** | `breadmon`: removed from the image; use BOS Settings → Displays for monitor layout |
 
 The baked name list is [`iso/bread-lockfile.toml`](iso/bread-lockfile.toml)
 (plus optional `[versions]` / `[[pin]]` so CI fetches
 `https://dl.breadway.dev/<pkg>/<ver>/...`). `build-local.sh` fails if any
-**required** binary is missing on the builder.
+**required** binary is missing from the staging home.
 
 ## Repo layout
 
@@ -115,9 +115,11 @@ bos/
 └── DESIGN.md                      # historical plan
 ```
 
-Live binds are `iso/airootfs/etc/skel/.config/hypr/binds.json` (`Super+L` →
-`loginctl lock-session`, breadshot on `Super+Shift+S/C/P`, `Super+U`
-breadpad). Do not treat `dotfiles/hypr/keybinds.conf` as current.
+Live binds are `iso/airootfs/etc/skel/.config/hypr/binds.json`. Hyprland loads
+them from this file, and Breadhelp uses the same entries for its cheatsheet.
+`Super+Escape` locks the session; `Super+Shift+Escape` logs out, matching the
+modifier pattern used for directional window actions. Do not treat
+`dotfiles/hypr/keybinds.conf` as current.
 
 ## Branches and remotes
 
@@ -135,11 +137,16 @@ Push `origin` (and `github` when mirroring). Do not treat origin as GitHub.
 
 ## Building the ISO
 
-`build-local.sh` builds the image natively (no container) and copies this
-machine's bakery-installed bread binaries + breadhelp content from the
-builder's `~/.local` into the image at `/usr/local` (bins, share/data,
-desktop files, licenses) and `/usr/lib/systemd/user` (units). Per-user
-bakery state (`installed.json` + index cache) is seeded in `/etc/skel`.
+`build-local.sh` builds the image natively (no container). By default it
+downloads the lockfile-pinned bakery binaries into a temporary home, checking
+the signed index and artifact hashes before copying the binaries + breadhelp
+content into the image at `/usr/local` (bins, share/data, desktop files,
+licenses) and `/usr/lib/systemd/user` (units). Per-user bakery state
+(`installed.json` + index cache) is seeded in `/etc/skel`. To bake your
+currently installed bakery versions for local development, set
+`BAKE_FROM_HOME=1`.
+The `[breadway]` repository key is trusted in a temporary build keyring; the
+host pacman keyring is left unchanged.
 User units are `systemctl --global enable`'d so a later `useradd -m`
 starts them on first login. BOS opts in via `/etc/bakery/config.toml`
 (`prefix = "/usr/local"`); default bakery without that file is still
@@ -149,6 +156,7 @@ still grub-btrfs, not `snapper rollback`.
 ```sh
 sudo ./build-local.sh              # release-quality (xz squashfs)
 sudo FAST_BUILD=1 ./build-local.sh # fast dev iteration (zstd squashfs)
+sudo BAKE_FROM_HOME=1 ./build-local.sh # use this user's installed versions
 ```
 
 The ISO lands in `out/bos-<date>-x86_64.iso`. The script pins
@@ -157,11 +165,12 @@ to the Tailscale-reachable Forgejo registry for the build, and **exits
 non-zero** if any **required** lockfile binary (or breadhelp content) is
 missing. Optional bins are skipped with a warning.
 
-CI stages the builder from the **minisign-verified** stable bakery index
-(`index.json` + `index.json.minisig`) and prefers lockfile `[versions]`
-URLs (`https://dl.breadway.dev/<pkg>/<ver>/...`) when set, so two bakes
-of the same commit fetch the same bits. Local builds still snapshot the
-builder.
+CI and default local builds stage a temporary home from the **minisign-verified**
+stable bakery index (`index.json` + `index.json.minisig`) and prefer lockfile
+`[versions]` URLs (`https://dl.breadway.dev/<pkg>/<ver>/...`) when set, so two
+bakes of the same commit fetch the same bits. The temporary local staging home
+is removed when the build exits. `BAKE_FROM_HOME=1` opts into copying the
+builder's existing installation instead.
 
 ### Why some packages are in-house
 
@@ -277,7 +286,7 @@ also get live systemd status + Start/Stop/Restart/Logs.
 | Packages | `bakery` installed list + updates, pacman system update |
 | AUR | Search via `yay`; installing opens a terminal (AUR build scripts need review) |
 | Firmware | `fwupd` device list + updates |
-| Snapshots | `snapper` list (number / date / description); reboot to pick in GRUB (grub-btrfs); delete: **root (`@`) only** |
+| Snapshots | `snapper` list (number / date / description); reboot to pick in GRUB (grub-btrfs); delete: **root (`@`) only**; retain 2-20 normal and 4-10 important snapshots, constrained by filesystem space |
 | Backup | restic of `$HOME` (`@home`) via Settings → Backup; snapper does not cover home |
 
 Source and build live in the [bos-settings](https://git.breadway.dev/Breadway/bos-settings)
@@ -318,7 +327,6 @@ directly.
 |------|------|--------|
 | `breadcrumbs` | Location-aware Wi-Fi profile state machine, with optional Tailscale integration: switches network behavior based on which saved network you're on | CLI, or BOS Settings → Wi-Fi Profiles |
 | `breadpaper` | Wallpaper manager: sets the wallpaper via `awww`, generates the accent palette from it, and reloads every bread-theme app | BOS Settings → Wallpaper |
-| `breadmon` | TUI monitor layout manager (resolution/position/scaling); the interactive counterpart to BOS Settings' read-only Display panel | `breadmon` in a terminal |
 | `breadshot` | Screenshot utility wrapping `grim`/`slurp`/`wl-copy` with Hyprland-aware geometry (multi-monitor-safe region select) | `breadshot`, or `SUPER+Shift+S/C/P` |
 
 **Tooling**
@@ -340,7 +348,7 @@ cheatsheet in-session; first boot shows a short welcome (once).
 | `SUPER+E` / `SUPER+B` | Files (nautilus) / Browser (zen) |
 | `SUPER+U` / `SUPER+M` | Notes (breadpad) / notes manager (breadman) |
 | `SUPER+,` / `SUPER+/` | BOS Settings / keybind cheatsheet |
-| `SUPER+L` / `SUPER+Shift+Escape` | Lock / log out |
+| `SUPER+Escape` / `SUPER+Shift+Escape` | Lock / log out |
 | `SUPER+Backspace` | Close window |
 | `SUPER+F` | Fullscreen |
 | `SUPER+I` | Toggle floating |
@@ -350,9 +358,9 @@ cheatsheet in-session; first boot shows a short welcome (once).
 | `SUPER+V` / `SUPER+Shift+V` | Clipboard history (breadclip) |
 | `SUPER+Tab` | Last window |
 | `SUPER+Shift+S/C/P` | Screenshot region→file / region→clipboard / screen→file |
-| `SUPER+arrows` | Move focus |
-| `SUPER+Shift+h/j/k/l` | Move window |
-| `SUPER+Shift+arrows` | Resize window |
+| `SUPER+arrows` / `SUPER+h/j/k/l` | Move focus |
+| `SUPER+Shift+arrows` / `SUPER+Shift+h/j/k/l` | Move window |
+| `SUPER+Ctrl+arrows` / `SUPER+Ctrl+h/j/k/l` | Resize window |
 | `SUPER+1..0` | Switch to workspace 1–10 |
 | `SUPER+Shift+1..0` | Move window to workspace |
 | `SUPER+[ / ]` | Previous / next workspace |
@@ -405,6 +413,11 @@ description so you know which GRUB entry to pick. It does not roll the
 running root back in place. Snapper is root only. Home files are
 **Settings → Backup** (restic restore into `~/bos-restore-<id>`, not
 over `$HOME`).
+
+Automatic root snapshot cleanup keeps 2-20 normal snapshots and 4-10
+important snapshots. Cleanup also tries to keep at least 20% of the
+filesystem free and snapshots below 50% of filesystem space. These are
+space thresholds, so fewer snapshots may remain when the filesystem is full.
 
 Do **not** run `snapper rollback`. BOS GRUB pins `rootflags=subvol=@`, so
 a snapper-swapped default subvolume is not what the installed grub.cfg

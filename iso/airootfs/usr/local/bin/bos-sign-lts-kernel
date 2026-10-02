@@ -1,0 +1,12 @@
+#!/bin/bash
+# Save the LTS kernel in sbctl's file database after Calamares finalization.
+# post-install.sh creates and enrolls keys only when UEFI is in Setup Mode.
+set -uo pipefail
+
+[[ -d /sys/firmware/efi ]] || exit 0
+[[ -x /usr/bin/sbctl ]] || exit 0
+[[ -f /boot/vmlinuz-linux-lts ]] || exit 0
+[[ -d /var/lib/sbctl/keys ]] || exit 0
+
+sbctl sign -s /boot/vmlinuz-linux-lts \
+    || echo "WARN: sbctl could not save and sign /boot/vmlinuz-linux-lts"
