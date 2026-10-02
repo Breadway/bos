@@ -22,7 +22,7 @@ jobs:
           PUBLISH_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
         run: |
           set -euo pipefail
-          pacman -Syu --noconfirm base-devel curl jq python zstd
+          pacman -Syu --noconfirm base-devel curl git jq python zstd nodejs
           useradd -m builder
           install -d -o builder -g builder /home/builder/src /home/builder/zen-output
           git config --global --add safe.directory '*'
@@ -41,6 +41,12 @@ jobs:
             exit 0
           fi
 
+          python3 /home/builder/src/scripts/package-provenance.py record "${packages[0]}" \
+            --source-repo "$GITHUB_REPOSITORY" \
+            --source-commit "$(git -C /home/builder/src rev-parse HEAD)" \
+            --workflow zen-browser.yml --run-id "$GITHUB_RUN_ID" \
+            > "${packages[0]}.provenance.json"
+
           if [[ -z "${PUBLISH_TOKEN:-}" ]]; then
             echo 'REGISTRY_TOKEN is missing; refusing to publish an unregistered package.' >&2
             exit 1
@@ -54,3 +60,10 @@ jobs:
             200|201|204|409) echo "published or already registered ${packages[0]} ($code)" ;;
             *) echo "package upload failed HTTP ${code}"; cat /tmp/zen-upload.body; exit 1 ;;
           esac
+
+      - name: Save unapproved build provenance for review
+        uses: https://data.forgejo.org/actions/upload-artifact@v3
+        with:
+          name: zen-browser-build-provenance
+          path: /home/builder/zen-output/*.provenance.json
+          if-no-files-found: ignore

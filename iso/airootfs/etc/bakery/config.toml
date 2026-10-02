@@ -1,2 +1,5 @@
 # Bakery desktop apps live under /usr/local so they ride snapper @ snapshots.
 prefix = "/usr/local"
+
+# Optional home config errors warn; root protects system-prefix binaries.
+snapper_configs = ["root", "home"]

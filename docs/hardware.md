@@ -14,8 +14,18 @@ and notifies that the proprietary driver is not on the ISO. It does **not**
 install anything.
 
 The optional proprietary path is `bos-nvidia-setup` or the Settings →
-Updates NVIDIA button. That installs `nvidia` + `nvidia-utils` (never
-cuda) and writes `~/.config/hypr/nvidia.lua`. `hyprland.lua` dofiles that
+Updates NVIDIA button. Supported Turing and newer PCI IDs select `nvidia-open`
+with `nvidia-utils` for a linux-only install, or `nvidia-open-dkms` with headers
+for every installed kernel when another kernel (including linux-lts) is present.
+Maxwell/Pascal require manually maintained `nvidia-580xx-dkms` and
+`nvidia-580xx-utils` AUR packages; automatic setup refuses them. Older and unknown
+PCI IDs also stop before installation. The allowlist is pinned to NVIDIA's
+595.58.03 supported-products table and must be updated for newer hardware.
+
+`bos-nvidia-setup --dry-run` prints the detected driver/package plan without
+root or changes. For example, `--dry-run --device-id 1e04 --kernel linux
+--kernel linux-lts` selects DKMS plus both headers. First boot records the plan
+in `nvidia-offer.json` as `driver_plan` for Settings. A real supported setup writes `~/.config/hypr/nvidia.lua`. `hyprland.lua` dofiles that
 drop-in **only if the file exists**, so Mesa machines stay unchanged.
 Reboot after. Installing the packages by hand without the drop-in is not
 enough for a working Hyprland session.
@@ -35,9 +45,9 @@ The installer does not provide a supported Windows dual-boot setup. Plan to
 use a whole disk for BOS; it will not shrink a Windows installation to make
 room alongside it.
 
-Hibernation is not configured by default. BOS enables compressed zram swap in
-memory, which does not preserve a session across power loss. The installer
-does not create a disk-backed swap area for hibernation.
+The installer offers no disk-backed swap choices. BOS uses compressed zram
+swap in memory, which does not preserve a session across power loss. Disk
+swap and hibernation are not supported by the installer.
 
 ## Recovery
 
@@ -56,6 +66,10 @@ you know which GRUB entry to pick. To keep a working snapshot, run
 preserves the current `@` as `@.broken-<date>`, installs the selected
 snapshot as `@`, and reboots. Bakery desktop apps live under `/usr/local`
 on `@`, so those same snapshots include them.
+
+Root snapshot cleanup keeps 2-20 normal and 4-10 important snapshots when
+space permits. It also tries to keep at least 20% of the filesystem free
+and snapshots below 50% of filesystem space.
 
 If the system will not boot (lost EFI entry / broken GRUB), boot the live
 ISO and run `sudo bos-rescue`. It mounts `@` + the ESP and offers the same
