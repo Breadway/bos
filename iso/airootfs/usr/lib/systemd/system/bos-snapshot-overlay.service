@@ -1,0 +1,11 @@
+[Unit]
+Description=Make a read-only Btrfs snapshot writable with a volatile overlay
+DefaultDependencies=no
+After=sysroot.mount
+Before=initrd-root-fs.target
+ConditionPathIsMountPoint=/sysroot
+
+[Service]
+Type=oneshot
+ExecStart=/usr/lib/systemd/systemd-bos-snapshot-overlay
+RemainAfterExit=yes

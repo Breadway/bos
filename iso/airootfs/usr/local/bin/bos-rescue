@@ -7,9 +7,9 @@
 #   UEFI: grub-install NVRAM + --removable, then grub-mkconfig
 #   BIOS: grub-install i386-pc onto the disk hosting /
 #
-# Recovery is this script or the GRUB "snapshots" submenu (grub-btrfs).
-# GRUB pins rootflags=subvol=@; a snapper-swapped default subvolume is
-# not what the installed grub.cfg will boot. Never snapper-rollback.
+# Broken GRUB is recovered with this script. A broken update can boot a
+# temporary writable GRUB snapshot; run bos-restore-snapshot <number> from
+# that boot to make it the installed @ root. Never snapper-rollback.
 #
 # Safe: prints the devices it will use and requires YES before writing.
 # Best-effort: do not use `set -e`; a failed probe must not abort the rest.
@@ -39,7 +39,9 @@ then arch-chroot and/or reinstall GRUB.
 Prints the devices it will use and asks YES before writing anything.
 
 Do not snapper-rollback. GRUB pins rootflags=subvol=@. Pick a grub-btrfs
-snapshot entry, or reinstall GRUB with this script.
+snapshot entry for a temporary writable boot, then run
+`sudo bos-restore-snapshot <number>` to make that snapshot the installed @.
+Use this script to recover a broken GRUB or lost EFI entry.
 
 Must be run as root. Intended from the live ISO (SUPER+Return).
 EOF
@@ -344,8 +346,8 @@ print_plan() {
         info "root is LUKS (grub-install will include cryptodisk modules)"
     fi
     echo >&2
-    info "Recovery is grub-btrfs (GRUB snapshots submenu) or this GRUB reinstall."
-    info "GRUB pins rootflags=subvol=@; do not swap the default subvolume."
+    info "A grub-btrfs snapshot boot is temporary; run bos-restore-snapshot <number> to keep it."
+    info "Use this helper to repair a broken GRUB."
 }
 
 run_in_target() {
@@ -571,7 +573,7 @@ main() {
     done
     bold "bos-rescue"
     info "Live-ISO recovery helper. Prints devices and asks YES before writing."
-    info "Use grub-btrfs (GRUB snapshots submenu) for a bootable snapshot."
+    info "Use a GRUB snapshot entry for temporary recovery, then bos-restore-snapshot <number> to keep it."
     info "Do not snapper-rollback: GRUB pins rootflags=subvol=@."
     echo
 

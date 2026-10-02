@@ -42,20 +42,23 @@ does not create a disk-backed swap area for hibernation.
 ## Recovery
 
 An update that breaks the system is recovered by **reboot → GRUB
-“snapshots” submenu** (grub-btrfs). `snapper rollback` will not change
-what GRUB boots (`rootflags=subvol=@`).
+“snapshots” submenu** (grub-btrfs). Snapshot boots are writable through a
+temporary overlay, so changes disappear after reboot. `snapper rollback`
+will not change what GRUB boots (`rootflags=subvol=@`).
 
 `snapper rollback` swaps the default subvolume; the installed `grub.cfg`
 still boots `@`. Pick the grub-btrfs entry so the kernel command line
 matches the snapshot you want.
 
 BOS Settings → Snapshots lists snapshot number, date, and description so
-you know which GRUB entry to pick. It does not roll the running root back
-in place. Bakery desktop apps live under `/usr/local` on `@`, so those
-same snapshots include them.
+you know which GRUB entry to pick. To keep a working snapshot, run
+`sudo bos-restore-snapshot <number>` while booted from it. The helper
+preserves the current `@` as `@.broken-<date>`, installs the selected
+snapshot as `@`, and reboots. Bakery desktop apps live under `/usr/local`
+on `@`, so those same snapshots include them.
 
 If the system will not boot (lost EFI entry / broken GRUB), boot the live
 ISO and run `sudo bos-rescue`. It mounts `@` + the ESP and offers the same
 `grub-install` NVRAM + `--removable` sequence as `post-install.sh`.
 
-A/B root swapping is not implemented. See the README Recovery section.
+See the README Recovery section for the snapshot restore flow.

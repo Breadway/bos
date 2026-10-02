@@ -34,6 +34,9 @@ tag (with date) at tag time.
   build host's pacman keyring unchanged.
 - Skel: move the Hyprland log out shortcut from `SUPER+N` to
   `SUPER+Shift+Escape` so one accidental keypress cannot close the session.
+- GRUB snapshot boots now get a temporary writable overlay with both systemd
+  and udev initramfs hooks. Added `bos-restore-snapshot` to make a selected
+  snapshot the installed `@` root while preserving the previous root.
 - Skel: the curated default palette moved from
   `.cache/wal/colors.json` to `.cache/bread/palette.json`; `.zshrc` now
   imports `.cache/bread/sequences` instead of `.cache/wal/sequences`
