@@ -11,7 +11,7 @@
 #   2. bakery   : the bread ecosystem apps in /usr/local (whatever `bakery list`
 #                 reports as installed: bakery, bread, breadbar, breadbox,
 #                 breadcrumbs, breadpad, breadman, bread-theme, breadpaper,
-#                 breadmon, breadclip, breadshot, bos-settings,
+#                 breadclip, breadshot, bos-settings,
 #                 breadhelp, ...). Those bits live on @ and ride snapper
 #                 root snapshots; recover via grub-btrfs, not `snapper rollback`.
 #
@@ -20,22 +20,41 @@ set -uo pipefail
 
 bold() { printf '\033[1m%s\033[0m\n' "$1"; }
 
-# Timed snapper pre snapshot before either channel. snap-pac already
-# snapshots root around pacman; bakery now writes /usr/local (on @), so
-# that root snapshot includes the desktop apps. This extra snapshot is
-# still best-effort; a home config if the installer created one (user
-# bakery state), plus a root timeline around the whole update. Never
-# fail the update if snapper is missing or the create errors.
-if command -v snapper >/dev/null; then
-    if snapper -c home list >/dev/null 2>&1; then
-        snapper -c home create -t pre -c number \
-            -d "bos-update (pre bakery)" \
-            || echo "WARN: snapper home pre snapshot failed"
-    fi
-    snapper -c root create -t pre -c number \
-        -d "bos-update (pre bakery)" \
-        || echo "WARN: snapper pre snapshot failed"
-fi
+# New bakery handles snapshots itself, including direct/GUI transactions.
+# Keep a numbered pre/post fallback for the bakery shipped on older installs.
+SNAPSHOT_CONFIGS=()
+SNAPSHOT_NUMBERS=()
+ELEVATE=()
+close_snapshots() {
+    local outcome="$1" i
+    for i in "${!SNAPSHOT_CONFIGS[@]}"; do
+        "${ELEVATE[@]}" snapper -c "${SNAPSHOT_CONFIGS[$i]}" create -t post \
+            --pre-number "${SNAPSHOT_NUMBERS[$i]}" -c number \
+            -d "bos-update bakery (post, $outcome)" \
+            || echo "WARN: snapper ${SNAPSHOT_CONFIGS[$i]} post snapshot failed"
+    done
+    SNAPSHOT_CONFIGS=()
+    SNAPSHOT_NUMBERS=()
+}
+open_snapshots() {
+    local config number
+    command -v snapper >/dev/null || return 0
+    for config in root home; do
+        # Home is optional, not all BOS installs create a home config.
+        "${ELEVATE[@]}" snapper -c "$config" list >/dev/null 2>&1 || continue
+        if number=$("${ELEVATE[@]}" snapper -c "$config" create -t pre -p -c number \
+                -d "bos-update bakery (pre)"); then
+            if [[ "$number" =~ ^[1-9][0-9]*$ ]]; then
+                SNAPSHOT_CONFIGS+=("$config")
+                SNAPSHOT_NUMBERS+=("$number")
+            else
+                echo "WARN: snapper $config did not return a valid pre snapshot number"
+            fi
+        else
+            echo "WARN: snapper $config pre snapshot failed"
+        fi
+    done
+}
 
 bold "==> System packages (pacman -Syu)"
 if command -v pacman >/dev/null; then
@@ -47,14 +66,26 @@ fi
 echo
 bold "==> Bread ecosystem (bakery update --all)"
 if command -v bakery >/dev/null; then
-    # /usr/local is root-owned. Never run bakery as the user against it;
-    # bakery itself also tries sudo -n then pkexec for privileged writes.
+    # Use the same privilege path for snapshots and package writes.
     if sudo -n true >/dev/null 2>&1; then
-        sudo -n bakery update --all || echo "WARN: bakery update failed"
+        ELEVATE=(sudo -n)
     elif command -v pkexec >/dev/null; then
-        pkexec bakery update --all || echo "WARN: bakery update failed"
+        ELEVATE=(pkexec)
     else
         echo "WARN: bakery update needs sudo -n or pkexec for /usr/local"
+    fi
+    if ((${#ELEVATE[@]})); then
+        if ! "${ELEVATE[@]}" bakery capabilities 2>/dev/null | grep -qx 'snapper-transactions-configured-v1'; then
+            trap 'close_snapshots interrupted' EXIT
+            open_snapshots
+        fi
+        if "${ELEVATE[@]}" bakery update --all; then
+            close_snapshots success
+        else
+            close_snapshots failed
+            echo "WARN: bakery update failed"
+        fi
+        trap - EXIT
     fi
 else
     echo "bakery not found; skipping"
