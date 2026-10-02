@@ -40,6 +40,8 @@ tag (with date) at tag time.
   retaining the latest three cached versions of each package.
 - Graphics: include Intel VA-API decoding and Intel/AMD Vulkan drivers,
   with vainfo and vulkaninfo tools for hardware verification.
+- Installer: reserve UID 1000 for the installed account by assigning the
+  temporary live user UID 60001, outside normal account allocation.
 
 - Audio: include `sof-firmware` and `alsa-firmware` in the ISO for laptop
   speakers and microphones that require Sound Open Firmware or legacy ALSA

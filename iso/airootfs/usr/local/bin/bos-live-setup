@@ -19,7 +19,9 @@ fi
 # (hypr + bread config + bakery state): proper live-media functionality,
 # not an installer kiosk. Binaries are /usr/local, not skel.
 if ! id liveuser &>/dev/null; then
-    useradd -m -s /usr/bin/zsh liveuser
+    # Keep UID 1000 free for Calamares. 60001 is above Arch UID_MAX (60000),
+    # so normal useradd allocation does not advance past the live account.
+    useradd -m -u 60001 -s /usr/bin/zsh liveuser
     for g in wheel video input audio storage power; do
         getent group "$g" >/dev/null 2>&1 && gpasswd -a liveuser "$g" >/dev/null || true
     done
