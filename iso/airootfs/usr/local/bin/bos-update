@@ -11,7 +11,7 @@
 #   2. bakery   : the bread ecosystem apps in /usr/local (whatever `bakery list`
 #                 reports as installed: bakery, bread, breadbar, breadbox,
 #                 breadcrumbs, breadpad, breadman, bread-theme, breadpaper,
-#                 breadmon, breadclip, breadshot, bos-settings,
+#                 breadclip, breadshot, bos-settings,
 #                 breadhelp, ...). Those bits live on @ and ride snapper
 #                 root snapshots; recover via grub-btrfs, not `snapper rollback`.
 #
