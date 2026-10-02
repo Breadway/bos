@@ -20,6 +20,19 @@ tag (with date) at tag time.
 
 ## [Unreleased]
 
+- Encrypted Calamares installs now register a boot keyfile and configure the
+  mkinitcpio unlock hook before initramfs generation. GRUB records the LUKS
+  container and mapper so the initramfs can unlock root without asking for a
+  second passphrase; the smoke test checks the encrypted boot parameters.
+- When UEFI firmware is in Setup Mode, the installer now builds GRUB with
+  shim-lock disabled, SBAT metadata, and the filesystem, crypto, and boot
+  modules it needs. It then enrolls and saves signatures for both GRUB EFI
+  files and the kernel so sbctl can re-sign them after package updates.
+- Installer finalization now records critical boot failures, returns a failure
+  to Calamares instead of showing the success page, and writes a full log to
+  `/var/log/bos-install.log`.
+- Root Snapper cleanup now keeps 2-20 normal and 4-10 important snapshots,
+  while pruning older snapshots when filesystem space thresholds are reached.
 - Audio: include `sof-firmware` and `alsa-firmware` in the ISO for laptop
   speakers and microphones that require Sound Open Firmware or legacy ALSA
   firmware.
@@ -77,6 +90,12 @@ tag (with date) at tag time.
   to the default background, so `breadpaper get` (and bos-settings'
   Wallpaper page) has something to read on a fresh install now that
   `get()` no longer falls back to pywal's `~/.cache/wal/wal`.
+- Local ISO builds now stage lockfile-pinned bakery binaries from the signed
+  index by default. Set `BAKE_FROM_HOME=1` to use the builder's installed
+  bakery versions for development. The build uses a temporary package
+  keyring, leaving the host pacman keyring unchanged.
+- Updated the bakery, bread-theme, and breadpaper lockfile pins to their
+  signed stable-index versions so all three can be verified by SHA-256.
 
 ## [0.6.2] - 2026-09-19
 
