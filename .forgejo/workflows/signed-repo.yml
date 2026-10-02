@@ -1,15 +1,8 @@
-name: Publish signed [breadway] repo
+name: Prepare unsigned [breadway] candidate
 
-# Host job on the self-hosted runner (no container:) so it can write /srv/breadway-dl, same
-# as bakery releases. breadlock package.yml uses archlinux:latest and cannot
-# see host /srv; do not add container: here.
-#
-# Collects breadlock + the ISO AUR republishes from the Forgejo Arch
-# registry, detach-signs each .pkg.tar.zst, repo-add -s, publishes
-# https://dl.breadway.dev/arch/x86_64/. Does not PUT to the registry
-# (existing packaging workflows keep doing that). Does not flip ISO SigLevel.
-#
-# Required secret: GPG_PRIVATE_KEY (same BOS release key as release-iso.yml).
+# No signing private key is available to Actions. This job downloads an unsigned
+# candidate for offline review. Only a dedicated non-runner signing host may run
+# the publisher with its local repository key. See docs/signed-repo.md.
 
 on:
   workflow_dispatch:
@@ -30,24 +23,25 @@ concurrency:
 
 jobs:
   publish:
-    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
+    if: ${{ github.ref == 'refs/heads/main' && (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success') }}
     runs-on: [self-hosted]
     steps:
       - name: Clone repository
         run: |
           set -euo pipefail
-          REF="${GITHUB_REF_NAME:-main}"
           rm -rf src
-          git clone --depth 1 --branch "$REF" \
+          git clone --depth 1 --branch main \
             "https://git.breadway.dev/${GITHUB_REPOSITORY}.git" src
 
-      - name: Sign packages and publish repo
-        env:
-          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+      - name: Collect unsigned candidate
         run: |
           set -euo pipefail
-          if [ -z "${GPG_PRIVATE_KEY:-}" ]; then
-            echo "GPG_PRIVATE_KEY secret is missing; refusing to publish an unsigned [breadway] repo." >&2
-            exit 1
-          fi
-          bash src/scripts/ci-publish-signed-repo.sh
+          BREADWAY_COLLECT_ONLY=1 BREADWAY_DEST="$PWD/candidate" \
+            bash src/scripts/ci-publish-signed-repo.sh
+
+      - name: Save unsigned candidate for offline review
+        uses: https://data.forgejo.org/actions/upload-artifact@v3
+        with:
+          name: unsigned-breadway-candidate
+          path: candidate/
+          if-no-files-found: error

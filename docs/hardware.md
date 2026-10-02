@@ -45,9 +45,9 @@ The installer does not provide a supported Windows dual-boot setup. Plan to
 use a whole disk for BOS; it will not shrink a Windows installation to make
 room alongside it.
 
-Hibernation is not configured by default. BOS enables compressed zram swap in
-memory, which does not preserve a session across power loss. The installer
-does not create a disk-backed swap area for hibernation.
+The installer offers no disk-backed swap choices. BOS uses compressed zram
+swap in memory, which does not preserve a session across power loss. Disk
+swap and hibernation are not supported by the installer.
 
 ## Recovery
 
@@ -63,6 +63,10 @@ BOS Settings → Snapshots lists snapshot number, date, and description so
 you know which GRUB entry to pick. It does not roll the running root back
 in place. Bakery desktop apps live under `/usr/local` on `@`, so those
 same snapshots include them.
+
+Root snapshot cleanup keeps 2-20 normal and 4-10 important snapshots when
+space permits. It also tries to keep at least 20% of the filesystem free
+and snapshots below 50% of filesystem space.
 
 If the system will not boot (lost EFI entry / broken GRUB), boot the live
 ISO and run `sudo bos-rescue`. It mounts `@` + the ESP and offers the same
