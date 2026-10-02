@@ -64,4 +64,23 @@ fallback_image="/boot/initramfs-linux-fallback.img"
 fallback_options="-S autodetect"
 PRESET
 
-echo "Copied live kernel into $ROOT/boot; reset mkinitcpio to a stock preset"
+# Install the signed installer-only LTS package staged by customize_airootfs.
+# It is copied into the target by unpackfs, not installed on the live ISO.
+# The native Calamares initcpio module runs after this script and builds every
+# installed preset; post-install.sh then regenerates GRUB with both kernels.
+LTS_PACKAGE_DIR="$ROOT/usr/share/bos/installer-packages"
+mapfile -t LTS_PACKAGES < <(find "$LTS_PACKAGE_DIR" -maxdepth 1 -type f \
+    -name 'linux-lts-*-x86_64.pkg.tar.zst' -print 2>/dev/null)
+if [[ "${#LTS_PACKAGES[@]}" != 1 || ! -f "${LTS_PACKAGES[0]}.sig" ]]; then
+    echo "ERROR: expected one signed linux-lts package in $LTS_PACKAGE_DIR" >&2
+    exit 1
+fi
+if ! pacman --root "$ROOT" --dbpath "$ROOT/var/lib/pacman" \
+    --gpgdir /etc/pacman.d/gnupg --config /etc/pacman.conf \
+    -U --noconfirm "${LTS_PACKAGES[0]}"; then
+    echo "ERROR: could not install the cached linux-lts package into $ROOT" >&2
+    exit 1
+fi
+rm -rf "$LTS_PACKAGE_DIR"
+
+echo "Copied live kernel into $ROOT/boot and installed cached linux-lts"
