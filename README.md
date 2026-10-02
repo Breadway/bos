@@ -279,7 +279,7 @@ also get live systemd status + Start/Stop/Restart/Logs.
 | Packages | `bakery` installed list + updates, pacman system update |
 | AUR | Search via `yay`; installing opens a terminal (AUR build scripts need review) |
 | Firmware | `fwupd` device list + updates |
-| Snapshots | `snapper` list (number / date / description); reboot to pick in GRUB (grub-btrfs); delete: **root (`@`) only** |
+| Snapshots | `snapper` list (number / date / description); reboot to pick in GRUB (grub-btrfs); delete: **root (`@`) only**; retain 2-20 normal and 4-10 important snapshots, constrained by filesystem space |
 | Backup | restic of `$HOME` (`@home`) via Settings → Backup; snapper does not cover home |
 
 Source and build live in the [bos-settings](https://git.breadway.dev/Breadway/bos-settings)
@@ -406,6 +406,11 @@ description so you know which GRUB entry to pick. It does not roll the
 running root back in place. Snapper is root only. Home files are
 **Settings → Backup** (restic restore into `~/bos-restore-<id>`, not
 over `$HOME`).
+
+Automatic root snapshot cleanup keeps 2-20 normal snapshots and 4-10
+important snapshots. Cleanup also tries to keep at least 20% of the
+filesystem free and snapshots below 50% of filesystem space. These are
+space thresholds, so fewer snapshots may remain when the filesystem is full.
 
 Do **not** run `snapper rollback`. BOS GRUB pins `rootflags=subvol=@`, so
 a snapper-swapped default subvolume is not what the installed grub.cfg

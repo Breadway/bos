@@ -54,6 +54,10 @@ you know which GRUB entry to pick. It does not roll the running root back
 in place. Bakery desktop apps live under `/usr/local` on `@`, so those
 same snapshots include them.
 
+Root snapshot cleanup keeps 2-20 normal and 4-10 important snapshots when
+space permits. It also tries to keep at least 20% of the filesystem free
+and snapshots below 50% of filesystem space.
+
 If the system will not boot (lost EFI entry / broken GRUB), boot the live
 ISO and run `sudo bos-rescue`. It mounts `@` + the ESP and offers the same
 `grub-install` NVRAM + `--removable` sequence as `post-install.sh`.
