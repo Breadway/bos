@@ -77,7 +77,7 @@ wiring up dotfiles, no per-tool bakery installs.
 The baked name list is [`iso/bread-lockfile.toml`](iso/bread-lockfile.toml)
 (plus optional `[versions]` / `[[pin]]` so CI fetches
 `https://dl.breadway.dev/<pkg>/<ver>/...`). `build-local.sh` fails if any
-**required** binary is missing on the builder.
+**required** binary is missing from the staging home.
 
 ## Repo layout
 
@@ -115,9 +115,11 @@ bos/
 └── DESIGN.md                      # historical plan
 ```
 
-Live binds are `iso/airootfs/etc/skel/.config/hypr/binds.json` (`Super+L` →
-`loginctl lock-session`, breadshot on `Super+Shift+S/C/P`, `Super+U`
-breadpad). Do not treat `dotfiles/hypr/keybinds.conf` as current.
+Live binds are `iso/airootfs/etc/skel/.config/hypr/binds.json`. Hyprland loads
+them from this file, and Breadhelp uses the same entries for its cheatsheet.
+`Super+Escape` locks the session; `Super+Shift+Escape` logs out, matching the
+modifier pattern used for directional window actions. Do not treat
+`dotfiles/hypr/keybinds.conf` as current.
 
 ## Branches and remotes
 
@@ -135,11 +137,16 @@ Push `origin` (and `github` when mirroring). Do not treat origin as GitHub.
 
 ## Building the ISO
 
-`build-local.sh` builds the image natively (no container) and copies this
-machine's bakery-installed bread binaries + breadhelp content from the
-builder's `~/.local` into the image at `/usr/local` (bins, share/data,
-desktop files, licenses) and `/usr/lib/systemd/user` (units). Per-user
-bakery state (`installed.json` + index cache) is seeded in `/etc/skel`.
+`build-local.sh` builds the image natively (no container). By default it
+downloads the lockfile-pinned bakery binaries into a temporary home, checking
+the signed index and artifact hashes before copying the binaries + breadhelp
+content into the image at `/usr/local` (bins, share/data, desktop files,
+licenses) and `/usr/lib/systemd/user` (units). Per-user bakery state
+(`installed.json` + index cache) is seeded in `/etc/skel`. To bake your
+currently installed bakery versions for local development, set
+`BAKE_FROM_HOME=1`.
+The `[breadway]` repository key is trusted in a temporary build keyring; the
+host pacman keyring is left unchanged.
 User units are `systemctl --global enable`'d so a later `useradd -m`
 starts them on first login. BOS opts in via `/etc/bakery/config.toml`
 (`prefix = "/usr/local"`); default bakery without that file is still
@@ -149,6 +156,7 @@ still grub-btrfs, not `snapper rollback`.
 ```sh
 sudo ./build-local.sh              # release-quality (xz squashfs)
 sudo FAST_BUILD=1 ./build-local.sh # fast dev iteration (zstd squashfs)
+sudo BAKE_FROM_HOME=1 ./build-local.sh # use this user's installed versions
 ```
 
 The ISO lands in `out/bos-<date>-x86_64.iso`. The script pins
@@ -157,11 +165,12 @@ to the Tailscale-reachable Forgejo registry for the build, and **exits
 non-zero** if any **required** lockfile binary (or breadhelp content) is
 missing. Optional bins are skipped with a warning.
 
-CI stages the builder from the **minisign-verified** stable bakery index
-(`index.json` + `index.json.minisig`) and prefers lockfile `[versions]`
-URLs (`https://dl.breadway.dev/<pkg>/<ver>/...`) when set, so two bakes
-of the same commit fetch the same bits. Local builds still snapshot the
-builder.
+CI and default local builds stage a temporary home from the **minisign-verified**
+stable bakery index (`index.json` + `index.json.minisig`) and prefer lockfile
+`[versions]` URLs (`https://dl.breadway.dev/<pkg>/<ver>/...`) when set, so two
+bakes of the same commit fetch the same bits. The temporary local staging home
+is removed when the build exits. `BAKE_FROM_HOME=1` opts into copying the
+builder's existing installation instead.
 
 ### Why some packages are in-house
 
@@ -176,20 +185,18 @@ archive against GitHub's release-asset digest before building it.
 
 ### Verifying a release
 
-Every tagged release ISO on the [Forgejo releases
-page](https://git.breadway.dev/Breadway/bos/releases) ships alongside a
-`SHA256SUMS` file and a detached signature `SHA256SUMS.asc`, signed by a
-dedicated release-signing key (not reused from anything else):
+Published historical ISOs include `SHA256SUMS` and `SHA256SUMS.asc` signed by
+`56203B86A110695AE7F310934AF3323D678EB5E2`, the legacy public key currently at
+[`KEYS.asc`](KEYS.asc). The repository public key is separately installed at
+`/etc/pacman.d/breadway-repo.asc`.
 
-```
-5620 3B86 A110 695A E7F3  1093 4AF3 323D 678E B5E2
-```
+New ISO builds prepare unsigned **draft candidates**. Signing moves to a
+separate offline ISO identity, whose public fingerprint must be provisioned and
+reviewed before the next release can be published. Signing scripts refuse to
+reuse the repository identity. See [signing activation and rotation](docs/signed-repo.md).
 
-The public half is committed at [`KEYS.asc`](KEYS.asc). The same key signs
-the ISO checksums **and** the `[breadway]` pacman repo: every package and
-the db at `https://dl.breadway.dev/arch` carry a `.sig` from it, and that
-section is `SigLevel = Required` (see
-[docs/signed-repo.md](docs/signed-repo.md)). To verify a download:
+For a published release, import its matching public key, then verify both the
+checksum signature and the downloaded bytes:
 
 ```sh
 gpg --import KEYS.asc
@@ -279,7 +286,7 @@ also get live systemd status + Start/Stop/Restart/Logs.
 | Packages | `bakery` installed list + updates, pacman system update |
 | AUR | Search via `yay`; installing opens a terminal (AUR build scripts need review) |
 | Firmware | `fwupd` device list + updates |
-| Snapshots | `snapper` list (number / date / description); reboot to pick in GRUB (grub-btrfs); delete: **root (`@`) only** |
+| Snapshots | `snapper` list (number / date / description); reboot to pick in GRUB (grub-btrfs); delete: **root (`@`) only**; retain 2-20 normal and 4-10 important snapshots, constrained by filesystem space |
 | Backup | restic of `$HOME` (`@home`) via Settings → Backup; snapper does not cover home |
 
 Source and build live in the [bos-settings](https://git.breadway.dev/Breadway/bos-settings)
@@ -341,7 +348,7 @@ cheatsheet in-session; first boot shows a short welcome (once).
 | `SUPER+E` / `SUPER+B` | Files (nautilus) / Browser (zen) |
 | `SUPER+U` / `SUPER+M` | Notes (breadpad) / notes manager (breadman) |
 | `SUPER+,` / `SUPER+/` | BOS Settings / keybind cheatsheet |
-| `SUPER+L` / `SUPER+Shift+Escape` | Lock / log out |
+| `SUPER+Escape` / `SUPER+Shift+Escape` | Lock / log out |
 | `SUPER+Backspace` | Close window |
 | `SUPER+F` | Fullscreen |
 | `SUPER+I` | Toggle floating |
@@ -351,9 +358,9 @@ cheatsheet in-session; first boot shows a short welcome (once).
 | `SUPER+V` / `SUPER+Shift+V` | Clipboard history (breadclip) |
 | `SUPER+Tab` | Last window |
 | `SUPER+Shift+S/C/P` | Screenshot region→file / region→clipboard / screen→file |
-| `SUPER+arrows` | Move focus |
-| `SUPER+Shift+h/j/k/l` | Move window |
-| `SUPER+Shift+arrows` | Resize window |
+| `SUPER+arrows` / `SUPER+h/j/k/l` | Move focus |
+| `SUPER+Shift+arrows` / `SUPER+Shift+h/j/k/l` | Move window |
+| `SUPER+Ctrl+arrows` / `SUPER+Ctrl+h/j/k/l` | Resize window |
 | `SUPER+1..0` | Switch to workspace 1–10 |
 | `SUPER+Shift+1..0` | Move window to workspace |
 | `SUPER+[ / ]` | Previous / next workspace |
@@ -408,6 +415,11 @@ To make it permanent, run `sudo bos-restore-snapshot <number>` from the
 booted snapshot. Snapper is root only. Home files are
 **Settings → Backup** (restic restore into `~/bos-restore-<id>`, not
 over `$HOME`).
+
+Automatic root snapshot cleanup keeps 2-20 normal snapshots and 4-10
+important snapshots. Cleanup also tries to keep at least 20% of the
+filesystem free and snapshots below 50% of filesystem space. These are
+space thresholds, so fewer snapshots may remain when the filesystem is full.
 
 Do **not** run `snapper rollback`. BOS GRUB pins `rootflags=subvol=@`;
 `bos-restore-snapshot` preserves the old `@` and installs the selected

@@ -1,18 +1,20 @@
 #!/usr/bin/env bash
 # Collect the current [breadway] ISO packages, detach-sign them with the
-# BOS release key (releases@breadway.dev), and publish a signed pacman db
+# repository-only key on an offline signing host, and publish a signed pacman db
 # under /srv/breadway-dl/arch/x86_64/ (https://dl.breadway.dev/arch/x86_64/).
 #
 # Does not change ISO SigLevel and does not write to the Forgejo Arch
 # registry; existing package.yml / packaging/*.yml PUTs stay as they are.
 #
 # Required env:
-#   GPG_PRIVATE_KEY   armoured secret key (same secret as release-iso.yml)
+#   GNUPGHOME         dedicated offline repository signing keyring
+# Private keys are never imported from Actions or environment variables.
 # Optional env:
 #   BREADWAY_DEST     publish dir (default /srv/breadway-dl/arch/x86_64)
 #   BREADWAY_PKG_DIR  extra directory of .pkg.tar.zst to prefer over the registry
 #   BREADWAY_REGISTRY Forgejo Arch registry base
 #   BREADWAY_SIGN_ONLY=1   skip collect; sign+index BREADWAY_REPO_DIR only
+#   BREADWAY_COLLECT_ONLY=1   prepare an unsigned candidate, no keyring needed
 set -euo pipefail
 
 PACKAGES=(
@@ -27,18 +29,21 @@ PACKAGES=(
 ARCH="${BREADWAY_ARCH:-x86_64}"
 REGISTRY="${BREADWAY_REGISTRY:-https://git.breadway.dev/api/packages/Breadway/arch/os}"
 DEST="${BREADWAY_DEST:-/srv/breadway-dl/arch/${ARCH}}"
-KEY_ID="${BREADWAY_KEY_ID:-releases@breadway.dev}"
-DB_NAME="${BREADWAY_REGISTRY_DB:-Breadway.os.git.breadway.dev.db}"
+KEY_ID=""
+PROVENANCE="${BREADWAY_PROVENANCE_FILE:-$(dirname -- "${BASH_SOURCE[0]}")/../packaging/provenance/approved-packages.json}"
 REPO_DIR="${BREADWAY_REPO_DIR:-}"
 
-SCRIPT_PATH="$(readlink -f "${BASH_SOURCE[0]}")"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+PUBLIC_KEY="${BREADWAY_REPO_PUBLIC_KEY_FILE:-$SCRIPT_DIR/../iso/airootfs/etc/pacman.d/breadway-repo.asc}"
 
 die() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
 
 need_key() {
-  if [[ -z "${GPG_PRIVATE_KEY:-}" ]]; then
-    die "GPG_PRIVATE_KEY is missing; refusing to publish an unsigned [breadway] repo."
-  fi
+  [[ -n "${GNUPGHOME:-}" && "$GNUPGHOME" == /* && -d "$GNUPGHOME" ]] \
+    || die "GNUPGHOME must be an existing dedicated offline signing keyring"
+  [[ "${CI:-false}" != true && -z "${GITHUB_ACTIONS:-}" && -z "${FORGEJO_ACTIONS:-}" ]] \
+    || die "repository signing is forbidden on an Actions runner"
+  KEY_ID="$(python3 "$SCRIPT_DIR/signing-key-policy.py" "$PUBLIC_KEY" --secret)"
 }
 
 urlencode() {
@@ -51,11 +56,6 @@ pkginfo_name() {
   awk -F ' = ' '$1=="pkgname" {print $2; exit}' <<<"$info"
 }
 
-import_key() {
-  export GNUPGHOME="${GNUPGHOME:-$(mktemp -d "${TMPDIR:-/tmp}/gnupg-breadway-repo.XXXXXX")}"
-  mkdir -m 700 -p "$GNUPGHOME"
-  printf '%s\n' "$GPG_PRIVATE_KEY" | gpg --batch --import
-}
 
 detach_sign_pkgs() {
   local pkg
@@ -85,21 +85,12 @@ repo_add_signed() {
   find . -maxdepth 1 -type f -exec chmod a+r {} + || true
 }
 
-ensure_arch_tools() {
-  if ! command -v gpg >/dev/null 2>&1; then
-    command -v pacman >/dev/null 2>&1 || die "gpg not on PATH"
-    pacman -Sy --noconfirm --needed gnupg
-  fi
-  command -v repo-add >/dev/null 2>&1 || die "repo-add not on PATH"
-  command -v gpg >/dev/null 2>&1 || die "gpg not on PATH"
-}
-
 sign_and_index() {
   local dir="$1"
   [[ -d "$dir" ]] || die "repo dir missing: $dir"
+  command -v repo-add >/dev/null 2>&1 || die "install repo-add on the dedicated signer first"
+  python3 "$SCRIPT_DIR/package-provenance.py" verify "$PROVENANCE" "$dir" "${PACKAGES[@]}"
   need_key
-  ensure_arch_tools
-  import_key
   (
     cd "$dir"
     detach_sign_pkgs
@@ -107,85 +98,6 @@ sign_and_index() {
   )
 }
 
-container_runtime() {
-  if command -v docker >/dev/null 2>&1; then
-    printf '%s\n' docker
-  elif command -v podman >/dev/null 2>&1; then
-    printf '%s\n' podman
-  else
-    return 1
-  fi
-}
-
-sign_and_index_anywhere() {
-  local dir="$1"
-  if command -v repo-add >/dev/null 2>&1 && command -v gpg >/dev/null 2>&1; then
-    sign_and_index "$dir"
-    return
-  fi
-  local rt
-  rt="$(container_runtime)" || die \
-    "need host gpg+repo-add, or docker/podman to run archlinux:latest (no Forgejo container: host must see /srv/breadway-dl)"
-  # Host job + bind-mount, same reason bakery writes /srv without container:.
-  # Run as the runner user: root-owned 0600 .sig files made chmod/nginx fail
-  # (run 1050) and would block the next `rm -rf` of a previous tree.
-  "$rt" run --rm --network=host \
-    --user "$(id -u):$(id -g)" \
-    -e HOME=/tmp \
-    -e TMPDIR=/tmp \
-    -e GPG_PRIVATE_KEY \
-    -e BREADWAY_SIGN_ONLY=1 \
-    -e BREADWAY_REPO_DIR=/repo \
-    -e BREADWAY_KEY_ID="$KEY_ID" \
-    -v "$dir:/repo" \
-    -v "$SCRIPT_PATH:/ci-publish-signed-repo.sh:ro" \
-    archlinux:latest \
-    bash /ci-publish-signed-repo.sh
-}
-
-parse_registry_db() {
-  local db="$1"
-  python3 - "$db" "${PACKAGES[@]}" <<'PY'
-import sys, tarfile
-
-db = sys.argv[1]
-want = set(sys.argv[2:])
-found = {}
-with tarfile.open(db, "r:*") as tf:
-    for member in tf.getmembers():
-        if not member.name.endswith("/desc") or not member.isfile():
-            continue
-        fh = tf.extractfile(member)
-        if fh is None:
-            continue
-        text = fh.read().decode()
-        fields = {}
-        key = None
-        buf = []
-        def flush():
-            if key is not None:
-                fields[key] = "\n".join(buf).strip()
-        for line in text.splitlines():
-            if line.startswith("%") and line.endswith("%") and len(line) > 2:
-                flush()
-                key = line.strip("%")
-                buf = []
-            else:
-                buf.append(line)
-        flush()
-        name = fields.get("NAME", "")
-        filename = fields.get("FILENAME", "")
-        if name in want and filename:
-            found[name] = filename
-
-missing = sorted(want - set(found))
-if missing:
-    sys.stderr.write("registry db missing packages: " + " ".join(missing) + "\n")
-    raise SystemExit(1)
-for name in sys.argv[2:]:
-    print(f"{name}\t{found[name]}")
-PY
-}
 
 copy_local_overrides() {
   local dir="$1"
@@ -226,23 +138,26 @@ has_pkg_named() {
 }
 
 collect_from_registry() {
-  local work db name filename enc url
-  work="$(mktemp -d "${TMPDIR:-/tmp}/breadway-db.XXXXXX")"
-  db="$work/$DB_NAME"
-  curl -fL --retry 3 --retry-delay 2 -o "$db" "$REGISTRY/$ARCH/$DB_NAME" \
-    || die "failed to fetch $REGISTRY/$ARCH/$DB_NAME"
+  local work manifest name filename enc url
+  work="$(mktemp -d "${TMPDIR:-/tmp}/breadway-provenance.XXXXXX")"
+  manifest="$work/packages.tsv"
+  # Abort on invalid policy before requesting registry bytes. Metadata from the
+  # registry never chooses the approved version, filename or digest.
+  python3 "$SCRIPT_DIR/package-provenance.py" list "$PROVENANCE" "${PACKAGES[@]}" > "$manifest" \
+    || { rm -rf "$work"; die "invalid approved package policy"; }
   while IFS=$'\t' read -r name filename; do
     if has_pkg_named "$name"; then
-      printf 'using local %s, skip registry\n' "$name"
+      printf 'using local %s, will verify against approved digest\n' "$name"
       continue
     fi
     enc="$(urlencode "$filename")"
     url="$REGISTRY/$ARCH/$enc"
-    printf 'fetch %s\n' "$filename"
+    printf 'fetch approved %s\n' "$filename"
     curl -fL --retry 3 --retry-delay 2 -o "$STAGE/$filename" "$url" \
-      || die "failed to fetch $url"
-  done < <(parse_registry_db "$db")
+      || { rm -rf "$work"; die "failed to fetch $url"; }
+  done < "$manifest"
   rm -rf "$work"
+  python3 "$SCRIPT_DIR/package-provenance.py" verify "$PROVENANCE" "$STAGE" "${PACKAGES[@]}"
 }
 
 publish_tree() {
@@ -270,7 +185,7 @@ if [[ "${BREADWAY_SIGN_ONLY:-0}" == 1 ]]; then
   exit 0
 fi
 
-need_key
+if [[ "${BREADWAY_COLLECT_ONLY:-0}" != 1 ]]; then need_key; fi
 
 DEST_PARENT="$(dirname "$DEST")"
 mkdir -p "$DEST_PARENT" || die "cannot create $DEST_PARENT (runner must write /srv/breadway-dl)"
@@ -278,9 +193,6 @@ STAGE="$(mktemp -d "$DEST_PARENT/.stage-XXXXXX")"
 cleanup() {
   if [[ -n "${STAGE:-}" && -d "${STAGE:-}" ]]; then
     rm -rf "$STAGE"
-  fi
-  if [[ -n "${GNUPGHOME:-}" && "$GNUPGHOME" == *gnupg-breadway-repo* ]]; then
-    rm -rf "$GNUPGHOME"
   fi
 }
 trap cleanup EXIT
@@ -296,12 +208,12 @@ if (( ${#missing[@]} > 0 )); then
   die "missing packages after collect: ${missing[*]}"
 fi
 
-sign_and_index_anywhere "$STAGE"
+if [[ "${BREADWAY_COLLECT_ONLY:-0}" != 1 ]]; then sign_and_index "$STAGE"; fi
 
 # Do not publish helper junk if a container left any.
 rm -f "$STAGE/.sign.sh"
 
 publish_tree
 
-printf 'published signed [breadway] repo -> %s\n' "$DEST"
+printf 'prepared [breadway] tree (collect-only=%s) -> %s\n' "${BREADWAY_COLLECT_ONLY:-0}" "$DEST"
 ls -lh "$DEST"

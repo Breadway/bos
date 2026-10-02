@@ -1,0 +1,89 @@
+{
+  "packages": {
+    "bibata-cursor-theme-bin": {
+      "arch": "any",
+      "filename": "bibata-cursor-theme-bin-2.0.7-1-any.pkg.tar.zst",
+      "pkgver": "2.0.7-1",
+      "sha256": "bb2fc4de9570365729fb620c598b4732543b929494b601ebe4a8e9dbf4d89056",
+      "source": {
+        "database_sha256": "d999e4e88cfc543324f95608391f80520f85bee70034fbde39f4e2536e3b7efc",
+        "fingerprint": "56203B86A110695AE7F310934AF3323D678EB5E2",
+        "kind": "signed-repository-bootstrap",
+        "signature_date": "2026-09-19",
+        "signature_sha256": "a911ecf6c870fd1a1ef0a2527582fd806ee073403c03b8078827e70b07e38dae",
+        "url": "https://dl.breadway.dev/arch/x86_64/breadway.db"
+      }
+    },
+    "breadlock": {
+      "arch": "x86_64",
+      "filename": "breadlock-0.3.1-1-x86_64.pkg.tar.zst",
+      "pkgver": "0.3.1-1",
+      "sha256": "2c39f31ca7b8fd678ff4ed37e94ef54857ba85fe15150697f8b8e0224266ce48",
+      "source": {
+        "database_sha256": "d999e4e88cfc543324f95608391f80520f85bee70034fbde39f4e2536e3b7efc",
+        "fingerprint": "56203B86A110695AE7F310934AF3323D678EB5E2",
+        "kind": "signed-repository-bootstrap",
+        "signature_date": "2026-09-19",
+        "signature_sha256": "a911ecf6c870fd1a1ef0a2527582fd806ee073403c03b8078827e70b07e38dae",
+        "url": "https://dl.breadway.dev/arch/x86_64/breadway.db"
+      }
+    },
+    "calamares": {
+      "arch": "x86_64",
+      "filename": "calamares-3.4.2-2-x86_64.pkg.tar.zst",
+      "pkgver": "3.4.2-2",
+      "sha256": "692af253067f86c0c03137f1021c6cd0ffbc257db80ac1cca3a1531d0ed1ff6c",
+      "source": {
+        "database_sha256": "d999e4e88cfc543324f95608391f80520f85bee70034fbde39f4e2536e3b7efc",
+        "fingerprint": "56203B86A110695AE7F310934AF3323D678EB5E2",
+        "kind": "signed-repository-bootstrap",
+        "signature_date": "2026-09-19",
+        "signature_sha256": "a911ecf6c870fd1a1ef0a2527582fd806ee073403c03b8078827e70b07e38dae",
+        "url": "https://dl.breadway.dev/arch/x86_64/breadway.db"
+      }
+    },
+    "yay-bin": {
+      "arch": "x86_64",
+      "filename": "yay-bin-13.0.1-1-x86_64.pkg.tar.zst",
+      "pkgver": "13.0.1-1",
+      "sha256": "7056290eedab177477dd5d30ff0dc64114f6828e1589846c6ad8a0759bc0daa9",
+      "source": {
+        "database_sha256": "d999e4e88cfc543324f95608391f80520f85bee70034fbde39f4e2536e3b7efc",
+        "fingerprint": "56203B86A110695AE7F310934AF3323D678EB5E2",
+        "kind": "signed-repository-bootstrap",
+        "signature_date": "2026-09-19",
+        "signature_sha256": "a911ecf6c870fd1a1ef0a2527582fd806ee073403c03b8078827e70b07e38dae",
+        "url": "https://dl.breadway.dev/arch/x86_64/breadway.db"
+      }
+    },
+    "zen-browser-bin": {
+      "arch": "x86_64",
+      "filename": "zen-browser-bin-1.21.1b-1-x86_64.pkg.tar.zst",
+      "pkgver": "1.21.1b-1",
+      "sha256": "0189ce31fe060c83d8dc5bd79d06a0050092e225cfeccca3df4ce3251fe6446f",
+      "source": {
+        "database_sha256": "d999e4e88cfc543324f95608391f80520f85bee70034fbde39f4e2536e3b7efc",
+        "fingerprint": "56203B86A110695AE7F310934AF3323D678EB5E2",
+        "kind": "signed-repository-bootstrap",
+        "signature_date": "2026-09-19",
+        "signature_sha256": "a911ecf6c870fd1a1ef0a2527582fd806ee073403c03b8078827e70b07e38dae",
+        "url": "https://dl.breadway.dev/arch/x86_64/breadway.db"
+      }
+    },
+    "zsh-theme-powerlevel10k": {
+      "arch": "x86_64",
+      "filename": "zsh-theme-powerlevel10k-1:1.20.17-1-x86_64.pkg.tar.zst",
+      "pkgver": "1:1.20.17-1",
+      "sha256": "d007d2b15237dce55ed563ad99456f7133dbcaec164d15a71a1375080b9939e0",
+      "source": {
+        "database_sha256": "d999e4e88cfc543324f95608391f80520f85bee70034fbde39f4e2536e3b7efc",
+        "fingerprint": "56203B86A110695AE7F310934AF3323D678EB5E2",
+        "kind": "signed-repository-bootstrap",
+        "signature_date": "2026-09-19",
+        "signature_sha256": "a911ecf6c870fd1a1ef0a2527582fd806ee073403c03b8078827e70b07e38dae",
+        "url": "https://dl.breadway.dev/arch/x86_64/breadway.db"
+      }
+    }
+  },
+  "schema": 1
+}
