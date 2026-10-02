@@ -22,7 +22,6 @@ wiring up dotfiles, no per-tool bakery installs.
   them), `breadbar` (status bar + notifications), `breadbox` (launcher),
   `breadclip` (clipboard history), `breadcrumbs` (Wi-Fi profiles),
   `breadpad`/`breadman` (notes), `breadpaper` (wallpaper + theme),
-  `breadmon` (monitor layout TUI),
   `breadshot` (screenshots), `bread-theme` (the shared palette engine),
   `breadhelp` (onboarding + cheatsheet), `bos-settings` (control panel),
   and the `bakery` package manager. Most of those apps are zero-config on
@@ -68,11 +67,12 @@ wiring up dotfiles, no per-tool bakery installs.
 
 | Channel | What |
 |---------|------|
-| **Bakery, required** | `bakery`, `bread` / `breadd`, `breadbar`, `breadbox` / `breadbox-sync`, `breadcrumbs`, `breadpad` / `breadman`, `breadpaper`, `bread-theme`, `breadmon`, `breadclip` / `breadclipd`, `breadshot`, `bos-settings`, `breadhelp` (+ breadhelp content under `/usr/local/share/breadhelp/`) |
+| **Bakery, required** | `bakery`, `bread` / `breadd`, `breadbar`, `breadbox` / `breadbox-sync`, `breadcrumbs`, `breadpad` / `breadman`, `breadpaper`, `bread-theme`, `breadclip` / `breadclipd`, `breadshot`, `bos-settings`, `breadhelp` (+ breadhelp content under `/usr/local/share/breadhelp/`) |
 | **Bakery, optional** | `bread-emit`, `bread-module-host`: baked when the verified stable index publishes them; skipped (not a failed bake) until bread ships them |
 | **pacman (`packages.x86_64`)** | `breadlock`, plus the rest of the distro (Hyprland, Calamares, Zen, …) |
 | **Not shipped (installable)** | `breadsearch` / `breadmill` (semantic file search): not baked, add it after install with `bakery install breadsearch` |
 | **Not shipped** | `breadcast`, `breadarr` |
+| **Deprecated** | `breadmon`: removed from the image; use BOS Settings → Displays for monitor layout |
 
 The baked name list is [`iso/bread-lockfile.toml`](iso/bread-lockfile.toml)
 (plus optional `[versions]` / `[[pin]]` so CI fetches
@@ -320,7 +320,6 @@ directly.
 |------|------|--------|
 | `breadcrumbs` | Location-aware Wi-Fi profile state machine, with optional Tailscale integration: switches network behavior based on which saved network you're on | CLI, or BOS Settings → Wi-Fi Profiles |
 | `breadpaper` | Wallpaper manager: sets the wallpaper via `awww`, generates the accent palette from it, and reloads every bread-theme app | BOS Settings → Wallpaper |
-| `breadmon` | TUI monitor layout manager (resolution/position/scaling); the interactive counterpart to BOS Settings' read-only Display panel | `breadmon` in a terminal |
 | `breadshot` | Screenshot utility wrapping `grim`/`slurp`/`wl-copy` with Hyprland-aware geometry (multi-monitor-safe region select) | `breadshot`, or `SUPER+Shift+S/C/P` |
 
 **Tooling**
