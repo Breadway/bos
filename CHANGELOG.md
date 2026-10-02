@@ -87,6 +87,12 @@ tag (with date) at tag time.
   to the default background, so `breadpaper get` (and bos-settings'
   Wallpaper page) has something to read on a fresh install now that
   `get()` no longer falls back to pywal's `~/.cache/wal/wal`.
+- Local ISO builds now stage lockfile-pinned bakery binaries from the signed
+  index by default. Set `BAKE_FROM_HOME=1` to use the builder's installed
+  bakery versions for development. The build uses a temporary package
+  keyring, leaving the host pacman keyring unchanged.
+- Updated the bakery, bread-theme, and breadpaper lockfile pins to their
+  signed stable-index versions so all three can be verified by SHA-256.
 
 ## [0.6.2] - 2026-09-19
 
