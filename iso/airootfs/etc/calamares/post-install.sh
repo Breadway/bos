@@ -553,7 +553,7 @@ done
 systemctl set-default graphical.target || echo "WARN: set-default graphical failed"
 
 # Mask getty@tty1: greetd owns VT 1 (Conflicts=getty@tty1.service already, but
-# that only stops it while greetd is *running* — during greetd's Restart it can
+# that only stops it while greetd is *running*; during greetd's Restart it can
 # briefly flash a login prompt on tty1). Nothing on BOS wants a text login on
 # VT 1; other VTs still get a getty on demand. The live autologin drop-in was
 # already removed near the top of this script.
