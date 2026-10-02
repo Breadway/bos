@@ -540,7 +540,7 @@ fi
 for unit in NetworkManager.service bluetooth.service systemd-timesyncd.service \
             tlp.service greetd.service snapper-cleanup.timer grub-btrfsd.service \
             fstrim.timer cups.socket avahi-daemon.socket ufw.service \
-            fwupd-refresh.timer reflector.timer; do
+            fwupd-refresh.timer reflector.timer paccache.timer; do
     systemctl enable "$unit" || echo "WARN: failed to enable $unit"
 done
 systemctl set-default graphical.target || echo "WARN: set-default graphical failed"

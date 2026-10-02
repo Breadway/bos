@@ -36,6 +36,9 @@ tag (with date) at tag time.
 - Installer: offer only the no-disk-swap choice. BOS uses zram swap, and
   installer-created swap files or partitions would break btrfs snapshots or
   advertise hibernation without a configured resume path.
+- Package cache: include pacman-contrib and enable weekly paccache cleanup,
+  retaining the latest three cached versions of each package.
+
 - Audio: include `sof-firmware` and `alsa-firmware` in the ISO for laptop
   speakers and microphones that require Sound Open Firmware or legacy ALSA
   firmware.
