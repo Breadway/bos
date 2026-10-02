@@ -44,6 +44,10 @@ tag (with date) at tag time.
   temporary live user UID 60001, outside normal account allocation.
 - Keybinds: use arrows or H/J/K/L for focus, add Shift to move and Ctrl to
   resize. Lock with Super+Escape; logout remains Super+Shift+Escape.
+- Repository signing: require a protected exact version/SHA-256 package policy
+  before signing registry downloads or local overrides. Packaging workflows emit
+  unapproved build provenance for review; registry writers cannot advance trust.
+
 - Signing: Actions now prepares unsigned ISO draft and repository candidates.
   Private signing keys stay on separate offline hosts, with distinct expiring
   identities and pinned-fingerprint checks. New ISO publication requires the

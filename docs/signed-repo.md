@@ -93,10 +93,48 @@ uploads `unsigned-breadway-candidate` with Forgejo's supported v3 artifact
 protocol. It has no signing secret and cannot write the published repository.
 See [Forgejo artifacts](https://forgejo.org/docs/v15.0/user/actions/advanced-features/#artifacts).
 
-On the dedicated offline repository signer, inspect package provenance before
-accepting any candidate. Registry metadata alone is not trustworthy. A separate
-package allowlist/provenance policy is required to prevent signing substituted
-registry bytes. Use the reviewed checkout, not scripts in the candidate.
+The protected `packaging/provenance/approved-packages.json` policy specifies
+one name, complete version (including epoch/pkgrel), basename, architecture and
+SHA-256 per package. Collection requests those filenames directly. Registry
+metadata cannot choose what gets signed. Local overrides and offline sign-only
+mode enforce the same exact-set and digest policy before any signature.
+
+The initial policy is bootstrapped from the previously published database:
+its detached signature was verified against the pinned repository fingerprint
+`56203B86A110695AE7F310934AF3323D678EB5E2`, dated 2026-09-19. Each baseline
+record includes database/signature hashes and source URL. The signed bootstrap
+database and signature are committed alongside the policy, and the provenance
+test independently verifies them against the pinned public key. This continuity
+baseline does not claim new independent historical build provenance.
+
+For each new build, the BOS packaging workflow emits an **unapproved**
+`*.provenance.json` artifact with the producing repository, full source commit,
+workflow, run ID, package version and archive digest. Registry writes and these
+candidate artifacts cannot advance the policy automatically. Review the source
+and build evidence, independently verify the package bytes against the build
+candidate, and approve its entry through a protected-main PR before publication.
+Use a reviewed checkout and policy from `main` on the offline signer. Never
+accept a policy included in a registry response or candidate artifact.
+
+`breadlock` builds in a separate repository. Its release operator must run the
+same recorder against the actual built archive, supplying that repository's
+source commit, workflow and run ID, then submit the reviewed entry to this
+policy. No signing occurs for an unapproved version from any producer.
+
+```sh
+python3 scripts/package-provenance.py record /build/package.pkg.tar.zst \
+  --source-repo Breadway/breadlock --source-commit FULL_BUILD_COMMIT \
+  --workflow package.yml --run-id BUILD_RUN_ID > package.provenance.json
+```
+
+This approval requirement deliberately trades unattended package updates for
+protection against an attacker with registry write access. New Zen packages
+may be built every six hours, but release-to-repository lag also includes policy
+review and offline approval. An unapproved version stays out of the signed repo.
+
+On the dedicated offline repository signer, verify the protected policy and
+build provenance before accepting a candidate. Use the reviewed checkout,
+not scripts or policies in the candidate.
 
 ```sh
 export GNUPGHOME=/secure/bos-repo-signing
@@ -126,9 +164,9 @@ this field in its [release assets API](https://docs.github.com/en/rest/releases/
 The watcher compares the version with the signed `[breadway]` database and
 builds and uploads the release only when `[breadway]` is behind. Missing or
 malformed upstream digests and mismatched archives fail closed. The
-signed-repository workflow runs after that build completes, so the intended
-maximum release-to-repository lag is six hours while the runner and upstream
-release service are available. A failed poll or publish is visible as a
+candidate workflow runs after that build completes. Publishing then requires
+reviewed digest-policy advancement and offline signing approval. The six-hour
+poll interval is not an upper bound on publication lag. A failed poll or publish is visible as a
 failed Actions run; use workflow dispatch to retry it sooner than the next
 scheduled poll.
 
@@ -155,6 +193,7 @@ key solely by replacing a CI secret or deleting the old public key.
 
 ```sh
 python3 scripts/test-offline-signing.py
+python3 scripts/test-package-provenance.py
 ```
 
 The test creates temporary, unrelated expiring keys. It verifies package and
@@ -162,3 +201,9 @@ database signatures, a distinct ISO checksum signature, rejection of altered
 ISO bytes and generic checksum lists, rejection of reused/non-expiring keys,
 and refusal to sign on Actions. It uses no personal keyring or real signing
 material and leaves the live repository unchanged.
+
+The provenance test serves a throwaway Arch registry over loopback HTTP. It
+accepts the approved package set, then alters one archive at the same filename
+and version. Collection and offline signing both reject it before producing a
+signature, and the prior publication remains unchanged. It also checks version,
+extra-file, duplicate-policy and unsafe-filename rejection.

@@ -23,7 +23,7 @@ jobs:
       - name: Build package
         run: |
           set -euo pipefail
-          pacman -Syu --noconfirm base-devel git cmake ninja \
+          pacman -Syu --noconfirm base-devel git python nodejs cmake ninja \
             extra-cmake-modules qt6-tools qt6-translations libglvnd \
             kcoreaddons kpmcore libpwquality qt6-declarative qt6-svg yaml-cpp
           useradd -m builder
@@ -36,6 +36,11 @@ jobs:
           git -C /home/builder/src checkout --detach FETCH_HEAD
           chown -R builder:builder /home/builder/src
           su builder -c "cd /home/builder/src/packaging/calamares && makepkg -f --noconfirm --nocheck"
+          PKG=$(find /home/builder/src/packaging/calamares -name '*.pkg.tar.zst' ! -name '*-debug-*' | head -1)
+          python3 /home/builder/src/scripts/package-provenance.py record "$PKG" \
+            --source-repo "$GITHUB_REPOSITORY" \
+            --source-commit "$(git -C /home/builder/src rev-parse HEAD)" \
+            --workflow calamares.yml --run-id "$GITHUB_RUN_ID" > "$PKG.provenance.json"
 
       - name: Publish package
         if: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
@@ -54,3 +59,10 @@ jobs:
             409) echo "already in registry: ${PKG}" ;;
             *) echo "upload failed HTTP ${code}"; cat /tmp/pkg-upload.body; exit 1 ;;
           esac
+
+      - name: Save unapproved build provenance for review
+        uses: https://data.forgejo.org/actions/upload-artifact@v3
+        with:
+          name: calamares-build-provenance
+          path: /home/builder/src/packaging/calamares/*.provenance.json
+          if-no-files-found: error
