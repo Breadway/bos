@@ -20,6 +20,46 @@ tag (with date) at tag time.
 
 ## [Unreleased]
 
+- Encrypted Calamares installs now register a boot keyfile and configure the
+  mkinitcpio unlock hook before initramfs generation. GRUB records the LUKS
+  container and mapper so the initramfs can unlock root without asking for a
+  second passphrase; the smoke test checks the encrypted boot parameters.
+- When UEFI firmware is in Setup Mode, the installer now builds GRUB with
+  shim-lock disabled, SBAT metadata, and the filesystem, crypto, and boot
+  modules it needs. It then enrolls and saves signatures for both GRUB EFI
+  files and the kernel so sbctl can re-sign them after package updates.
+- Installer finalization now records critical boot failures, returns a failure
+  to Calamares instead of showing the success page, and writes a full log to
+  `/var/log/bos-install.log`.
+- Root Snapper cleanup now keeps 2-20 normal and 4-10 important snapshots,
+  while pruning older snapshots when filesystem space thresholds are reached.
+- Installer: offer only the no-disk-swap choice. BOS uses zram swap, and
+  installer-created swap files or partitions would break btrfs snapshots or
+  advertise hibernation without a configured resume path.
+- Package cache: include pacman-contrib and enable weekly paccache cleanup,
+  retaining the latest three cached versions of each package.
+- Graphics: include Intel VA-API decoding and Intel/AMD Vulkan drivers,
+  with vainfo and vulkaninfo tools for hardware verification.
+- Installer: reserve UID 1000 for the installed account by assigning the
+  temporary live user UID 60001, outside normal account allocation.
+- Keybinds: use arrows or H/J/K/L for focus, add Shift to move and Ctrl to
+  resize. Lock with Super+Escape; logout remains Super+Shift+Escape.
+- Repository signing: require a protected exact version/SHA-256 package policy
+  before signing registry downloads or local overrides. Packaging workflows emit
+  unapproved build provenance for review; registry writers cannot advance trust.
+
+- Signing: Actions now prepares unsigned ISO draft and repository candidates.
+  Private signing keys stay on separate offline hosts, with distinct expiring
+  identities and pinned-fingerprint checks. New ISO publication requires the
+  documented key provisioning and offline approval step.
+- NVIDIA setup: classify exact supported PCI IDs, refuse legacy/unknown GPUs,
+  choose open modules or DKMS with kernel headers, and expose a read-only
+  dry-run plan that first boot records for Settings.
+- Updates: pair numbered bakery pre/post Snapper snapshots, including failed
+  updates, instead of leaving orphaned pre snapshots. Enable bakery transaction
+  snapshots for direct and Packages updates once its Snapper support ships;
+  bos-update keeps a paired fallback for older bakery builds.
+
 - Audio: include `sof-firmware` and `alsa-firmware` in the ISO for laptop
   speakers and microphones that require Sound Open Firmware or legacy ALSA
   firmware.
@@ -29,9 +69,15 @@ tag (with date) at tag time.
   passwords when LUKS is selected.
 - Hypridle now locks the session before turning the display off after eight
   minutes of idle time.
+- Installer: stage a signed `linux-lts` package in the ISO for offline installs,
+  install it before mkinitcpio and GRUB generation, and save its kernel with
+  sbctl when Secure Boot keys are enrolled.
 - ISO build: `build-local.sh` now trusts the `[breadway]` repository key in a
   temporary pacman keyring that is removed when the build exits, leaving the
   build host's pacman keyring unchanged.
+- Installer firewall setup now persists UFW policy and the enabled setting
+  without applying rules to the live session; `ufw.service` applies them on
+  the installed system's first boot.
 - Skel: move the Hyprland log out shortcut from `SUPER+N` to
   `SUPER+Shift+Escape` so one accidental keypress cannot close the session.
 - Skel: the curated default palette moved from
@@ -74,6 +120,12 @@ tag (with date) at tag time.
   to the default background, so `breadpaper get` (and bos-settings'
   Wallpaper page) has something to read on a fresh install now that
   `get()` no longer falls back to pywal's `~/.cache/wal/wal`.
+- Local ISO builds now stage lockfile-pinned bakery binaries from the signed
+  index by default. Set `BAKE_FROM_HOME=1` to use the builder's installed
+  bakery versions for development. The build uses a temporary package
+  keyring, leaving the host pacman keyring unchanged.
+- Updated the bakery, bread-theme, and breadpaper lockfile pins to their
+  signed stable-index versions so all three can be verified by SHA-256.
 
 ## [0.6.2] - 2026-09-19
 

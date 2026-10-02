@@ -7,15 +7,10 @@ name: Build and release ISO
 # release is created best-effort and points at Forgejo for the download
 # (GitHub releases cannot host files larger than 2 GB).
 #
-# Required secrets:
-#   RELEASE_TOKEN    : Forgejo API token with write:repository scope
-#   MIRROR_TOKEN     : GitHub personal access token with repo scope
-#   GPG_PRIVATE_KEY  : armoured secret key for the dedicated "BOS Release Signing"
-#                      identity (releases@breadway.dev); public half is committed
-#                      at KEYS.asc. Signs ISO SHA256SUMS here; the same secret
-#                      signs the [breadway] repo in signed-repo.yml. No passphrase
-#                      (CI-only key, access controlled via the Forgejo secret
-#                      store).
+# Signing is deliberately outside Actions. The privileged ISO builder has no
+# signing private key. It uploads an unsigned draft candidate for an offline
+# release signer; docs/signed-repo.md describes verification and activation.
+# Required secret: RELEASE_TOKEN (draft release upload only).
 
 on:
   push:
@@ -92,9 +87,7 @@ jobs:
           bash build-local.sh
           ls -lh /bos-out/*.iso
 
-      - name: Checksum and sign
-        env:
-          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+      - name: Checksum unsigned ISO candidate
         run: |
           set -euo pipefail
           VERSION="${{ steps.vars.outputs.version }}"
@@ -102,19 +95,10 @@ jobs:
           ISO_NAME="bos-${VERSION}-x86_64.iso"
           cd /bos-out
           mv "$(basename "$ISO")" "$ISO_NAME"
-
           sha256sum "$ISO_NAME" > SHA256SUMS
           cat SHA256SUMS
 
-          pacman -S --noconfirm --needed gnupg
-          export GNUPGHOME=/tmp/gnupg-release
-          mkdir -m 700 -p "$GNUPGHOME"
-          echo "$GPG_PRIVATE_KEY" | gpg --batch --import
-          gpg --batch --yes --local-user releases@breadway.dev \
-              --detach-sign --armor -o SHA256SUMS.asc SHA256SUMS
-          echo "Signed SHA256SUMS -> SHA256SUMS.asc"
-
-      - name: Create Forgejo release and upload assets
+      - name: Create unsigned draft candidate and upload assets
         env:
           FORGEJO_TOKEN: ${{ secrets.RELEASE_TOKEN }}
         run: |
@@ -123,15 +107,16 @@ jobs:
           VERSION="${{ steps.vars.outputs.version }}"
           ISO_NAME="bos-${VERSION}-x86_64.iso"
 
-          # Use an existing release for this tag if one exists (e.g. created
-          # manually or by a prior re-run), otherwise create a fresh one.
-          EXISTING=$(curl -sf \
+          # Candidates are immutable. Re-running a tag must never replace a
+          # candidate that an offline operator may already have approved.
+          RELEASE_HTTP=$(curl -sS -o /tmp/existing-release.json -w '%{http_code}' \
             -H "Authorization: token ${FORGEJO_TOKEN}" \
-            "http://localhost:3002/api/v1/repos/${GITHUB_REPOSITORY}/releases/tags/${TAG}" \
-            2>/dev/null || true)
-          RELEASE_ID=$(echo "${EXISTING}" | python3 -c \
-            "import json,sys; d=json.load(sys.stdin); print(d.get('id',''))" 2>/dev/null || true)
-
+            "http://localhost:3002/api/v1/repos/${GITHUB_REPOSITORY}/releases/tags/${TAG}")
+          case "$RELEASE_HTTP" in
+            404) RELEASE_ID="" ;;
+            200) echo 'Release/candidate already exists; refusing all mutations' >&2; exit 1 ;;
+            *) echo "Cannot verify candidate absence: HTTP $RELEASE_HTTP" >&2; exit 1 ;;
+          esac
           if [ -z "${RELEASE_ID}" ]; then
             RELEASE=$(curl -fsS -X POST \
               -H "Authorization: token ${FORGEJO_TOKEN}" \
@@ -141,31 +126,24 @@ jobs:
                 \"tag_name\": \"${TAG}\",
                 \"name\": \"BOS ${TAG}\",
                 \"prerelease\": false,
-                \"body\": \"ISO image attached below. Verify with SHA256SUMS + SHA256SUMS.asc (signed by the BOS Release Signing key, see KEYS.asc in the repo).\\n\\nSee the [README](https://github.com/Breadway/bos#testing-in-a-vm) for VM testing instructions.\"
+                \"draft\": true,
+                \"body\": \"UNSIGNED DRAFT CANDIDATE. Offline release signer must verify the ISO, sign SHA256SUMS with the separate ISO key, upload SHA256SUMS.asc, and approve publication. See docs/signed-repo.md.\\n\\nSee the [README](https://github.com/Breadway/bos#testing-in-a-vm) for VM testing instructions.\"
               }")
             RELEASE_ID=$(echo "${RELEASE}" | python3 -c "import json,sys; print(json.load(sys.stdin)['id'])")
           fi
           echo "Using release ID: ${RELEASE_ID}"
 
+          require_draft() {
+            curl -fsS -H "Authorization: token ${FORGEJO_TOKEN}" \
+              "http://localhost:3002/api/v1/repos/${GITHUB_REPOSITORY}/releases/${RELEASE_ID}" \
+              | python3 -c 'import json,sys; sys.exit(0 if json.load(sys.stdin).get("draft") is True else "Candidate is no longer draft, refusing mutation")'
+          }
+
           upload_asset() {
             local file="$1" name
             name="$(basename "$file")"
-            local asset_id
-            asset_id=$(curl -sf \
-              -H "Authorization: token ${FORGEJO_TOKEN}" \
-              "http://localhost:3002/api/v1/repos/${GITHUB_REPOSITORY}/releases/${RELEASE_ID}/assets" \
-              | python3 -c "
-          import json,sys
-          assets=json.load(sys.stdin)
-          match=[a['id'] for a in assets if a['name']=='${name}']
-          print(match[0] if match else '')
-          " 2>/dev/null || true)
-            if [ -n "${asset_id}" ]; then
-              curl -fsS -X DELETE \
-                -H "Authorization: token ${FORGEJO_TOKEN}" \
-                "http://localhost:3002/api/v1/repos/${GITHUB_REPOSITORY}/releases/${RELEASE_ID}/assets/${asset_id}"
-              echo "Removed existing ${name} asset"
-            fi
+            require_draft
+            # No replacement/deletion: an existing name is an error.
             curl -fsS -X POST \
               -H "Authorization: token ${FORGEJO_TOKEN}" \
               -F "attachment=@${file};filename=${name}" \
@@ -175,38 +153,8 @@ jobs:
 
           upload_asset "/bos-out/${ISO_NAME}"
           upload_asset "/bos-out/SHA256SUMS"
-          upload_asset "/bos-out/SHA256SUMS.asc"
+          require_draft
+          echo 'Candidate ready only after this workflow completes successfully; offline signer must wait for completion.'
 
-      - name: Create GitHub release
-        env:
-          GH_TOKEN: ${{ secrets.MIRROR_TOKEN }}
-        run: |
-          set -euo pipefail
-          TAG="${{ steps.vars.outputs.tag }}"
-          VERSION="${{ steps.vars.outputs.version }}"
-          FORGEJO_URL="https://git.breadway.dev/${GITHUB_REPOSITORY}/releases/tag/${TAG}"
-
-          printf '**Download ISO:** %s\n\nGitHub releases cannot host files >2 GB; the `bos-%s-x86_64.iso` (~2.5 GB), SHA256SUMS, and SHA256SUMS.asc (signed by the BOS Release Signing key, public half at [KEYS.asc](https://github.com/Breadway/bos/blob/main/KEYS.asc)) are all on Forgejo.\n\nSee the [README](https://github.com/Breadway/bos#testing-in-a-vm) for VM testing instructions.' \
-            "${FORGEJO_URL}" "${VERSION}" > /tmp/gh-release-notes.md
-
-          gh release create "${TAG}" \
-            --repo "Breadway/bos" \
-            --title "BOS ${TAG}" \
-            --notes-file /tmp/gh-release-notes.md \
-          || echo "skip: GitHub release failed (MIRROR_TOKEN historically broken)"
-
-      # `stable` is a marker branch only; CI fast-forwards it to whatever
-      # commit the latest real (non-RC) release tag points at. Never merged
-      # into by hand, so unlike the old dev/beta/main model it can't rot:
-      # nobody has to remember to move it, a bot always does. Lets you
-      # `git diff stable..main` before a build to see what's new since the
-      # last release, without a human-maintained promotion step.
-      - name: Fast-forward stable branch to this tag
-        if: ${{ !contains(steps.vars.outputs.tag, '-rc.') }}
-        env:
-          FORGEJO_TOKEN: ${{ secrets.RELEASE_TOKEN }}
-        run: |
-          set -euo pipefail
-          cd /bos
-          git push "https://oauth2:${FORGEJO_TOKEN}@git.breadway.dev/${GITHUB_REPOSITORY}.git" \
-            "HEAD:refs/heads/stable" --force
+      # Public release publication, GitHub announcement and stable promotion
+      # happen only after the offline signer approves this exact candidate.
