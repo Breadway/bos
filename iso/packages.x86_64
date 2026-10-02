@@ -1,5 +1,7 @@
 # Base system
 base
+# Weekly package-cache cleanup, retaining the latest three package versions.
+pacman-contrib
 linux
 # linux-firmware metapackage pulls every mandatory vendor blob (incl. nvidia).
 # List the subpackages we actually need so nvidia (~103 MiB, nouveau-only,
