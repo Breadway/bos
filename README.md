@@ -185,20 +185,18 @@ archive against GitHub's release-asset digest before building it.
 
 ### Verifying a release
 
-Every tagged release ISO on the [Forgejo releases
-page](https://git.breadway.dev/Breadway/bos/releases) ships alongside a
-`SHA256SUMS` file and a detached signature `SHA256SUMS.asc`, signed by a
-dedicated release-signing key (not reused from anything else):
+Published historical ISOs include `SHA256SUMS` and `SHA256SUMS.asc` signed by
+`56203B86A110695AE7F310934AF3323D678EB5E2`, the legacy public key currently at
+[`KEYS.asc`](KEYS.asc). The repository public key is separately installed at
+`/etc/pacman.d/breadway-repo.asc`.
 
-```
-5620 3B86 A110 695A E7F3  1093 4AF3 323D 678E B5E2
-```
+New ISO builds prepare unsigned **draft candidates**. Signing moves to a
+separate offline ISO identity, whose public fingerprint must be provisioned and
+reviewed before the next release can be published. Signing scripts refuse to
+reuse the repository identity. See [signing activation and rotation](docs/signed-repo.md).
 
-The public half is committed at [`KEYS.asc`](KEYS.asc). The same key signs
-the ISO checksums **and** the `[breadway]` pacman repo: every package and
-the db at `https://dl.breadway.dev/arch` carry a `.sig` from it, and that
-section is `SigLevel = Required` (see
-[docs/signed-repo.md](docs/signed-repo.md)). To verify a download:
+For a published release, import its matching public key, then verify both the
+checksum signature and the downloaded bytes:
 
 ```sh
 gpg --import KEYS.asc
