@@ -22,7 +22,6 @@ wiring up dotfiles, no per-tool bakery installs.
   them), `breadbar` (status bar + notifications), `breadbox` (launcher),
   `breadclip` (clipboard history), `breadcrumbs` (Wi-Fi profiles),
   `breadpad`/`breadman` (notes), `breadpaper` (wallpaper + theme),
-  `breadmon` (monitor layout TUI),
   `breadshot` (screenshots), `bread-theme` (the shared palette engine),
   `breadhelp` (onboarding + cheatsheet), `bos-settings` (control panel),
   and the `bakery` package manager. Most of those apps are zero-config on
@@ -37,6 +36,10 @@ wiring up dotfiles, no per-tool bakery installs.
   non-destructively, plus snapshots, bakery/pacman updates, and day-to-day
   machine administration.
 - **Login**: greetd + breadgreet (under `cage`) → Hyprland session.
+- **Shell**: Zsh with the Powerlevel10k prompt. Upstream reports limited
+  maintenance and says most bugs may not be fixed. BOS knowingly keeps its
+  pinned in-house package as the shipped default; review upstream support
+  before updating the pin or choosing a replacement.
 - **Boot splash**: Plymouth `bos` theme (logo + spinner, black background).
 - **Theming**: global dark across GTK3 (Adwaita-dark), GTK4/libadwaita
   (`color-scheme: prefer-dark`), and Qt (qt5ct/qt6ct Fusion dark); Papirus-Dark
@@ -64,11 +67,12 @@ wiring up dotfiles, no per-tool bakery installs.
 
 | Channel | What |
 |---------|------|
-| **Bakery, required** | `bakery`, `bread` / `breadd`, `breadbar`, `breadbox` / `breadbox-sync`, `breadcrumbs`, `breadpad` / `breadman`, `breadpaper`, `bread-theme`, `breadmon`, `breadclip` / `breadclipd`, `breadshot`, `bos-settings`, `breadhelp` (+ breadhelp content under `/usr/local/share/breadhelp/`) |
+| **Bakery, required** | `bakery`, `bread` / `breadd`, `breadbar`, `breadbox` / `breadbox-sync`, `breadcrumbs`, `breadpad` / `breadman`, `breadpaper`, `bread-theme`, `breadclip` / `breadclipd`, `breadshot`, `bos-settings`, `breadhelp` (+ breadhelp content under `/usr/local/share/breadhelp/`) |
 | **Bakery, optional** | `bread-emit`, `bread-module-host`: baked when the verified stable index publishes them; skipped (not a failed bake) until bread ships them |
 | **pacman (`packages.x86_64`)** | `breadlock`, plus the rest of the distro (Hyprland, Calamares, Zen, …) |
 | **Not shipped (installable)** | `breadsearch` / `breadmill` (semantic file search): not baked, add it after install with `bakery install breadsearch` |
 | **Not shipped** | `breadcast`, `breadarr` |
+| **Deprecated** | `breadmon`: removed from the image; use BOS Settings → Displays for monitor layout |
 
 The baked name list is [`iso/bread-lockfile.toml`](iso/bread-lockfile.toml)
 (plus optional `[versions]` / `[[pin]]` so CI fetches
@@ -172,7 +176,10 @@ builder's existing installation instead.
 AUR-only. BOS keeps a PKGBUILD for each under `packaging/` and republishes
 the built package to the `[breadway]` repo via a Forgejo Actions workflow
 (built on the self-hosted runner, published with a scoped registry
-token). `[breadway]` is **not** where bakery/breadbar/bos-settings live.
+token). Zen stable releases are checked every six hours and published to
+`[breadway]` when the signed repository is behind; the watcher checks the
+archive against GitHub's release-asset digest before building it.
+`[breadway]` is **not** where bakery/breadbar/bos-settings live.
 
 ### Verifying a release
 
@@ -279,7 +286,7 @@ also get live systemd status + Start/Stop/Restart/Logs.
 | Packages | `bakery` installed list + updates, pacman system update |
 | AUR | Search via `yay`; installing opens a terminal (AUR build scripts need review) |
 | Firmware | `fwupd` device list + updates |
-| Snapshots | `snapper` list (number / date / description); reboot to pick in GRUB (grub-btrfs); delete: **root (`@`) only** |
+| Snapshots | `snapper` list (number / date / description); reboot to pick in GRUB (grub-btrfs); delete: **root (`@`) only**; retain 2-20 normal and 4-10 important snapshots, constrained by filesystem space |
 | Backup | restic of `$HOME` (`@home`) via Settings → Backup; snapper does not cover home |
 
 Source and build live in the [bos-settings](https://git.breadway.dev/Breadway/bos-settings)
@@ -320,7 +327,6 @@ directly.
 |------|------|--------|
 | `breadcrumbs` | Location-aware Wi-Fi profile state machine, with optional Tailscale integration: switches network behavior based on which saved network you're on | CLI, or BOS Settings → Wi-Fi Profiles |
 | `breadpaper` | Wallpaper manager: sets the wallpaper via `awww`, generates the accent palette from it, and reloads every bread-theme app | BOS Settings → Wallpaper |
-| `breadmon` | TUI monitor layout manager (resolution/position/scaling); the interactive counterpart to BOS Settings' read-only Display panel | `breadmon` in a terminal |
 | `breadshot` | Screenshot utility wrapping `grim`/`slurp`/`wl-copy` with Hyprland-aware geometry (multi-monitor-safe region select) | `breadshot`, or `SUPER+Shift+S/C/P` |
 
 **Tooling**
@@ -342,7 +348,7 @@ cheatsheet in-session; first boot shows a short welcome (once).
 | `SUPER+E` / `SUPER+B` | Files (nautilus) / Browser (zen) |
 | `SUPER+U` / `SUPER+M` | Notes (breadpad) / notes manager (breadman) |
 | `SUPER+,` / `SUPER+/` | BOS Settings / keybind cheatsheet |
-| `SUPER+L` / `SUPER+N` | Lock / log out |
+| `SUPER+L` / `SUPER+Shift+Escape` | Lock / log out |
 | `SUPER+Backspace` | Close window |
 | `SUPER+F` | Fullscreen |
 | `SUPER+I` | Toggle floating |
@@ -407,6 +413,11 @@ description so you know which GRUB entry to pick. It does not roll the
 running root back in place. Snapper is root only. Home files are
 **Settings → Backup** (restic restore into `~/bos-restore-<id>`, not
 over `$HOME`).
+
+Automatic root snapshot cleanup keeps 2-20 normal snapshots and 4-10
+important snapshots. Cleanup also tries to keep at least 20% of the
+filesystem free and snapshots below 50% of filesystem space. These are
+space thresholds, so fewer snapshots may remain when the filesystem is full.
 
 Do **not** run `snapper rollback`. BOS GRUB pins `rootflags=subvol=@`, so
 a snapper-swapped default subvolume is not what the installed grub.cfg
