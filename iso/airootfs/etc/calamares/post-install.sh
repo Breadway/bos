@@ -33,6 +33,18 @@ INSTALL_LOG_TEE_PID=$!
 ROOT_SRC="$(findmnt -no SOURCE / | sed 's/\[.*\]//')"
 if [[ "$(lsblk -no TYPE "$ROOT_SRC" 2>/dev/null)" == "crypt" ]]; then
     ROOT_ENCRYPTED=1
+    ROOT_MAPPER="$(basename -- "$ROOT_SRC")"
+    LUKS_PARENT="$(lsblk -no PKNAME "$ROOT_SRC" 2>/dev/null | head -n1)"
+    if [[ -n "$LUKS_PARENT" ]]; then
+        LUKS_DEVICE="/dev/$LUKS_PARENT"
+    else
+        LUKS_DEVICE="$(cryptsetup status "$ROOT_MAPPER" 2>/dev/null \
+            | awk '$1 == "device:" { print $2; exit }')"
+    fi
+    ROOT_LUKS_UUID=""
+    if [[ -n "$LUKS_DEVICE" ]]; then
+        ROOT_LUKS_UUID="$(cryptsetup luksUUID "$LUKS_DEVICE" 2>/dev/null || true)"
+    fi
 else
     ROOT_ENCRYPTED=0
 fi
@@ -158,7 +170,7 @@ if [[ -f /etc/mkinitcpio.conf ]]; then
     # unlocked root); both already present in stock mkinitcpio.conf's
     # default HOOKS regardless of which base hook is in use.
     if [[ "$ROOT_ENCRYPTED" == "1" ]] \
-       && ! grep -qE '^HOOKS=.*\bencrypt\b' /etc/mkinitcpio.conf; then
+       && ! grep -qE "^HOOKS=.*[[:space:]]${ENCRYPT_HOOK}([[:space:]]|\\))" /etc/mkinitcpio.conf; then
         sed -i "s/^\(HOOKS=.*\bblock\b\)/\1 ${ENCRYPT_HOOK}/" /etc/mkinitcpio.conf \
             || echo "WARN: adding ${ENCRYPT_HOOK} hook failed"
     fi
@@ -190,6 +202,54 @@ if [[ "$ROOT_ENCRYPTED" == "1" ]] && [[ -f /etc/default/grub ]] \
         || echo "WARN: adding GRUB_ENABLE_CRYPTODISK failed"
 fi
 
+# The initramfs key is stored in the encrypted /boot tree. GRUB has already
+# unlocked that tree to load the kernel, so the initramfs can use the keyfile
+# instead of asking for the passphrase a second time. Keep this in sync with
+# the hook selected before `mkinitcpio -P` by prepare-encrypted-root.sh.
+if [[ "$ROOT_ENCRYPTED" == "1" ]] && [[ -n "${ROOT_LUKS_UUID:-}" ]] \
+   && [[ -n "${ROOT_MAPPER:-}" ]] && [[ -f /etc/default/grub ]]; then
+    if grep -qE '^HOOKS=.*\bsystemd\b' /etc/mkinitcpio.conf 2>/dev/null; then
+        ROOT_CRYPT_PARAMS=("rd.luks.name=${ROOT_LUKS_UUID}=${ROOT_MAPPER}")
+    else
+        ROOT_CRYPT_PARAMS=("cryptdevice=UUID=${ROOT_LUKS_UUID}:${ROOT_MAPPER}")
+    fi
+    [[ -f /crypto_keyfile.bin ]] \
+        && ROOT_CRYPT_PARAMS+=("cryptkey=rootfs:/crypto_keyfile.bin")
+    python3 - /etc/default/grub "${ROOT_CRYPT_PARAMS[@]}" <<'PY'
+import pathlib
+import shlex
+import sys
+
+path = pathlib.Path(sys.argv[1])
+parameters = sys.argv[2:]
+keys = ("cryptdevice=", "rd.luks.name=", "cryptkey=")
+lines = path.read_text().splitlines()
+updated = False
+for index, line in enumerate(lines):
+    if not line.startswith("GRUB_CMDLINE_LINUX="):
+        continue
+    value = line.split("=", 1)[1]
+    try:
+        words = shlex.split(value)
+    except ValueError:
+        words = [value.strip().strip("'\"")]
+    words = [word for word in words if not word.startswith(keys)]
+    words.extend(parameters)
+    escaped = " ".join(words).replace("\\", "\\\\").replace('"', '\\"')
+    lines[index] = f'GRUB_CMDLINE_LINUX="{escaped}"'
+    updated = True
+    break
+if not updated:
+    lines.append('GRUB_CMDLINE_LINUX="' + " ".join(parameters) + '"')
+path.write_text("\n".join(lines) + "\n")
+PY
+    if [[ "$?" != "0" ]]; then
+        echo "WARN: setting encrypted-root GRUB parameters failed"
+    fi
+elif [[ "$ROOT_ENCRYPTED" == "1" ]]; then
+    echo "WARN: could not determine the encrypted root LUKS UUID; GRUB parameters were not updated"
+fi
+
 # Rebuild every preset (default + fallback that bos-copy-kernel wrote) so the
 # microcode + plymouth HOOKS above are actually baked into the initramfs. The
 # installed kernel and its initramfs are required for a bootable system.
@@ -217,24 +277,51 @@ fi
 #   BIOS: MBR install onto the disk hosting /.
 # ---------------------------------------------------------------------------
 GRUB_INSTALL_SUCCEEDED=0
+# Decide whether this install will enroll Secure Boot keys before installing
+# GRUB, so the EFI binaries are built with the correct verifier policy and
+# their required modules are embedded from the start.
+SECURE_BOOT_SETUP=0
+SETUP_MODE="False"
+if [[ -d /sys/firmware/efi ]] && command -v sbctl &>/dev/null; then
+    SETUP_MODE="$(sbctl status --json 2>/dev/null | python3 -c \
+        'import json,sys; print(json.load(sys.stdin).get("setup_mode", False))' 2>/dev/null)"
+    [[ "$SETUP_MODE" == "True" ]] && SECURE_BOOT_SETUP=1
+fi
+
+GRUB_INSTALL_FLAGS=()
+if [[ "$SECURE_BOOT_SETUP" == "1" ]]; then
+    GRUB_MODULES=(
+        all_video btrfs cat configfile cryptodisk echo fat font gfxterm
+        gcry_rijndael gcry_sha1 gcry_sha256 gcry_sha512 halt linux ls luks luks2
+        normal part_gpt part_msdos png reboot search search_fs_uuid tpm
+    )
+    if [[ "$ROOT_ENCRYPTED" == "1" ]]; then
+        GRUB_MODULES+=(gcry_rmd160)
+    fi
+    GRUB_INSTALL_FLAGS+=(
+        --disable-shim-lock
+        --sbat /usr/share/grub/sbat.csv
+        --modules="${GRUB_MODULES[*]}"
+    )
+elif [[ "$ROOT_ENCRYPTED" == "1" ]]; then
+    GRUB_INSTALL_FLAGS+=(--modules="cryptodisk luks luks2")
+fi
 if command -v grub-install &>/dev/null; then
-    CRYPT_MODULES=()
-    [[ "$ROOT_ENCRYPTED" == "1" ]] && CRYPT_MODULES=(--modules="cryptodisk luks luks2")
     if [[ -d /sys/firmware/efi ]]; then
         grub-install --target=x86_64-efi --efi-directory=/boot/efi \
-            --bootloader-id=BOS --recheck "${CRYPT_MODULES[@]}" \
+            --bootloader-id=BOS --recheck "${GRUB_INSTALL_FLAGS[@]}" \
             && GRUB_INSTALL_SUCCEEDED=1 \
             || echo "WARN: grub-install (nvram) failed"
         grub-install --target=x86_64-efi --efi-directory=/boot/efi \
-            --removable --recheck "${CRYPT_MODULES[@]}" \
+            --removable --recheck "${GRUB_INSTALL_FLAGS[@]}" \
             && GRUB_INSTALL_SUCCEEDED=1 \
             || echo "WARN: grub-install (removable) failed"
     else
         ROOT_DEV="$(findmnt -no SOURCE / | sed 's/\[.*\]//')"
         ROOT_DISK="$(lsblk -no pkname "$ROOT_DEV" 2>/dev/null)"
         if [[ -n "$ROOT_DISK" ]]; then
-            grub-install --target=i386-pc --recheck "${CRYPT_MODULES[@]}" "/dev/$ROOT_DISK" \
-                && GRUB_INSTALL_SUCCEEDED=1 \
+            grub-install --target=i386-pc --recheck "${GRUB_INSTALL_FLAGS[@]}" "/dev/$ROOT_DISK" \
+            && GRUB_INSTALL_SUCCEEDED=1 \
                 || echo "WARN: grub-install (BIOS) failed"
         else
             echo "WARN: could not determine the disk hosting / (root device: ${ROOT_DEV:-unknown}); BIOS grub-install skipped"
@@ -276,17 +363,24 @@ fi
 # Best-effort and silent-skip (not a WARN) when out of Setup Mode; that's
 # the expected state on most real hardware, not a failure.
 # ---------------------------------------------------------------------------
-if [[ -d /sys/firmware/efi ]] && command -v sbctl &>/dev/null; then
-    SETUP_MODE="$(sbctl status --json 2>/dev/null | python3 -c \
-        'import json,sys; print(json.load(sys.stdin).get("setup_mode", False))' 2>/dev/null)"
-    if [[ "$SETUP_MODE" == "True" ]]; then
-        sbctl create-keys || echo "WARN: sbctl create-keys failed"
-        sbctl enroll-keys --microsoft || echo "WARN: sbctl enroll-keys failed"
-        sbctl sign-all -g || echo "WARN: sbctl sign-all failed"
-        echo "Secure Boot: keys enrolled and boot files signed."
-    else
-        echo "Secure Boot: firmware not in Setup Mode; skipped (run 'sudo sbctl enroll-keys --microsoft && sudo sbctl sign-all -g' manually later if desired)."
-    fi
+if [[ "$SECURE_BOOT_SETUP" == "1" ]]; then
+    sbctl create-keys || echo "WARN: sbctl create-keys failed"
+    sbctl enroll-keys --microsoft || echo "WARN: sbctl enroll-keys failed"
+    for boot_file in \
+        /boot/efi/EFI/BOS/grubx64.efi \
+        /boot/efi/EFI/BOOT/BOOTX64.EFI \
+        /boot/vmlinuz-linux; do
+        if [[ -f "$boot_file" ]]; then
+            sbctl sign -s "$boot_file" \
+                || echo "WARN: sbctl could not save and sign $boot_file"
+        else
+            echo "WARN: Secure Boot file missing, not signing: $boot_file"
+        fi
+    done
+    sbctl sign-all -g || echo "WARN: sbctl sign-all failed"
+    echo "Secure Boot: keys enrolled and boot files signed."
+elif [[ -d /sys/firmware/efi ]] && command -v sbctl &>/dev/null; then
+    echo "Secure Boot: firmware not in Setup Mode; skipped (run 'sudo sbctl enroll-keys --microsoft && sudo sbctl sign-all -g' manually later if desired)."
 fi
 
 # ---------------------------------------------------------------------------
