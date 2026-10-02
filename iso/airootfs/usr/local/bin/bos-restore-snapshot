@@ -1,0 +1,86 @@
+#!/bin/bash
+set -euo pipefail
+
+usage() {
+    echo "Usage: bos-restore-snapshot <snapshot-number>" >&2
+    exit 2
+}
+
+[[ $# == 1 && "$1" =~ ^[1-9][0-9]*$ ]] || usage
+[[ "$(id -u)" == 0 ]] || {
+    echo "Run this command as root: sudo bos-restore-snapshot $1" >&2
+    exit 1
+}
+[[ ! -d /run/archiso ]] || {
+    echo "Run this from the installed system or a booted GRUB snapshot, not the live ISO." >&2
+    exit 1
+}
+
+SNAPSHOT_NUMBER="$1"
+ROOT_SPEC="$(awk '$0 !~ /^[[:space:]]*#/ && $2 == "/" && $3 == "btrfs" { print $1; exit }' /etc/fstab)"
+[[ -n "$ROOT_SPEC" ]] || {
+    echo "Could not find a Btrfs root device in /etc/fstab." >&2
+    exit 1
+}
+ROOT_DEVICE="$(findfs "$ROOT_SPEC")" || {
+    echo "Could not resolve the Btrfs root device $ROOT_SPEC." >&2
+    exit 1
+}
+
+TOPLEVEL="$(mktemp -d /run/bos-restore-snapshot.XXXXXX)"
+MOUNTED=0
+cleanup() {
+    if [[ "$MOUNTED" == 1 ]]; then
+        umount "$TOPLEVEL" || umount -l "$TOPLEVEL" || true
+    fi
+    rmdir "$TOPLEVEL" 2>/dev/null || true
+}
+trap cleanup EXIT
+
+mount -o subvolid=5 "$ROOT_DEVICE" "$TOPLEVEL"
+MOUNTED=1
+SNAPSHOT="$TOPLEVEL/@snapshots/$SNAPSHOT_NUMBER/snapshot"
+CURRENT="$TOPLEVEL/@"
+STAMP="$(date -u +%Y%m%d-%H%M%S)"
+BACKUP="@.broken-$STAMP"
+STAGED="@.restore-$STAMP"
+
+[[ -d "$SNAPSHOT" ]] && btrfs subvolume show "$SNAPSHOT" >/dev/null || {
+    echo "Snapper snapshot $SNAPSHOT_NUMBER was not found." >&2
+    exit 1
+}
+[[ "$(btrfs property get "$SNAPSHOT" ro)" == "ro=true" ]] || {
+    echo "Snapper snapshot $SNAPSHOT_NUMBER is not read-only; refusing to restore it." >&2
+    exit 1
+}
+btrfs subvolume show "$CURRENT" >/dev/null || {
+    echo "The installed @ root subvolume was not found." >&2
+    exit 1
+}
+[[ ! -e "$TOPLEVEL/$BACKUP" && ! -e "$TOPLEVEL/$STAGED" ]] || {
+    echo "A restore subvolume with this timestamp already exists. Retry in a moment." >&2
+    exit 1
+}
+
+printf 'Restore snapshot %s as the default @ root and reboot?\n' "$SNAPSHOT_NUMBER"
+printf 'The current @ will be preserved as %s. Type RESTORE %s to continue: ' "$BACKUP" "$SNAPSHOT_NUMBER"
+read -r REPLY
+[[ "$REPLY" == "RESTORE $SNAPSHOT_NUMBER" ]] || {
+    echo "Restore cancelled."
+    exit 1
+}
+
+btrfs subvolume snapshot "$SNAPSHOT" "$TOPLEVEL/$STAGED"
+if ! mv -- "$CURRENT" "$TOPLEVEL/$BACKUP"; then
+    btrfs subvolume delete "$TOPLEVEL/$STAGED" || true
+    echo "Could not preserve the current @ root; no restore was made." >&2
+    exit 1
+fi
+if ! mv -- "$TOPLEVEL/$STAGED" "$CURRENT"; then
+    mv -- "$TOPLEVEL/$BACKUP" "$CURRENT" || true
+    echo "Could not install the restored @ root; attempted to put the current root back." >&2
+    exit 1
+fi
+
+echo "Snapshot $SNAPSHOT_NUMBER is now the default @ root. Preserved the previous root as $BACKUP. Rebooting."
+systemctl reboot

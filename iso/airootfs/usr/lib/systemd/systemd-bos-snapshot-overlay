@@ -1,0 +1,31 @@
+#!/usr/bin/bash
+set -euo pipefail
+
+ROOT_MOUNT=/sysroot
+PROPERTIES="$(btrfs property get "$ROOT_MOUNT" ro 2>/dev/null)" || exit 0
+
+if [[ "$PROPERTIES" == "ro=true" ]]; then
+    OVERLAY_ROOT=/run/bos-snapshot-overlay
+    LOWER="$OVERLAY_ROOT/lower"
+    UPPER="$OVERLAY_ROOT/upper"
+    WORK="$OVERLAY_ROOT/work"
+
+    mkdir -p "$OVERLAY_ROOT"
+    mount -t tmpfs -o mode=0755 bos-snapshot-overlay "$OVERLAY_ROOT"
+    mkdir -p "$LOWER" "$UPPER" "$WORK"
+
+    # systemd initramfs mounts are shared by default. Make the mount tree private
+    # before moving the root so propagation does not make the overlay move fail.
+    mount --make-rprivate /
+    mount --move "$ROOT_MOUNT" "$LOWER"
+    if ! mount -t overlay overlay \
+        -o "lowerdir=$LOWER,upperdir=$UPPER,workdir=$WORK" \
+        "$ROOT_MOUNT"; then
+        mount --move "$LOWER" "$ROOT_MOUNT" || true
+        exit 1
+    fi
+fi
+
+# An installed root, including a writable @ restored from a snapshot, can
+# retain the initrd marker from the live session. Remove it before switch-root.
+rm -f "$ROOT_MOUNT/etc/initrd-release"

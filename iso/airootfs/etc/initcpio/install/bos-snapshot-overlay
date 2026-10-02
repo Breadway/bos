@@ -1,0 +1,21 @@
+#!/bin/bash
+
+build() {
+    add_module btrfs
+    add_module overlay
+    add_binary /usr/bin/bash
+    add_binary /usr/bin/btrfs
+    add_binary /usr/bin/mkdir
+    add_binary /usr/bin/mount
+    add_file /usr/lib/systemd/systemd-bos-snapshot-overlay
+    add_systemd_unit bos-snapshot-overlay.service
+    add_symlink \
+        /usr/lib/systemd/system/initrd-root-fs.target.requires/bos-snapshot-overlay.service \
+        /usr/lib/systemd/system/bos-snapshot-overlay.service
+}
+
+help() {
+    cat <<'HELPEOF'
+Apply a volatile overlay to a read-only Btrfs root snapshot in the systemd initramfs.
+HELPEOF
+}

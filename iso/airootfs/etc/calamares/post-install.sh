@@ -141,18 +141,18 @@ if [[ -f /etc/mkinitcpio.conf ]]; then
     # mutually exclusive alternatives (systemd substitutes for udev as the
     # base hook providing the init program), and each has its own
     # counterpart for anything that hooks into device/root setup:
-    # plymouth is the same either way, but LUKS unlocking needs `encrypt`
-    # under udev and `sd-encrypt` under systemd. Detect which is in play
-    # once and use the matching hook, instead of assuming udev (which
-    # silently no-ops the sed on every current install; this was already
-    # true for the plymouth insertion below before this fix, just never
-    # surfaced because it fails quietly).
+    # plymouth is the same either way, LUKS unlocking needs `encrypt` under
+    # udev and `sd-encrypt` under systemd, and snapshot overlays use the
+    # packaged grub-btrfs hook under udev or BOS's systemd initrd unit under
+    # systemd. Detect the base once and select the matching hooks.
     if grep -qE '^HOOKS=.*\bsystemd\b' /etc/mkinitcpio.conf; then
         BASE_HOOK="systemd"
         ENCRYPT_HOOK="sd-encrypt"
+        SNAPSHOT_OVERLAY_HOOK="bos-snapshot-overlay"
     else
         BASE_HOOK="udev"
         ENCRYPT_HOOK="encrypt"
+        SNAPSHOT_OVERLAY_HOOK="grub-btrfs-overlayfs"
     fi
 
     if command -v plymouth-set-default-theme &>/dev/null \
@@ -169,6 +169,17 @@ if [[ -f /etc/mkinitcpio.conf ]]; then
        && ! grep -qE "^HOOKS=.*[[:space:]]${ENCRYPT_HOOK}([[:space:]]|\\))" /etc/mkinitcpio.conf; then
         sed -i "s/^\(HOOKS=.*\bblock\b\)/\1 ${ENCRYPT_HOOK}/" /etc/mkinitcpio.conf \
             || echo "WARN: adding ${ENCRYPT_HOOK} hook failed"
+    fi
+
+    if ! grep -qE "^HOOKS=.*\\b${SNAPSHOT_OVERLAY_HOOK}\\b" /etc/mkinitcpio.conf; then
+        if [[ -f "/etc/initcpio/install/${SNAPSHOT_OVERLAY_HOOK}" \
+           || -f "/usr/lib/initcpio/install/${SNAPSHOT_OVERLAY_HOOK}" ]]; then
+            sed -i "s/^\(HOOKS=.*\bfilesystems\b\)/\1 ${SNAPSHOT_OVERLAY_HOOK}/" \
+                /etc/mkinitcpio.conf \
+                || echo "WARN: adding ${SNAPSHOT_OVERLAY_HOOK} hook failed"
+        else
+            echo "WARN: ${SNAPSHOT_OVERLAY_HOOK} initramfs hook is missing; GRUB snapshot boots may remain read-only"
+        fi
     fi
 fi
 

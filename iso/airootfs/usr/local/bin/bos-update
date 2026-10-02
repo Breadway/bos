@@ -97,3 +97,4 @@ echo
 bold "Recovery"
 echo "If this update goes badly: reboot → GRUB “snapshots” submenu."
 echo "snapper rollback will not change what GRUB boots (rootflags=subvol=@)."
+echo "Snapshot boots use a temporary writable overlay. To make one permanent, boot it and run: sudo bos-restore-snapshot <number>"

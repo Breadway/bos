@@ -53,10 +53,10 @@ wiring up dotfiles, no per-tool bakery installs.
   unsupported out of the box (see [docs/hardware.md](docs/hardware.md)).
 - **Resilience**: btrfs + snapper + snap-pac + grub-btrfs snapshots on every
   pacman transaction (**root `@` only**; snapper does not cover `@home`);
-  home backup is **Settings → Backup** (restic, local path or SFTP); zram
-  swap; ufw firewall (deny-incoming, mDNS allowed). A/B root swapping is
-  **not** implemented. Recovery is a grub-btrfs reboot, not
-  `snapper rollback` (GRUB pins `rootflags=subvol=@`). See
+  snapshots boot writable through a temporary overlay, and
+  `bos-restore-snapshot <number>` makes a chosen snapshot the new `@` root.
+  Home backup is **Settings → Backup** (restic, local path or SFTP); zram
+  swap; ufw firewall (deny-incoming, mDNS allowed). See
   [docs/hardware.md](docs/hardware.md).
 - **Security**: optional full-disk encryption is **LUKS1** (GRUB cannot unlock
   LUKS2 + Argon2id). Secure Boot is **self-signed Setup Mode only** via
@@ -409,8 +409,10 @@ until `dl.breadway.dev/arch` exists).
 “snapshots” submenu** (grub-btrfs), then boot that entry.
 
 BOS Settings → Snapshots lists each snapshot’s number, date, and
-description so you know which GRUB entry to pick. It does not roll the
-running root back in place. Snapper is root only. Home files are
+description so you know which GRUB entry to pick. Booting one runs it
+as a temporary writable overlay, and its changes disappear at reboot.
+To make it permanent, run `sudo bos-restore-snapshot <number>` from the
+booted snapshot. Snapper is root only. Home files are
 **Settings → Backup** (restic restore into `~/bos-restore-<id>`, not
 over `$HOME`).
 
@@ -419,9 +421,10 @@ important snapshots. Cleanup also tries to keep at least 20% of the
 filesystem free and snapshots below 50% of filesystem space. These are
 space thresholds, so fewer snapshots may remain when the filesystem is full.
 
-Do **not** run `snapper rollback`. BOS GRUB pins `rootflags=subvol=@`, so
-a snapper-swapped default subvolume is not what the installed grub.cfg
-will boot next. Details: [docs/hardware.md](docs/hardware.md).
+Do **not** run `snapper rollback`. BOS GRUB pins `rootflags=subvol=@`;
+`bos-restore-snapshot` preserves the old `@` and installs the selected
+snapshot at that path before rebooting. Details:
+[docs/hardware.md](docs/hardware.md).
 
 A/B root swapping (SteamOS-style) is a **future** idea in DESIGN.md; it is
 not shipped.
