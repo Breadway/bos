@@ -43,7 +43,7 @@ install -d -m 0700 "$BUILD_GPG_DIR"
 # LOCAL_REPO=/path/to/dir splices a local pacman repo in front of [breadway],
 # so an uncommitted breadlock (or AUR-republish) build can be tested in the
 # ISO without tagging a release and running the signed-repo publish. The dir
-# must hold a repo-add'd <name>.db (+ the .pkg.tar.zst files). Dev only —
+# must hold a repo-add'd <name>.db (+ the .pkg.tar.zst files). Dev only:
 # packages are pulled SigLevel = Never. Give the package a high pkgrel so
 # pacman prefers it over the published [breadway] copy.
 if [ -n "${LOCAL_REPO:-}" ]; then
@@ -158,7 +158,7 @@ BAKERY_STATE="$LAPTOP_HOME/.local/state/bakery"
 BAKERY_CACHE="$LAPTOP_HOME/.cache/bakery"
 # bakery keeps a per-track index cache: index.json (stable), index-beta.json,
 # index-dev.json. Bake the one that matches the track this build's
-# installed.json follows — baking the stale stable cache into a dev-track
+# installed.json follows; baking the stale stable cache into a dev-track
 # image leaves `bakery list/info` reporting ancient versions offline.
 BAKERY_TRACK="$(python3 -c "import json,sys; print(json.load(open(sys.argv[1])).get('track','stable'))" "$BAKERY_STATE/installed.json" 2>/dev/null || echo stable)"
 case "$BAKERY_TRACK" in
@@ -204,7 +204,7 @@ for b in "${BREAD_BINS[@]}"; do
 done
 
 # BAKE_OVERRIDE=/path/to/dir drops locally-built binaries over the baked
-# bakery ones — for testing an unmerged bread-app fix in the ISO without
+# bakery ones, for testing an unmerged bread-app fix in the ISO without
 # clobbering ~/.local/bin or waiting for a dev-track publish. Only files whose
 # name is already in the lockfile bin set are copied. Dev only.
 if [ -n "${BAKE_OVERRIDE:-}" ]; then
@@ -247,7 +247,7 @@ PY
 # so bake it in too, then bakery works fully offline (list/info from cache;
 # install/update still need network, as expected).
 if [[ ! -f "$BAKERY_INDEX" ]]; then
-  echo "ERROR: bakery index cache missing: $BAKERY_INDEX (track $BAKERY_TRACK) — run 'bakery list' once to populate it" >&2
+  echo "ERROR: bakery index cache missing: $BAKERY_INDEX (track $BAKERY_TRACK). Run 'bakery list' once to populate it" >&2
   exit 1
 fi
 echo "baking bakery index for track '$BAKERY_TRACK' from $BAKERY_INDEX"

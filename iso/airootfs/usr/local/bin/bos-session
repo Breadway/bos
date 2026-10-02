@@ -19,8 +19,8 @@ export XDG_CURRENT_DESKTOP=Hyprland
 # Blank greetd's VT around the compositor handoffs so no text console shows.
 # breadgreet has just exited (its cage compositor is tearing down) and there's
 # a sub-second gap before Hyprland grabs the DRM master; without this the
-# framebuffer falls back to tty1's text mode — a stale login screen, a cursor,
-# or kernel/journal spillover — in that gap. `\033c` is a full terminal reset
+# framebuffer falls back to tty1's text mode (a stale login screen, a cursor,
+# or kernel/journal spillover) in that gap. `\033c` is a full terminal reset
 # (clear + home + scrollback). Best-effort: the session user may not own
 # /dev/tty1. Not `exec`'d so the second blank runs when the session ends,
 # before greetd restarts its own compositor back to the greeter.
