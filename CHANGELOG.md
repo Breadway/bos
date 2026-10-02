@@ -20,6 +20,10 @@ tag (with date) at tag time.
 
 ## [Unreleased]
 
+- Encrypted Calamares installs now register a boot keyfile and configure the
+  mkinitcpio unlock hook before initramfs generation. GRUB records the LUKS
+  container and mapper so the initramfs can unlock root without asking for a
+  second passphrase; the smoke test checks the encrypted boot parameters.
 - When UEFI firmware is in Setup Mode, the installer now builds GRUB with
   shim-lock disabled, SBAT metadata, and the filesystem, crypto, and boot
   modules it needs. It then enrolls and saves signatures for both GRUB EFI
