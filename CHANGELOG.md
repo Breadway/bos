@@ -51,6 +51,10 @@ tag (with date) at tag time.
 - NVIDIA setup: classify exact supported PCI IDs, refuse legacy/unknown GPUs,
   choose open modules or DKMS with kernel headers, and expose a read-only
   dry-run plan that first boot records for Settings.
+- Updates: pair numbered bakery pre/post Snapper snapshots, including failed
+  updates, instead of leaving orphaned pre snapshots. Enable bakery transaction
+  snapshots for direct and Packages updates once its Snapper support ships;
+  bos-update keeps a paired fallback for older bakery builds.
 
 - Audio: include `sof-firmware` and `alsa-firmware` in the ISO for laptop
   speakers and microphones that require Sound Open Firmware or legacy ALSA
