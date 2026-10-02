@@ -33,6 +33,9 @@ tag (with date) at tag time.
   `/var/log/bos-install.log`.
 - Root Snapper cleanup now keeps 2-20 normal and 4-10 important snapshots,
   while pruning older snapshots when filesystem space thresholds are reached.
+- Installer: offer only the no-disk-swap choice. BOS uses zram swap, and
+  installer-created swap files or partitions would break btrfs snapshots or
+  advertise hibernation without a configured resume path.
 - Audio: include `sof-firmware` and `alsa-firmware` in the ISO for laptop
   speakers and microphones that require Sound Open Firmware or legacy ALSA
   firmware.
