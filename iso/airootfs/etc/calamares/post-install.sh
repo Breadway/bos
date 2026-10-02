@@ -253,6 +253,11 @@ fi
 # Rebuild every preset (default + fallback that bos-copy-kernel wrote) so the
 # microcode + plymouth HOOKS above are actually baked into the initramfs. The
 # installed kernel and its initramfs are required for a bootable system.
+
+# Rebuild every installed kernel preset. bos-copy-kernel wrote the stock linux
+# presets, and its cached linux-lts install added the LTS preset before the
+# initcpio module ran. This rebuild bakes the microcode + plymouth HOOKS above
+# into every installed kernel's initramfs.
 if [[ ! -f /boot/vmlinuz-linux ]]; then
     record_critical_failure "installed kernel /boot/vmlinuz-linux is missing"
 fi
