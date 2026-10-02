@@ -25,3 +25,21 @@ if [[ -f "$KEY_FILE" ]]; then
 else
     echo "customize_airootfs: WARNING $KEY_FILE missing; [breadway] will not verify" >&2
 fi
+
+# Keep an installer-only copy of linux-lts. It must be available to
+# Calamares when the target is offline, but it is not installed on the live
+# medium. The unpackfs module copies this file into the target, and
+# bos-copy-kernel installs it before mkinitcpio and GRUB are configured.
+LTS_CACHE_DIR="/usr/share/bos/installer-packages"
+LTS_DOWNLOAD_DIR="$(mktemp -d)"
+trap 'rm -rf "$LTS_DOWNLOAD_DIR"' EXIT
+pacman -Swy --noconfirm --cachedir "$LTS_DOWNLOAD_DIR" linux-lts
+mapfile -t LTS_PACKAGES < <(find "$LTS_DOWNLOAD_DIR" -maxdepth 1 -type f \
+    -name 'linux-lts-*-x86_64.pkg.tar.zst' -print)
+if [[ "${#LTS_PACKAGES[@]}" != 1 || ! -f "${LTS_PACKAGES[0]}.sig" ]]; then
+    echo "customize_airootfs: expected one signed linux-lts package in $LTS_DOWNLOAD_DIR" >&2
+    exit 1
+fi
+install -d -m 0755 "$LTS_CACHE_DIR"
+install -m 0644 "${LTS_PACKAGES[0]}" "${LTS_PACKAGES[0]}.sig" "$LTS_CACHE_DIR/"
+echo "customize_airootfs: staged installer-only linux-lts package"
