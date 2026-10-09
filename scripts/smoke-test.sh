@@ -49,7 +49,7 @@ done
 check "graphical.target is default" "[ \"\$(systemctl get-default)\" = graphical.target ]"
 
 echo "== bread ecosystem on PATH =="
-for bin in bakery bread breadd bread-emit bread-module-host breadbar breadbox breadbox-sync breadcrumbs breadpad breadman; do
+for bin in bakery bread breadd bread-emit bread-module-host breadbug breadbar breadbox breadbox-sync breadcrumbs breadpad breadman; do
     check "$bin found" "command -v $bin"
 done
 
@@ -111,6 +111,11 @@ check "autostart includes first-boot probe" "grep -q bos-first-boot \"\$HOME/.co
 check "hypr scripts/lib present" "[ -f \"\$HOME/.config/hypr/scripts/lib/json.lua\" ]"
 check "mimeapps.list present" "[ -f \"\$HOME/.config/mimeapps.list\" ]"
 check "kitty config present"  "[ -f \"\$HOME/.config/kitty/kitty.conf\" ]"
+check "breadbug-notify module present" \
+    "[ -f \"\$HOME/.config/bread/modules/breadbug-notify.lua\" ]"
+check "breadbug keybind present" "grep -q 'breadbug' \"\$HOME/.config/hypr/binds.json\""
+check "breadbug sends nothing by default" \
+    "! grep -qs '^upload_enabled *= *true' \"\$HOME/.config/bread/breadbug.toml\""
 
 echo "== bootloader (EFI) =="
 check "GRUB EFI binary present" \
