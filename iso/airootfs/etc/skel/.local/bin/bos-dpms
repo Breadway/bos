@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+case "${1:-}" in
+    off|on) action=$1 ;;
+    *) echo "usage: bos-dpms off|on" >&2; exit 2 ;;
+esac
+
+reply=$(hyprctl eval "hl.dispatch(hl.dsp.dpms({ action = '$action' }))")
+if [[ $reply != ok ]]; then
+    printf 'hyprctl eval failed: %s\n' "$reply" >&2
+    exit 1
+fi
