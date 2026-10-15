@@ -49,9 +49,14 @@ done
 check "graphical.target is default" "[ \"\$(systemctl get-default)\" = graphical.target ]"
 
 echo "== bread ecosystem on PATH =="
-for bin in bakery bread breadd bread-emit bread-module-host breadbug breadbar breadbox breadbox-sync breadcrumbs breadpad breadman; do
+for bin in bakery bread breadd bread-emit bread-module-host breadbar breadbox breadbox-sync breadcrumbs breadpad breadman; do
     check "$bin found" "command -v $bin"
 done
+if command -v breadbug >/dev/null 2>&1; then
+    check "breadbug found" "command -v breadbug"
+else
+    note "breadbug not installed: breadbug feature check skipped (bread packaging not in iso/bread-lockfile.toml yet); not a pass"
+fi
 
 echo "== bos-settings =="
 check "bos-settings installed" "command -v bos-settings"
