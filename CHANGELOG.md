@@ -20,6 +20,11 @@ tag (with date) at tag time.
 
 ## [Unreleased]
 
+- Report a problem with a bread app: `Super+Shift+B` opens `breadbug`, which
+  shows exactly what a bug report would contain (scrubbed of personal data)
+  before you decide to save it or send it. A new `breadbug-notify` module
+  offers to review a report when a bread app crashes or freezes. Nothing is
+  sent unless you choose to, and sending is off by default.
 - Encrypted Calamares installs now register a boot keyfile and configure the
   mkinitcpio unlock hook before initramfs generation. GRUB records the LUKS
   container and mapper so the initramfs can unlock root without asking for a
