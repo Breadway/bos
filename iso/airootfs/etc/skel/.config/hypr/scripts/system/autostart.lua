@@ -10,7 +10,7 @@
 -- legitimate user choice (they don't want breadbar/hypridle/etc), so this
 -- only falls back to defaults on a missing/malformed file; never just
 -- because the valid result happens to be empty.
-local json = dofile(os.getenv("HOME") .. "/.config/hypr/scripts/lib/json.lua")
+local json = dofile(BOS_HYPR_DIR .. "scripts/lib/json.lua")
 
 -- breadpaper/breadshot `listen` is wrapped so a missing binary (stable
 -- does not ship the command-bus verb yet) cannot take down the session.
@@ -29,7 +29,7 @@ local DEFAULT_EXTRA = {
 }
 
 return function()
-    local path = os.getenv("HOME") .. "/.config/hypr/autostart.json"
+    local path = BOS_HYPR_DIR .. "autostart.json"
     local parsed = json.load(path)
     local entries
     if type(parsed) ~= "table" or type(parsed.extra) ~= "table" then

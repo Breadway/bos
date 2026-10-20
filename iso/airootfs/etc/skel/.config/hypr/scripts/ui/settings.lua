@@ -7,7 +7,7 @@
 --      rejects a well-typed-but-semantically-bad value, we fall back to
 --      re-applying pure hardcoded defaults, so the session always comes up
 --      with a normal, usable layout instead of erroring out mid-config-load.
-local json = dofile(os.getenv("HOME") .. "/.config/hypr/scripts/lib/json.lua")
+local json = dofile(BOS_HYPR_DIR .. "scripts/lib/json.lua")
 
 local DEFAULTS = {
     gaps_in = 5,
@@ -45,7 +45,7 @@ local function str(v, fallback)
 end
 
 local function load_overrides()
-    local path = os.getenv("HOME") .. "/.config/hypr/settings.json"
+    local path = BOS_HYPR_DIR .. "settings.json"
     local parsed = json.load(path)
     if type(parsed) ~= "table" then
         return {}
