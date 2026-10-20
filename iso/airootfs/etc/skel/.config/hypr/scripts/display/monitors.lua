@@ -4,7 +4,7 @@
 -- to the single generic wildcard rule, because applying *zero* monitor
 -- rules risks an unconfigured/black-screen session, unlike settings.json or
 -- autostart.json where "apply nothing extra" is a legitimate user choice.
-local json = dofile(os.getenv("HOME") .. "/.config/hypr/scripts/lib/json.lua")
+local json = dofile(BOS_HYPR_DIR .. "scripts/lib/json.lua")
 
 local DEFAULT_MONITORS = {
     { output = "", mode = "preferred", position = "auto", scale = "auto" },
@@ -15,7 +15,7 @@ local function valid_entry(e)
 end
 
 local function load_monitors()
-    local path = os.getenv("HOME") .. "/.config/hypr/monitors.json"
+    local path = BOS_HYPR_DIR .. "monitors.json"
     local parsed = json.load(path)
     if type(parsed) ~= "table" or type(parsed.monitors) ~= "table" then
         return DEFAULT_MONITORS
