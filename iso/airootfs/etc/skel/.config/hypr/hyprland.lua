@@ -12,11 +12,43 @@
 -- hand-edited JSON file must degrade to that one section's hardcoded
 -- defaults, never take down the rest of the session.
 -- Config dir: the rule lives in scripts/lib/paths.lua (XDG_CONFIG_HOME when
--- absolute, else $HOME/.config). The helper is loaded from the directory this
--- file was itself loaded from, so it works wherever the config tree lives;
--- every loader then reads BOS_HYPR_DIR instead of its own $HOME string.
-local this_dir = debug.getinfo(1, "S").source:match("^@(.*)/[^/]*$") or "."
-BOS_HYPR_DIR = dofile(this_dir .. "/scripts/lib/paths.lua").hypr_dir()
+-- absolute, else $HOME/.config). The helper is found from the directory this
+-- file was loaded from. Loading it is guarded: if it is missing, fails to
+-- parse or throws, or this file was not loaded from a file path, the same rule
+-- is applied inline by hypr_dir_inline(), so this file never aborts here.
+-- Every loader then reads BOS_HYPR_DIR instead of its own $HOME string.
+-- hypr_dir_inline() must stay identical to paths.lua; the test checks that.
+local function hypr_dir_inline()
+    local xdg = os.getenv("XDG_CONFIG_HOME")
+    if xdg and xdg:sub(1, 1) == "/" then
+        return (xdg:gsub("/+$", "")) .. "/hypr/"
+    end
+    return (os.getenv("HOME") or "") .. "/.config/hypr/"
+end
+
+-- chunk_source is this file's debug source, read at top level (level 1 here is
+-- the caller, not this function). Returns nil when no helper dir is usable.
+local function hypr_dir_from_helper(chunk_source)
+    if type(chunk_source) ~= "string" or chunk_source:sub(1, 1) ~= "@" then
+        return nil -- loaded from a string, not a file: no path to search from
+    end
+    local dir = chunk_source:sub(2):match("^(.*)/[^/]*$") or "."
+    local chunk = loadfile(dir .. "/scripts/lib/paths.lua")
+    if not chunk then return nil end
+    local loaded_ok, paths = pcall(chunk)
+    if not loaded_ok or type(paths) ~= "table" or type(paths.hypr_dir) ~= "function" then
+        return nil
+    end
+    local dir_ok, value = pcall(paths.hypr_dir)
+    if dir_ok and type(value) == "string" and value ~= "" then
+        return value
+    end
+    return nil
+end
+
+local source_info = debug and debug.getinfo and debug.getinfo(1, "S")
+local helper_ok, helper_dir = pcall(hypr_dir_from_helper, source_info and source_info.source)
+BOS_HYPR_DIR = (helper_ok and helper_dir) or hypr_dir_inline()
 
 local script_dir = BOS_HYPR_DIR .. "scripts/"
 local config_home = BOS_HYPR_DIR
