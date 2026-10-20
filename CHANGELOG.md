@@ -20,6 +20,9 @@ tag (with date) at tag time.
 
 ## [Unreleased]
 
+- The live USB now starts the printing service at boot, so Settings > Printers
+  works straight away instead of reporting "Scheduler is not running". Installed
+  systems already had this.
 - Hyprland now reads its settings, monitors, keybinds, autostart and layer
   rules from `$XDG_CONFIG_HOME/hypr` when that variable is set to an absolute
   path, so a non-default config location is honoured. Users with no
