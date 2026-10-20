@@ -147,6 +147,15 @@ if [[ -n "$AIROOTFS" || -n "$SKEL" ]]; then
     done
     check_exec "$AIROOTFS/usr/local/bin/bos-nvidia-setup" "image bos-nvidia-setup"
     check_dir "$AIROOTFS/usr/local/share/breadhelp/content" "image breadhelp content"
+    # Live medium: CUPS is socket-activated, so the socket must be enabled
+    # in the image or Printers reports "Scheduler is not running" (BOS-93).
+    # -L, not -e: the symlink target is absolute and only resolves on the
+    # booted system, not inside the staging tree.
+    if [[ -L "$AIROOTFS/etc/systemd/system/sockets.target.wants/cups.socket" ]]; then
+      ok "cups.socket enabled in live image (sockets.target.wants)"
+    else
+      bad "cups.socket not enabled in live image (missing sockets.target.wants/cups.socket)"
+    fi
   fi
   if [[ -n "$SKEL" ]]; then
     echo "== staged skel $SKEL =="
