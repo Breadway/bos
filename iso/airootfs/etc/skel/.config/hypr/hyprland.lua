@@ -11,8 +11,15 @@
 -- *after* it too (no keybinds, no window rules, no autostart); a bad or
 -- hand-edited JSON file must degrade to that one section's hardcoded
 -- defaults, never take down the rest of the session.
-local script_dir = os.getenv("HOME") .. "/.config/hypr/scripts/"
-local config_home = os.getenv("HOME") .. "/.config/hypr/"
+-- Config dir: the rule lives in scripts/lib/paths.lua (XDG_CONFIG_HOME when
+-- absolute, else $HOME/.config). The helper is loaded from the directory this
+-- file was itself loaded from, so it works wherever the config tree lives;
+-- every loader then reads BOS_HYPR_DIR instead of its own $HOME string.
+local this_dir = debug.getinfo(1, "S").source:match("^@(.*)/[^/]*$") or "."
+BOS_HYPR_DIR = dofile(this_dir .. "/scripts/lib/paths.lua").hypr_dir()
+
+local script_dir = BOS_HYPR_DIR .. "scripts/"
+local config_home = BOS_HYPR_DIR
 
 -- ---------------------------------------------------------------------------
 -- Monitors: from monitors.json, always falls back to a generic
@@ -99,7 +106,7 @@ hl.env("GSK_RENDERER", "cairo")
 -- Optional NVIDIA env from bos-nvidia-setup. Mesa machines have no file.
 -- bos-nvidia-setup: optional proprietary env; no-op when the file is absent
 do
-    local nvidia = (os.getenv("HOME") or "") .. "/.config/hypr/nvidia.lua"
+    local nvidia = BOS_HYPR_DIR .. "nvidia.lua"
     local f = io.open(nvidia, "r")
     if f then
         f:close()

@@ -3,7 +3,7 @@
 -- (BOS ships one fixed layout, no per-layout bind switching needed): just
 -- reads `default_mods` + the flat `bindings` array.
 
-local json = dofile(os.getenv("HOME") .. "/.config/hypr/scripts/lib/json.lua")
+local json = dofile(BOS_HYPR_DIR .. "scripts/lib/json.lua")
 
 local function normalize_mods(value, fallback)
     local mods = {}

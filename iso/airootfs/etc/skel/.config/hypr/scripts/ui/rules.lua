@@ -15,7 +15,7 @@
 -- set this file hardcoded before the theme system existed, so a broken or
 -- absent theme file can never disable compositor blur.
 
-local LAYERRULES_JSON = os.getenv("HOME") .. "/.config/hypr/layerrules.json"
+local LAYERRULES_JSON = BOS_HYPR_DIR .. "layerrules.json"
 
 local function apply_hardcoded_layer_rules()
     hl.layer_rule({
@@ -70,7 +70,7 @@ end
 -- JSON object, so the pcall wrapping this only guards against a genuine Lua
 -- error (e.g. json.lua failing to load) rather than every malformed case.
 local function parsed_layer_rules()
-    local json = dofile(os.getenv("HOME") .. "/.config/hypr/scripts/lib/json.lua")
+    local json = dofile(BOS_HYPR_DIR .. "scripts/lib/json.lua")
     local parsed = json.load(LAYERRULES_JSON)
     if type(parsed) ~= "table" then
         return nil
