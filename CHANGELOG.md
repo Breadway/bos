@@ -20,6 +20,9 @@ tag (with date) at tag time.
 
 ## [Unreleased]
 
+- The live USB now starts the printing service at boot, so Settings > Printers
+  works straight away instead of reporting "Scheduler is not running". Installed
+  systems already had this.
 - Idle lock actually locks. `hypridle` used `pidof breadlock`, which is
   always true because `breadlock listen` runs from login, so Super+L, the
   idle lock and the lock-before-suspend never started a lock screen. The
