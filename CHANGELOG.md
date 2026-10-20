@@ -20,6 +20,12 @@ tag (with date) at tag time.
 
 ## [Unreleased]
 
+- Idle lock actually locks. `hypridle` used `pidof breadlock`, which is
+  always true because `breadlock listen` runs from login, so Super+L, the
+  idle lock and the lock-before-suspend never started a lock screen. The
+  command now matches only a real locker (`pgrep -xf breadlock`). Existing
+  installs pick this up the next time Power settings are saved in
+  BOS Settings.
 - Report a problem with a bread app: `Super+Shift+B` opens `breadbug`, which
   shows exactly what a bug report would contain (scrubbed of personal data)
   before you decide to save it or send it. A new `breadbug-notify` module
