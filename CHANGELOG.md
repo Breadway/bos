@@ -20,6 +20,13 @@ tag (with date) at tag time.
 
 ## [Unreleased]
 
+- `hl.dsp.window.float({ action = "set" })` and `{ action = "unset" }` now
+  keep a window floating or tiled on repeated calls. Hyprland's Lua binding
+  only understands toggle/enable/disable, so the documented set/unset actions
+  silently toggled; BOS installs a small action shim at config load. Callers
+  that dispatch through the session, including `hyprctl eval`, get the
+  corrected behaviour. Check with `scripts/test-window-float.lua` or the
+  disposable harness in `scripts/test-window-float-headless.sh`.
 - The live medium's writable overlay is now 25% of RAM instead of archiso's
   256 MiB default, the live user's Downloads directory lives on the /tmp tmpfs,
   and the live image disables core dumps. A 256 MiB overlay was exhausted by an

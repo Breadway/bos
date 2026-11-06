@@ -54,6 +54,18 @@ local script_dir = BOS_HYPR_DIR .. "scripts/"
 local config_home = BOS_HYPR_DIR
 
 -- ---------------------------------------------------------------------------
+-- Window dispatcher action shim. Hyprland's Lua float dispatcher documents
+-- action = "set"/"unset", but its parser treats every unrecognised string as
+-- "toggle", so set and unset were not idempotent (BOS-91). Install the shim
+-- before any loader, keybind or later hyprctl eval can build a float
+-- dispatcher. A failure here leaves the stock behaviour in place, the same
+-- fail-safe pattern as the loaders below.
+-- ---------------------------------------------------------------------------
+pcall(function()
+    dofile(script_dir .. "lib/window.lua")(hl)
+end)
+
+-- ---------------------------------------------------------------------------
 -- Monitors: from monitors.json, always falls back to a generic
 -- any-hardware default (see scripts/display/monitors.lua).
 -- ---------------------------------------------------------------------------
