@@ -20,6 +20,11 @@ tag (with date) at tag time.
 
 ## [Unreleased]
 
+- Installed systems keep systemd's coredump policy again. The live medium's
+  coredump disable drop-in was copied to the target by unpackfs and never
+  removed, so an installed system silently stopped writing cores and hid
+  crashes from breadbug. The live session still caps cores to protect its RAM
+  overlay. Check with `python3 scripts/test-live-coredump-scope.py`.
 - `hl.dsp.window.float({ action = "set" })` and `{ action = "unset" }` now
   keep a window floating or tiled on repeated calls. Hyprland's Lua binding
   only understands toggle/enable/disable, so the documented set/unset actions
