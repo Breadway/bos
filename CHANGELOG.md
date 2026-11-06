@@ -20,6 +20,11 @@ tag (with date) at tag time.
 
 ## [Unreleased]
 
+- Bluetooth is enabled in the live session, so a machine with an adapter can
+  pair without first opening Settings and authenticating. bluez's unit is
+  conditional on `/sys/class/bluetooth`, so the setting is a no-op on machines
+  with no radio. Installed systems already enabled it. Check with
+  `python3 scripts/test-live-bluetooth.py`.
 - `hl.dsp.window.float({ action = "set" })` and `{ action = "unset" }` now
   keep a window floating or tiled on repeated calls. Hyprland's Lua binding
   only understands toggle/enable/disable, so the documented set/unset actions
