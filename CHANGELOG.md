@@ -20,6 +20,13 @@ tag (with date) at tag time.
 
 ## [Unreleased]
 
+- The bake and verify-bake no longer accept a breadhelp content directory that
+  the runtime cannot read. breadhelp 0.2.7 resolves guides from
+  `/usr/share/breadhelp/content`, while the bake installed them under
+  `/usr/local/share`; the old existence-only check passed while the Learn tab
+  listed zero guides. The image now carries a compatibility path, and the
+  bake/CI resolve the merged guide list and require one readable body. Check
+  with `python3 scripts/tests/test-breadhelp-content-check.py`.
 - `hl.dsp.window.float({ action = "set" })` and `{ action = "unset" }` now
   keep a window floating or tiled on repeated calls. Hyprland's Lua binding
   only understands toggle/enable/disable, so the documented set/unset actions
