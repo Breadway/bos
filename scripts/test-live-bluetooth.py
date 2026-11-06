@@ -8,7 +8,9 @@ ConditionPathIsDirectory=/sys/class/bluetooth, so enabling it by default is
 safe on machines without a radio: systemd skips the unit instead of failing.
 
 Pins:
-1. The live airootfs enables bluetooth.service in multi-user.target.wants.
+1. The live airootfs enables bluetooth.service in bluetooth.target.wants,
+   the path `systemctl enable` writes (bluetooth.target is pulled in by the
+   udev-tagged Bluetooth device).
 2. post-install.sh still enables it on the installed system.
 
 Run from the repository root:
@@ -25,7 +27,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 
 WANTS_LINK = (
-    ROOT / "iso/airootfs/etc/systemd/system/multi-user.target.wants/bluetooth.service"
+    ROOT / "iso/airootfs/etc/systemd/system/bluetooth.target.wants/bluetooth.service"
 )
 EXPECTED_TARGET = "/usr/lib/systemd/system/bluetooth.service"
 POST_INSTALL = ROOT / "iso/airootfs/etc/calamares/post-install.sh"

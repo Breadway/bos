@@ -157,12 +157,12 @@ if [[ -n "$AIROOTFS" || -n "$SKEL" ]]; then
       bad "cups.socket not enabled in live image (missing sockets.target.wants/cups.socket)"
     fi
     # Bluetooth must be enabled in the live session, not only after install
-    # (BOS-100). bluez's unit is conditional on /sys/class/bluetooth, so this
-    # is a no-op on machines without a radio.
-    if [[ -L "$AIROOTFS/etc/systemd/system/multi-user.target.wants/bluetooth.service" ]]; then
-      ok "bluetooth.service enabled in live image (multi-user.target.wants)"
+    # (BOS-100). The canonical enable path is bluetooth.target.wants, which
+    # udev's Bluetooth device tag pulls in only when a controller exists.
+    if [[ -L "$AIROOTFS/etc/systemd/system/bluetooth.target.wants/bluetooth.service" ]]; then
+      ok "bluetooth.service enabled in live image (bluetooth.target.wants)"
     else
-      bad "bluetooth.service not enabled in live image (missing multi-user.target.wants/bluetooth.service)"
+      bad "bluetooth.service not enabled in live image (missing bluetooth.target.wants/bluetooth.service)"
     fi
   fi
   if [[ -n "$SKEL" ]]; then
