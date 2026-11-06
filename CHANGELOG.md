@@ -20,6 +20,13 @@ tag (with date) at tag time.
 
 ## [Unreleased]
 
+- The live medium's writable overlay is now 25% of RAM instead of archiso's
+  256 MiB default, the live user's Downloads directory lives on the /tmp tmpfs,
+  and the live image disables core dumps. A 256 MiB overlay was exhausted by an
+  ordinary session: one download, a browser cache and 192 crash dumps filled it
+  in under an hour, after which nothing could be saved, installed or logged.
+  Installed systems are unchanged. Check with
+  `python3 scripts/test-live-overlay-config.py`.
 - The live USB now starts the printing service at boot, so Settings > Printers
   works straight away instead of reporting "Scheduler is not running". Installed
   systems already had this.
