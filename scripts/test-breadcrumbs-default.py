@@ -30,10 +30,12 @@ DEFAULT = (
 CORE_PLACES = {"home", "work", "away"}
 
 # breadcrumbs' Settings::default() / documented fresh-install defaults.
+# connect_wait is not listed: omitting it keeps the default (8) without
+# colliding with bos-settings' legacy nmcli_wait alias, which breadcrumbs
+# rejects as a duplicate field when both keys are present.
 EXPECTED_SETTINGS = {
     "default_profile": "away",
     "dns": "1.1.1.1",
-    "connect_wait": 8,
     "exit_node": "",
     "watch_interval": 12,
     "connectivity_url": "http://connectivitycheck.gstatic.com/generate_204",
@@ -68,6 +70,15 @@ for key, want in EXPECTED_SETTINGS.items():
     if settings.get(key) != want:
         fail(
             f"settings.{key} = {settings.get(key)!r}, expected documented default {want!r}"
+        )
+
+# bos-settings writes nmcli_wait when it saves. If the shipped file pinned
+# connect_wait too, breadcrumbs would parse both names as one field and fail
+# with "duplicate field `connect_wait`".
+for alias in ("connect_wait", "nmcli_wait"):
+    if alias in settings:
+        fail(
+            f"do not pin settings.{alias}: bos-settings' alias write would duplicate it and breadcrumbs would refuse to parse"
         )
 
 default_place = settings.get("default_profile")
