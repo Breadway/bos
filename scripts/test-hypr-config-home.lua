@@ -44,6 +44,9 @@ end
 -- exception is hl.on(event, fn): the handler is recorded so the test can
 -- fire "hyprland.start" the way the compositor would after load.
 local handlers = {}
+-- Window rules are recorded so a test can assert the shipped sizes rather
+-- than re-reading the Lua source (BOS-104 keeps breadhelp at 1040x680).
+local window_rules = {}
 local function stub()
     local t = {}
     return setmetatable(t, {
@@ -57,6 +60,7 @@ local function stub()
 end
 hl = stub()
 hl.on = function(event, fn) handlers[event] = fn end
+hl.window_rule = function(rule) window_rules[#window_rules + 1] = rule end
 
 local function fire(event)
     if handlers[event] then
@@ -83,6 +87,7 @@ local function reset(vars)
     env = vars
     opened = {}
     loadfile_calls = {}
+    window_rules = {}
 end
 
 local function loaded(path)
@@ -167,6 +172,26 @@ hl._bos_window_float_shim = nil
 
 local ok_xdg, err_xdg = load_config({ HOME = HOME, XDG_CONFIG_HOME = XDG }, XDG)
 expect("hyprland.lua loads with XDG_CONFIG_HOME set", ok_xdg, tostring(err_xdg))
+
+-- Window rules are part of the live config. breadhelp's own tauri.conf.json
+-- lays the help window out for 1040x680; an 880x600 float rule squeezes the
+-- sidebar and drops the Keybinds page to one column (BOS-104).
+local breadhelp_rule
+for _, rule in ipairs(window_rules) do
+    if rule.name == "breadhelp" then breadhelp_rule = rule end
+end
+expect("breadhelp window rule is present", breadhelp_rule ~= nil)
+if breadhelp_rule then
+    local want_class = "^(com\\.breadway\\.breadhelp)$"
+    expect("breadhelp rule matches the app id",
+        breadhelp_rule.match and breadhelp_rule.match.class == want_class,
+        tostring(breadhelp_rule.match and breadhelp_rule.match.class))
+    local size = breadhelp_rule.size or {}
+    expect("breadhelp rule size is 1040x680",
+        size[1] == 1040 and size[2] == 680,
+        string.format("%sx%s", tostring(size[1]), tostring(size[2])))
+    expect("breadhelp rule floats", breadhelp_rule.float == true)
+end
 expect("hyprland.lua installs the window.float shim",
     type(hl._bos_window_float_shim) == "function")
 local shimmed = hl.dsp.window.float({ action = "set", window = "address:0x1" })
