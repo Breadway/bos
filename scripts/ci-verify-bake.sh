@@ -147,6 +147,21 @@ if [[ -n "$AIROOTFS" || -n "$SKEL" ]]; then
     done
     check_exec "$AIROOTFS/usr/local/bin/bos-nvidia-setup" "image bos-nvidia-setup"
     check_dir "$AIROOTFS/usr/local/share/breadhelp/content" "image breadhelp content"
+    # Keep the directory check above, but also resolve content the way the
+    # packaged runtime does: breadhelp 0.2.7 reads
+    # /usr/share/breadhelp/content and merges the user root. A baked image
+    # once passed on directory existence alone while the Learn tab was empty
+    # (BOS-112), so require a non-empty guide list and a readable body.
+    if [[ -L "$AIROOTFS/usr/share/breadhelp/content" ]]; then
+      ok "image breadhelp content compatibility path (usr/share symlink)"
+    else
+      bad "image breadhelp content path missing: usr/share/breadhelp/content"
+    fi
+    if python3 "$REPO/scripts/check-breadhelp-content.py" "$AIROOTFS"; then
+      ok "breadhelp resolves guides from the baked layout"
+    else
+      bad "breadhelp resolves no guides from the baked layout (hollow Learn tab)"
+    fi
     # Live medium: CUPS is socket-activated, so the socket must be enabled
     # in the image or Printers reports "Scheduler is not running" (BOS-93).
     # -L, not -e: the symlink target is absolute and only resolves on the

@@ -20,6 +20,13 @@ tag (with date) at tag time.
 
 ## [Unreleased]
 
+- The bake and verify-bake no longer accept a breadhelp content directory that
+  the runtime cannot read. breadhelp 0.2.7 resolves guides from
+  `/usr/share/breadhelp/content`, while the bake installed them under
+  `/usr/local/share`; the old existence-only check passed while the Learn tab
+  listed zero guides. The image now carries a compatibility path, and the
+  bake/CI resolve the merged guide list and require one readable body. Check
+  with `python3 scripts/tests/test-breadhelp-content-check.py`.
 - Installed systems keep systemd's coredump policy again. The live medium's
   coredump disable drop-in was copied to the target by unpackfs and never
   removed, so an installed system silently stopped writing cores and hid
