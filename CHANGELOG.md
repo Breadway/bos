@@ -20,6 +20,11 @@ tag (with date) at tag time.
 
 ## [Unreleased]
 
+- The live session generates `en_US.UTF-8` and sets `LANG=en_US.UTF-8`, so
+  Language and Formats offer a real locale instead of only "Computer default
+  (C)", and dates, numbers and currency format in a UTF-8 locale. Calamares
+  still appends and generates the locale chosen at install time. Check with
+  `python3 scripts/test-live-locale.py`.
 - Bluetooth is enabled in the live session, so a machine with an adapter can
   pair without first opening Settings and authenticating. bluez's unit is
   conditional on `/sys/class/bluetooth`, so the setting is a no-op on machines
