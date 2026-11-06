@@ -15,13 +15,16 @@
 # which is exactly the state this file avoids. breadcrumbs sets the same flag
 # on its first save, so this only pre-empts the generated skeleton.
 #
-# The values are breadcrumbs' documented fresh-install defaults.
+# The values are breadcrumbs' documented fresh-install defaults. connect_wait
+# is deliberately left implicit (its default is 8): bos-settings writes the
+# legacy nmcli_wait alias without removing connect_wait, and breadcrumbs
+# rejects both keys together as a duplicate field, so a shipped connect_wait
+# would break the first save from BOS Settings.
 
 [settings]
 core_profiles_initialized = true
 default_profile = "away"
 dns = "1.1.1.1"
-connect_wait = 8
 exit_node = ""
 watch_interval = 12
 connectivity_url = "http://connectivitycheck.gstatic.com/generate_204"
