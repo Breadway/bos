@@ -114,6 +114,7 @@ check "settings.json present" "[ -f \"\$HOME/.config/hypr/settings.json\" ]"
 check "autostart.json present" "[ -f \"\$HOME/.config/hypr/autostart.json\" ]"
 check "autostart includes first-boot probe" "grep -q bos-first-boot \"\$HOME/.config/hypr/autostart.json\""
 check "hypr scripts/lib present" "[ -f \"\$HOME/.config/hypr/scripts/lib/json.lua\" ]"
+check "window.float action shim present" "[ -f \"\$HOME/.config/hypr/scripts/lib/window.lua\" ]"
 check "mimeapps.list present" "[ -f \"\$HOME/.config/mimeapps.list\" ]"
 check "kitty config present"  "[ -f \"\$HOME/.config/kitty/kitty.conf\" ]"
 check "breadbug-notify module present" \
