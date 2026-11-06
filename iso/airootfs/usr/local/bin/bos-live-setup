@@ -28,6 +28,22 @@ if ! id liveuser &>/dev/null; then
     passwd -d liveuser >/dev/null
 fi
 
+# The writable overlay is RAM-backed. Keep the default download directory on
+# the larger /tmp tmpfs so one download does not exhaust the overlay, and tell
+# the user when the overlay is already tight. The overlay size comes from
+# cow_spacesize=25% on the live kernel cmdline (BOS-99).
+install -d -m 0700 -o liveuser -g liveuser /tmp/liveuser-downloads
+if [[ ! -L /home/liveuser/Downloads ]]; then
+    rm -rf /home/liveuser/Downloads
+    ln -s /tmp/liveuser-downloads /home/liveuser/Downloads
+    chown -h liveuser:liveuser /home/liveuser/Downloads
+fi
+overlay_free_mib=$(( $(df -Pk / | awk 'NR == 2 { print $4 }') / 1024 ))
+if (( overlay_free_mib < 1024 )); then
+    printf 'BOS live session: only %s MiB free on /. Large downloads go to /tmp/liveuser-downloads; installs and caches can still fill this space.\n' \
+        "$overlay_free_mib" >/dev/tty1 || true
+fi
+
 # Layer the installer onto the live desktop: auto-launch it, and bind
 # Super+Shift+I to relaunch it after it's been closed. Appended (in Lua) to
 # the skel hyprland.lua native config so the full desktop stays intact.
