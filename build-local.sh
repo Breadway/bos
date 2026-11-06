@@ -273,10 +273,9 @@ install -d -m 0755 "$IMAGE_SHARE"
 cp -a "$BAKERY_SHARE/breadhelp" "$IMAGE_SHARE/breadhelp"
 echo "  baked $IMAGE_SHARE/breadhelp/content"
 
-python3 - "$BAKERY_INDEX" "$BAKERY_SHARE" "$IMAGE_SHARE" "${BREAD_BINS[@]}" <<'PY'
+python3 - "$BAKERY_INDEX" "$SKEL/.local/state/bakery/installed.json" "$BAKERY_SHARE" "$IMAGE_SHARE" <<'PY'
 import json, os, shutil, sys
-index_path, src_share, dest_share, *bins = sys.argv[1:]
-wanted = set(bins)
+index_path, installed_path, src_share, dest_share = sys.argv[1:]
 try:
     with open(index_path) as f:
         idx = json.load(f)
@@ -284,16 +283,12 @@ try:
 except (OSError, json.JSONDecodeError):
     packages = {}
 
-# Package names we ship: lockfile bin names plus index packages that
-# publish at least one of those bins.
-pkg_names = set(wanted)
-for name, pkg in packages.items():
-    pbins = []
-    for b in pkg.get("binaries") or []:
-        n = b["name"] if isinstance(b, dict) else b
-        pbins.append(str(n).removesuffix("-x86_64"))
-    if name in wanted or any(b in wanted for b in pbins):
-        pkg_names.add(name)
+# Package names we ship come from the installed snapshot. The index only
+# supplies metadata (data_archive, desktop, license) for those packages; a
+# newer cached index must not add a package the snapshot does not have.
+with open(installed_path) as f:
+    installed = json.load(f)
+pkg_names = set((installed.get("packages", installed) or {}).keys())
 
 os.makedirs(os.path.join(dest_share, "applications"), exist_ok=True)
 os.makedirs(os.path.join(dest_share, "licenses"), exist_ok=True)
@@ -331,9 +326,12 @@ PY
 # bakery package's service (breadbox-sync, breadmill, breadclipd, ...) was
 # silently left out, so those daemons never start on a fresh install/live
 # boot until the user re-runs `bakery install` (which needs network).
-# Units come from installed.json + the bakery index + local unit files
-# whose ExecStart is a lockfile binary (installed.json has omitted
-# breadcrumbs.service before). Units go to /usr/lib/systemd/user with
+# Units come from installed.json plus local unit files whose ExecStart is a
+# lockfile binary (installed.json has omitted breadcrumbs.service before).
+# The cached bakery index is metadata only: it must not add services the
+# installed snapshot does not have. A newer index next to an older installed
+# snapshot used to inject breadbug-status.service and abort the bake because
+# no local unit file existed. Units go to /usr/lib/systemd/user with
 # ExecStart rewritten to /usr/local/bin. Recreate whichever
 # *.target.wants enable symlink bakery created locally (or that skel
 # already ships), and write /etc/systemd/user/*.wants/ (--global).
@@ -344,69 +342,14 @@ echo "=== baking bakery service units into /usr/lib/systemd/user ==="
 SYSTEMD_USER_DIR="$LAPTOP_HOME/.config/systemd/user"
 SKEL_SYSTEMD="$SKEL/.config/systemd/user"
 install -d -m 0755 "$IMAGE_UNITS"
-# installed.json on the builder can omit a service even when the index and
-# the local unit file exist (breadcrumbs has done this). Merge all three
-# so every lockfile daemon is baked and can be --global enabled.
-mapfile -t SERVICE_UNITS < <(python3 - \
+# installed.json on the builder can omit a service even when a local unit file
+# exists (breadcrumbs has done this). Add those lockfile units so every baked
+# daemon can be --global enabled, but never take services from the index.
+mapfile -t SERVICE_UNITS < <(python3 "$REPO/scripts/select-bakery-user-units.py" \
   "$SKEL/.local/state/bakery/installed.json" \
   "$BAKERY_INDEX" \
   "$SYSTEMD_USER_DIR" \
-  "${BREAD_BINS[@]}" <<'PY'
-import json, os, sys
-
-installed_path, index_path, user_dir, *bins = sys.argv[1:]
-wanted = set(bins)
-units = set()
-
-def add_svc(svc):
-    name = svc["unit"] if isinstance(svc, dict) else svc
-    if not name or str(name).startswith(("breadcast", "breadarr")):
-        return
-    units.add(str(name))
-
-if os.path.isfile(installed_path):
-    with open(installed_path) as f:
-        data = json.load(f)
-    for pkg in data.get("packages", data).values():
-        if isinstance(pkg, dict):
-            for svc in pkg.get("services") or []:
-                add_svc(svc)
-
-if os.path.isfile(index_path):
-    with open(index_path) as f:
-        idx = json.load(f)
-    for name, pkg in (idx.get("packages") or {}).items():
-        if not isinstance(pkg, dict):
-            continue
-        pbins = []
-        for b in pkg.get("binaries") or []:
-            n = b["name"] if isinstance(b, dict) else b
-            pbins.append(str(n).removesuffix("-x86_64"))
-        if name in wanted or any(b in wanted for b in pbins):
-            for svc in pkg.get("services") or []:
-                add_svc(svc)
-
-if os.path.isdir(user_dir):
-    for fn in os.listdir(user_dir):
-        if not fn.endswith(".service"):
-            continue
-        path = os.path.join(user_dir, fn)
-        if not os.path.isfile(path):
-            continue
-        try:
-            text = open(path).read()
-        except OSError:
-            continue
-        for line in text.splitlines():
-            if line.lstrip().startswith("ExecStart="):
-                argv0 = line.split("=", 1)[1].split()
-                if argv0 and os.path.basename(argv0[0]) in wanted:
-                    add_svc(fn)
-                break
-
-for unit in sorted(units):
-    print(unit)
-PY
+  "${BREAD_BINS[@]}"
 )
 if [[ ! " ${SERVICE_UNITS[*]} " =~ " breadd.service " ]]; then
   echo "ERROR: breadd.service not in the bakery unit list: refusing to bake" >&2
