@@ -20,6 +20,11 @@ tag (with date) at tag time.
 
 ## [Unreleased]
 
+- Installed systems keep systemd's coredump policy again. The live medium's
+  coredump disable drop-in was copied to the target by unpackfs and never
+  removed, so an installed system silently stopped writing cores and hid
+  crashes from breadbug. The live session still caps cores to protect its RAM
+  overlay. Check with `python3 scripts/test-live-coredump-scope.py`.
 - The live session generates `en_US.UTF-8` and sets `LANG=en_US.UTF-8`, so
   Language and Formats offer a real locale instead of only "Computer default
   (C)", and dates, numbers and currency format in a UTF-8 locale. Calamares
