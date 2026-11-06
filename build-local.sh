@@ -273,6 +273,17 @@ install -d -m 0755 "$IMAGE_SHARE"
 cp -a "$BAKERY_SHARE/breadhelp" "$IMAGE_SHARE/breadhelp"
 echo "  baked $IMAGE_SHARE/breadhelp/content"
 
+# breadhelp 0.2.7 resolves guides from /usr/share/breadhelp/content; the
+# committed airootfs carries that compatibility path as a symlink into
+# /usr/local/share. A directory-existence check passed while the Learn tab
+# listed zero guides (BOS-112), so resolve the content the way the runtime
+# does and require a non-empty guide list plus one readable body.
+if ! python3 "$REPO/scripts/check-breadhelp-content.py" "$AIROOTFS"; then
+  echo "ERROR: baked breadhelp content does not resolve at /usr/share/breadhelp/content" >&2
+  echo "A breadhelp binary whose Learn tab lists no guides is a hollow ISO." >&2
+  exit 1
+fi
+
 python3 - "$BAKERY_INDEX" "$SKEL/.local/state/bakery/installed.json" "$BAKERY_SHARE" "$IMAGE_SHARE" <<'PY'
 import json, os, shutil, sys
 index_path, installed_path, src_share, dest_share = sys.argv[1:]
