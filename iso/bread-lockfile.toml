@@ -3,8 +3,8 @@
 # build-local.sh and CI (scripts/ci-stage-bakery.py) read this file. A missing
 # *required* binary fails the bake: a hollow ISO is worse than a failed build.
 # optional_bins are baked when the verified stable index publishes them, and
-# skipped with a warning when it does not. bread 0.8.0 ships bread-emit and
-# bread-module-host, so those are required_bins.
+# skipped with a warning when it does not. bread 0.10.0 ships bread-emit,
+# bread-module-host and breadbug, so those are required_bins.
 #
 # A flat `bins` list is still accepted and treated as required_bins.
 #
@@ -30,6 +30,7 @@ required_bins = [
   "breadd",
   "bread-emit",
   "bread-module-host",
+  "breadbug",
   "breadman",
   "breadbar",
   "breadbox",
@@ -50,7 +51,7 @@ required_bins = [
 # [[pin]] { package, version } is accepted as well and merged (conflict = bake error).
 [versions]
 bakery = "0.8.0"
-bread = "0.9.0"
+bread = "0.10.0"
 bread-theme = "0.8.0"
 breadbar = "0.4.0"
 breadbox = "0.4.0"
