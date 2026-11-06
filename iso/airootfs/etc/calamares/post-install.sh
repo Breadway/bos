@@ -57,6 +57,12 @@ rm -f /etc/systemd/system/bos-live-setup.service \
       /etc/systemd/system/multi-user.target.wants/bos-live-setup.service
 rm -f /usr/local/bin/bos-live-setup /usr/local/bin/bos-launch-calamares
 rm -f /etc/sudoers.d/99-bos-live
+# BOS-99 disables coredumps on the live medium so a crash loop cannot fill the
+# RAM-backed overlay. unpackfs copies that drop-in verbatim, so without this
+# removal an installed system would silently stop writing cores too, hiding
+# exactly the crashes breadbug is meant to capture. Installed systems keep
+# systemd's default policy.
+rm -f /etc/systemd/coredump.conf.d/90-bos-live.conf
 userdel -r liveuser 2>/dev/null || true
 
 # The live account uses UID 60001, leaving UID 1000 for Calamares' first
