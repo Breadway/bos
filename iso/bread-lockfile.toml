@@ -45,6 +45,15 @@ required_bins = [
   "breadhelp",
 ]
 
+# Optional bins are staged when the signed stable index publishes them and
+# skipped with a warning when it does not, so an index that has not caught up
+# yet cannot fail a build. breadhelp-tour is the GTK4 tour overlay packaged
+# with breadhelp 0.3.0 and newer. Once the breadhelp pin below reaches 0.3.0,
+# scripts/ci-stage-bakery.py turns a missing tour into a bake error (BOS-105).
+optional_bins = [
+  "breadhelp-tour",
+]
+
 # Package name → version. Must exist at dl.breadway.dev/<pkg>/<ver>/ and
 # should match the signed index so CI can verify sha256.
 # [[pin]] { package, version } is accepted as well and merged (conflict = bake error).
@@ -60,4 +69,7 @@ breadpaper = "0.2.0"
 breadclip = "0.3.0"
 breadshot = "0.1.3"
 bos-settings = "0.9.0"
+# 0.2.7 is the newest stable bakery release. Bump to 0.3.0 or newer, keeping
+# breadhelp-tour in optional_bins above, once the signed stable index publishes
+# it; until then the optional tour bin is skipped with a warning (BOS-105).
 breadhelp = "0.2.7"
