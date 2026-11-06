@@ -156,6 +156,14 @@ if [[ -n "$AIROOTFS" || -n "$SKEL" ]]; then
     else
       bad "cups.socket not enabled in live image (missing sockets.target.wants/cups.socket)"
     fi
+    # Bluetooth must be enabled in the live session, not only after install
+    # (BOS-100). bluez's unit is conditional on /sys/class/bluetooth, so this
+    # is a no-op on machines without a radio.
+    if [[ -L "$AIROOTFS/etc/systemd/system/multi-user.target.wants/bluetooth.service" ]]; then
+      ok "bluetooth.service enabled in live image (multi-user.target.wants)"
+    else
+      bad "bluetooth.service not enabled in live image (missing multi-user.target.wants/bluetooth.service)"
+    fi
   fi
   if [[ -n "$SKEL" ]]; then
     echo "== staged skel $SKEL =="
