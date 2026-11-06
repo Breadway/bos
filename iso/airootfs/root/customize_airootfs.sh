@@ -26,6 +26,12 @@ else
     echo "customize_airootfs: WARNING $KEY_FILE missing; [breadway] will not verify" >&2
 fi
 
+# Generate the locales listed in etc/locale.gen. glibc's package ships every
+# entry commented out and mkarchiso never runs locale-gen, so a stock live
+# medium has only C/POSIX: Language and Formats then offer nothing but
+# "Computer default (C)" and apps format dates and numbers in the C locale.
+locale-gen
+
 # Keep an installer-only copy of linux-lts. It must be available to
 # Calamares when the target is offline, but it is not installed on the live
 # medium. The unpackfs module copies this file into the target, and

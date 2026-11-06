@@ -27,6 +27,21 @@ tag (with date) at tag time.
   listed zero guides. The image now carries a compatibility path, and the
   bake/CI resolve the merged guide list and require one readable body. Check
   with `python3 scripts/tests/test-breadhelp-content-check.py`.
+- Installed systems keep systemd's coredump policy again. The live medium's
+  coredump disable drop-in was copied to the target by unpackfs and never
+  removed, so an installed system silently stopped writing cores and hid
+  crashes from breadbug. The live session still caps cores to protect its RAM
+  overlay. Check with `python3 scripts/test-live-coredump-scope.py`.
+- The live session generates `en_US.UTF-8` and sets `LANG=en_US.UTF-8`, so
+  Language and Formats offer a real locale instead of only "Computer default
+  (C)", and dates, numbers and currency format in a UTF-8 locale. Calamares
+  still appends and generates the locale chosen at install time. Check with
+  `python3 scripts/test-live-locale.py`.
+- Bluetooth is enabled in the live session, so a machine with an adapter can
+  pair without first opening Settings and authenticating. bluez's unit is
+  conditional on `/sys/class/bluetooth`, so the setting is a no-op on machines
+  with no radio. Installed systems already enabled it. Check with
+  `python3 scripts/test-live-bluetooth.py`.
 - `hl.dsp.window.float({ action = "set" })` and `{ action = "unset" }` now
   keep a window floating or tiled on repeated calls. Hyprland's Lua binding
   only understands toggle/enable/disable, so the documented set/unset actions
