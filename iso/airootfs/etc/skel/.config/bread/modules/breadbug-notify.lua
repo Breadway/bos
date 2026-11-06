@@ -23,7 +23,7 @@ local function offer(app, headline)
     local cmd = string.format(
         "a=$(notify-send -A review='Review report' -w -a breadbug -u normal "
         .. "'%s' 'Nothing is sent unless you choose to. Or press SUPER + SHIFT + B.' 2>/dev/null); "
-        .. "[ \"$a\" = review ] && exec kitty --class breadbug --title 'Report a problem' breadbug --app %s",
+        .. "[ \"$a\" = review ] && exec breadbug-launch --app %s",
         headline, app)
     bread.exec(cmd)
 end

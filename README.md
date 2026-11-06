@@ -119,7 +119,8 @@ Live binds are `iso/airootfs/etc/skel/.config/hypr/binds.json`. Hyprland loads
 them from this file, and Breadhelp uses the same entries for its cheatsheet.
 `Super+Escape` locks the session; `Super+Shift+Escape` logs out, matching the
 modifier pattern used for directional window actions. `Super+Shift+B` opens
-breadbug to report a problem with a bread app. Do not treat
+breadbug-launch to report a problem with a bread app (windowed when a display
+is available, terminal otherwise). Do not treat
 `dotfiles/hypr/keybinds.conf` as current.
 
 ## Branches and remotes
