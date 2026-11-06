@@ -156,8 +156,23 @@ if not (staged_xdg and staged_home) then
     bad("could not stage fixture config trees under " .. FIX)
 end
 
+-- hyprland.lua must install the BOS window.float action shim (BOS-91). Give
+-- the generic stub a real callable so the shim sees the shape a session has.
+local last_float_action
+hl.dsp.window.float = function(opts)
+    last_float_action = opts and opts.action
+    return "raw-dispatcher"
+end
+hl._bos_window_float_shim = nil
+
 local ok_xdg, err_xdg = load_config({ HOME = HOME, XDG_CONFIG_HOME = XDG }, XDG)
 expect("hyprland.lua loads with XDG_CONFIG_HOME set", ok_xdg, tostring(err_xdg))
+expect("hyprland.lua installs the window.float shim",
+    type(hl._bos_window_float_shim) == "function")
+local shimmed = hl.dsp.window.float({ action = "set", window = "address:0x1" })
+expect("installed shim maps set to enable",
+    shimmed == "raw-dispatcher" and last_float_action == "enable",
+    "dispatcher=" .. tostring(shimmed) .. " action=" .. tostring(last_float_action))
 
 local wanted = {
     XDG .. "/hypr/settings.json",
