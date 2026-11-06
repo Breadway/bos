@@ -1,15 +1,26 @@
 #!/usr/bin/env bash
 # Runs the shipped breadbug-notify.lua module under a real breadd in a
-# throwaway HOME, with stub notify-send/kitty, and checks what it does when
-# breadbug markers arrive. Needs a breadd that has the bug.* IPC methods
-# (bread >= 0.9.x with breadbug); skips otherwise.
+# throwaway HOME, with stub notify-send/breadbug-launch, and checks what it
+# does when breadbug markers arrive. Needs a breadd that has the bug.* IPC
+# methods (bread >= 0.9.x with breadbug); skips otherwise.
 #
 #   BREADD=/path/to/breadd scripts/test-breadbug-notify.sh
 set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 MODULE="${HERE}/iso/airootfs/etc/skel/.config/bread/modules/breadbug-notify.lua"
+BINDS="${HERE}/iso/airootfs/etc/skel/.config/hypr/binds.json"
 BREADD="${BREADD:-breadd}"
+
+# The shipped keybind is static: assert it uses the launcher, not the CLI
+# wrapped in a terminal, even on a host with no breadd to run the module.
+grep -q '"command": "breadbug-launch"' "$BINDS" \
+    || { echo "FAIL: breadbug keybind should exec breadbug-launch" >&2; exit 1; }
+if grep -q 'kitty --class breadbug' "$BINDS"; then
+    echo "FAIL: breadbug keybind should not wrap the reporter in kitty" >&2
+    exit 1
+fi
+
 command -v "$BREADD" >/dev/null || { echo "skip: no breadd ($BREADD)"; exit 0; }
 
 T="$(mktemp -d)"
@@ -46,9 +57,9 @@ echo "notify-send \$*" >> "$T/notify.log"
 echo review
 exit 0
 STUB
-cat > "$T/stubs/kitty" <<STUB
+cat > "$T/stubs/breadbug-launch" <<STUB
 #!/bin/sh
-echo "kitty \$*" >> "$T/notify.log"
+echo "breadbug-launch \$*" >> "$T/notify.log"
 STUB
 chmod +x "$T/stubs/"*
 
@@ -79,10 +90,13 @@ wait_for() { for _ in $(seq 1 60); do [ "$(count "$1")" -ge "$2" ] && return 0; 
 # 1. a panic produces one notification naming the app and the shortcut
 rpc bug.marker '{"app":"clip","marker":{"kind":"panic","message":"boom"}}' >/dev/null
 wait_for "clip crashed" 1 || fail "no crash notification"
-wait_for "kitty" 1 || fail "clicking Review should open a terminal"
+wait_for "breadbug-launch" 1 || fail "clicking Review should open the breadbug launcher"
 grep -q "SUPER + SHIFT + B" "$T/notify.log" || fail "notification should name the shortcut"
 grep -q "Nothing is sent" "$T/notify.log" || fail "notification should say nothing is sent"
-grep -q "breadbug --app clip" "$T/notify.log" || fail "review action should open breadbug for the app"
+grep -q "breadbug-launch --app clip" "$T/notify.log" || fail "review action should launch breadbug for the app"
+if grep -q "kitty" "$T/notify.log"; then
+    fail "review action should not open a terminal around the reporter"
+fi
 
 # 2. a second crash within the cooldown does not notify again
 rpc bug.marker '{"app":"clip","marker":{"kind":"crash","signal":"SIGSEGV"}}' >/dev/null
