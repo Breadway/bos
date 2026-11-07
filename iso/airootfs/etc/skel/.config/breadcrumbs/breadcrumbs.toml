@@ -1,0 +1,38 @@
+# BOS fresh-install default for breadcrumbs.
+#
+# breadcrumbs generates ~/.config/breadcrumbs/breadcrumbs.toml on first run
+# with empty home, work and away places. On a brand-new BOS install that made
+# bos-settings show "You also have empty home, work places left over from an
+# older version" (BOS-103): the empty home/work pair is indistinguishable from
+# places left behind by an older release.
+#
+# Ship the deliberate shape instead: one "away" fallback place, no empty
+# home/work placeholders. Real places are added from BOS Settings > Wi-Fi &
+# network, or with `breadcrumbs add`.
+#
+# core_profiles_initialized marks this file as user-owned. Without it,
+# breadcrumbs backfills the missing empty home/work core places on load,
+# which is exactly the state this file avoids. breadcrumbs sets the same flag
+# on its first save, so this only pre-empts the generated skeleton.
+#
+# The values are breadcrumbs' documented fresh-install defaults. connect_wait
+# is deliberately left implicit (its default is 8): bos-settings writes the
+# legacy nmcli_wait alias without removing connect_wait, and breadcrumbs
+# rejects both keys together as a duplicate field, so a shipped connect_wait
+# would break the first save from BOS Settings.
+
+[settings]
+core_profiles_initialized = true
+default_profile = "away"
+dns = "1.1.1.1"
+exit_node = ""
+watch_interval = 12
+connectivity_url = "http://connectivitycheck.gstatic.com/generate_204"
+ping_host = "1.1.1.1"
+
+# The fallback place: join any saved network. No SSIDs to recognise yet, so
+# detection stays quiet until the user adds a real place.
+[profiles.away]
+networks = []
+include_all_known = true
+tailscale = false
