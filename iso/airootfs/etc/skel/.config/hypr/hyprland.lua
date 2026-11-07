@@ -111,7 +111,7 @@ end
 -- bos-netsetup (nmtui, from bos-netcheck) is unrelated to breadhelp and
 -- still floats the same way.
 -- ---------------------------------------------------------------------------
-hl.window_rule({ name = "breadhelp",    match = { class = "^(com\\.breadway\\.breadhelp)$" }, float = true, size = { 880, 600 } })
+hl.window_rule({ name = "breadhelp",    match = { class = "^(com\\.breadway\\.breadhelp)$" }, float = true, size = { 1040, 680 } })
 hl.window_rule({ name = "bos-netsetup", match = { class = "^(bos-netsetup)$" }, float = true, size = { 700, 560 } })
 
 -- ---------------------------------------------------------------------------
