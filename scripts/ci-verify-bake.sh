@@ -147,6 +147,21 @@ if [[ -n "$AIROOTFS" || -n "$SKEL" ]]; then
     done
     check_exec "$AIROOTFS/usr/local/bin/bos-nvidia-setup" "image bos-nvidia-setup"
     check_dir "$AIROOTFS/usr/local/share/breadhelp/content" "image breadhelp content"
+    # Keep the directory check above, but also resolve content the way the
+    # packaged runtime does: breadhelp 0.2.7 reads
+    # /usr/share/breadhelp/content and merges the user root. A baked image
+    # once passed on directory existence alone while the Learn tab was empty
+    # (BOS-112), so require a non-empty guide list and a readable body.
+    if [[ -L "$AIROOTFS/usr/share/breadhelp/content" ]]; then
+      ok "image breadhelp content compatibility path (usr/share symlink)"
+    else
+      bad "image breadhelp content path missing: usr/share/breadhelp/content"
+    fi
+    if python3 "$REPO/scripts/check-breadhelp-content.py" "$AIROOTFS"; then
+      ok "breadhelp resolves guides from the baked layout"
+    else
+      bad "breadhelp resolves no guides from the baked layout (hollow Learn tab)"
+    fi
     # Live medium: CUPS is socket-activated, so the socket must be enabled
     # in the image or Printers reports "Scheduler is not running" (BOS-93).
     # -L, not -e: the symlink target is absolute and only resolves on the
@@ -155,6 +170,14 @@ if [[ -n "$AIROOTFS" || -n "$SKEL" ]]; then
       ok "cups.socket enabled in live image (sockets.target.wants)"
     else
       bad "cups.socket not enabled in live image (missing sockets.target.wants/cups.socket)"
+    fi
+    # Bluetooth must be enabled in the live session, not only after install
+    # (BOS-100). The canonical enable path is bluetooth.target.wants, which
+    # udev's Bluetooth device tag pulls in only when a controller exists.
+    if [[ -L "$AIROOTFS/etc/systemd/system/bluetooth.target.wants/bluetooth.service" ]]; then
+      ok "bluetooth.service enabled in live image (bluetooth.target.wants)"
+    else
+      bad "bluetooth.service not enabled in live image (missing bluetooth.target.wants/bluetooth.service)"
     fi
   fi
   if [[ -n "$SKEL" ]]; then

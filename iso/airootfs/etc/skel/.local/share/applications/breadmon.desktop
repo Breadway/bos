@@ -1,9 +1,0 @@
-[Desktop Entry]
-Name=breadmon
-Comment=Monitor layout manager (TUI)
-Exec=breadmon
-Icon=video-display
-Terminal=true
-Type=Application
-Categories=Settings;System;
-StartupWMClass=breadmon

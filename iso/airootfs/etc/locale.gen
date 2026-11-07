@@ -1,0 +1,6 @@
+# BOS live image locales. Calamares detects the languages it offers from
+# /usr/share/i18n/SUPPORTED, not from this file, and appends the locale chosen
+# at install time before localecfg runs locale-gen on the target. The live
+# session needs at least one generated UTF-8 locale of its own: with only
+# C/POSIX, Language and Formats offer nothing but "Computer default (C)".
+en_US.UTF-8 UTF-8
