@@ -47,6 +47,51 @@ def valid_name(name: str) -> bool:
     return bool(name) and "/" not in name and name not in (".", "..")
 
 
+# breadhelp 0.3.0 ships a second binary, breadhelp-tour (the GTK4 tour
+# overlay). It lives in optional_bins so a builder still on the 0.2.7 stable
+# index keeps working, but from 0.3.0 on a missing tour is a hard bake error:
+# breadhelp starts it after first-run setup, and without it onboarding never
+# appears (BOS-105).
+BREADHELP_TOUR_MIN = (0, 3, 0)
+
+
+def version_tuple(version: str) -> tuple[int, ...]:
+    parts: list[int] = []
+    for chunk in str(version).split("."):
+        digits = ""
+        for char in chunk:
+            if not char.isdigit():
+                break
+            digits += char
+        if not digits:
+            break
+        parts.append(int(digits))
+    return tuple(parts)
+
+
+def version_at_least(version: str, minimum: tuple[int, ...]) -> bool:
+    have = version_tuple(version)
+    if not have:
+        return False
+    width = max(len(have), len(minimum))
+    return have + (0,) * (width - len(have)) >= minimum + (0,) * (width - len(minimum))
+
+
+def breadhelp_tour_error(version: str | None, staged_bins: list[str]) -> str | None:
+    """Why a bake is unsafe, or None when breadhelp-tour is optional/absent."""
+    if not version or not version_at_least(version, BREADHELP_TOUR_MIN):
+        return None
+    if "breadhelp-tour" in staged_bins:
+        return None
+    return (
+        f"breadhelp {version} requires the breadhelp-tour binary (>= "
+        f"{'.'.join(str(n) for n in BREADHELP_TOUR_MIN)}), but it was not staged. "
+        "Publish it in the signed stable index (or fix the pin) before baking: "
+        "without the tour, first-run onboarding silently never appears."
+    )
+
+
+
 def load_versions(data: dict, path: Path) -> dict[str, str]:
     """Optional [versions] map and/or [[pin]] tables → package → version."""
     versions: dict[str, str] = {}
@@ -374,6 +419,15 @@ def main() -> int:
         take_bin(name, required_bin=True)
     for name in optional:
         take_bin(name, required_bin=False)
+
+    breadhelp_version = versions.get("breadhelp") or (
+        selected.get("breadhelp") or {}
+    ).get("version")
+    tour_error = breadhelp_tour_error(
+        breadhelp_version, installed_bins.get("breadhelp", [])
+    )
+    if tour_error:
+        die(tour_error)
 
     if not selected:
         die("no packages selected from lockfile ∩ index")
