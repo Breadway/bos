@@ -20,6 +20,13 @@ tag (with date) at tag time.
 
 ## [Unreleased]
 
+- Interrupting `build-local.sh` mid-bake no longer risks the host. The script
+  used to leave mkarchiso's chroot bind mounts behind on SIGINT/SIGTERM, and a
+  follow-up removal of the work dir walked into the mounted host devtmpfs and
+  deleted device nodes (`/dev/null`, `/dev/kvm`, ...). Every exit path now
+  unmounts first and only removes a tree proven free of mounts, refusing
+  loudly otherwise. A `kill -9` still needs a manual unmount first. Check with
+  `scripts/test-build-cleanup.sh`.
 - The bake and verify-bake no longer accept a breadhelp content directory that
   the runtime cannot read. breadhelp 0.2.7 resolves guides from
   `/usr/share/breadhelp/content`, while the bake installed them under
