@@ -20,18 +20,75 @@ REPO="$(cd "$(dirname "$0")" && pwd)"
 WORK="${WORK:-/tmp/bos-work}"
 OUT="${OUT:-$REPO/out}"
 
+# --- Signal-safe cleanup (BOS-121): installed before anything that can mount.
+# mkarchiso bind-mounts proc, sys, dev, dev/pts, dev/shm, run and tmp inside
+# WORK while it assembles the image. Killing this script mid-bake used to leave
+# those mounts behind, and a follow-up plain removal of WORK then walked into
+# the still-mounted host devtmpfs and deleted host device nodes (/dev/null,
+# /dev/kvm, ...). Every exit path therefore unmounts first and only removes a
+# tree proven free of mounts. Residual risk: SIGKILL cannot be trapped, so a
+# kill -9 mid-bake still needs a manual unmount before removing WORK;
+# safe_rmtree fails closed with that exact hint instead of deleting.
+# BOS-121-CLEANUP-BEGIN
+BAKERY_TMP_HOME=""
+BUILD_GPG_DIR=""
+CLEANUP_DONE=0
+
+# Unmount every mount under $1, deepest first. Never fails: it runs in the
+# EXIT/INT/TERM trap where a failure must not mask the build's exit status.
+unmount_tree() {
+  local root="$1" mnt
+  [ -n "$root" ] || return 0
+  [ -d "$root" ] || return 0
+  while IFS= read -r mnt; do
+    [ -n "$mnt" ] || continue
+    umount -R -- "$mnt" 2>/dev/null \
+      || umount -- "$mnt" 2>/dev/null \
+      || umount -l -- "$mnt" 2>/dev/null || true
+  done < <(findmnt -R -n -o TARGET -- "$root" 2>/dev/null \
+    | awk '{ print length($0), $0 }' | sort -rn | cut -d' ' -f2-)
+  return 0
+}
+
+# Remove $1 only when it holds no mounts (fail closed). Uses --one-file-system
+# as defense in depth so rm can never cross into a surviving mount.
+safe_rmtree() {
+  local dir="$1" mounts
+  [ -e "$dir" ] || [ -L "$dir" ] || return 0
+  mounts="$(findmnt -R -n -o TARGET -- "$dir" 2>/dev/null || true)"
+  if [ -n "$mounts" ]; then
+    echo "ERROR: refusing to remove $dir: it still contains mounts:" >&2
+    printf '  still mounted: %s\n' "$mounts" >&2
+    echo "Unmount first (deepest first, or: umount -R $dir) then retry." >&2
+    echo "After kill -9 this is expected: SIGKILL cannot be trapped." >&2
+    return 1
+  fi
+  rm -rf --one-file-system -- "$dir"
+}
+
+# EXIT/INT/TERM handler. Order is the fix: unmount before remove. Idempotent:
+# INT/TERM run it and exit, which fires EXIT and runs it again harmlessly.
+cleanup_build() {
+  [ "${CLEANUP_DONE:-0}" = "1" ] && return 0
+  CLEANUP_DONE=1
+  if [ -n "${WORK:-}" ]; then
+    unmount_tree "$WORK"
+    safe_rmtree "$WORK" \
+      || echo "WARN: keeping $WORK: mounts still present, unmount manually then remove" >&2
+  fi
+  [ -z "${BAKERY_TMP_HOME:-}" ] || rm -rf -- "$BAKERY_TMP_HOME"
+  [ -z "${BUILD_GPG_DIR:-}" ] || rm -rf -- "$BUILD_GPG_DIR"
+  return 0
+}
+# BOS-121-CLEANUP-END
+trap cleanup_build EXIT
+trap 'cleanup_build; exit 130' INT
+trap 'cleanup_build; exit 143' TERM
+
 # Build against a throwaway copy of the profile so the working tree stays clean
 # when FAST_BUILD / the registry rewrite mutate profile files.
 STAGE=/tmp/bos-iso-stage
-rm -rf "$STAGE" && cp -a "$REPO/iso" "$STAGE"
-
-BAKERY_TMP_HOME=""
-BUILD_GPG_DIR=""
-cleanup_build_temps() {
-  [[ -z "$BAKERY_TMP_HOME" ]] || rm -rf -- "$BAKERY_TMP_HOME"
-  [[ -z "$BUILD_GPG_DIR" ]] || rm -rf -- "$BUILD_GPG_DIR"
-}
-trap cleanup_build_temps EXIT
+safe_rmtree "$STAGE" && cp -a "$REPO/iso" "$STAGE"
 
 # Build package trust only in this staged config, never in the host keyring.
 # mkarchiso reuses the same GPGDir for package operations while assembling the
@@ -484,7 +541,10 @@ export SOURCE_DATE_EPOCH="${SOURCE_DATE_EPOCH:-$(date +%s)}"
 echo "SOURCE_DATE_EPOCH=$SOURCE_DATE_EPOCH ($(date -u -d "@$SOURCE_DATE_EPOCH" +%Y-%m-%d-%H-%M-%S-00))"
 
 echo "=== running mkarchiso ==="
-rm -rf "$WORK" && mkdir -p "$OUT"
+# Fail closed: a previous kill -9 (untrappable, mounts left behind) aborts here
+# with the unmount hint instead of deleting across mounts.
+safe_rmtree "$WORK"
+mkdir -p "$OUT"
 mkarchiso -v -w "$WORK" -o "$OUT" "$STAGE"
 
 echo "=== RESULT ==="
