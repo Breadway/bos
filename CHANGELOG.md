@@ -20,6 +20,113 @@ tag (with date) at tag time.
 
 ## [Unreleased]
 
+## [0.6.3] - 2026-11-11
+
+### What's different and why
+
+This release is mostly about the live image and the installer behaving like
+the system you get after installing. Bluetooth and printing work in the
+live session without opening Settings first, the live medium no longer
+runs out of writable space during an ordinary session, and installed
+systems keep systemd's crash-dump policy instead of inheriting the live
+medium's override. Encrypted installs now produce a system that boots
+without a second passphrase prompt, UEFI Setup Mode installs enroll and
+re-sign GRUB and the kernel so Secure Boot updates keep working, and a
+failed install reports the failure instead of showing the success page.
+
+On the desktop, idle lock actually locks (it never did), Super+Shift+B
+opens a bug reporter that shows exactly what would be sent before you
+choose to send it, and BOS Settings collected a large batch of correctness
+fixes: Wi-Fi stays connected, package counts agree across pages, printing
+reports an empty list instead of a broken scheduler, snapshots explain why
+they are unavailable on a live session, and the logged-in account shows up
+in Users. The bar's launcher no longer freezes or loses its grid on resize,
+notification preferences persist, and the bread apps are refreshed to
+their current stable versions. breadmon is gone: it was deprecated, and
+breadpad's breadman remains the fuller notes manager.
+
+### bread-ecosystem binary version changes (since v0.6.2)
+
+Checked against `iso/bread-lockfile.toml` at the `v0.6.2` tag and at the
+commit this release was cut from, so this is the set the ISO actually
+ships. `breadlock` is pacman, not bakery, and has no pin here.
+
+- **`bakery` 0.7.12 -> 0.8.2.** Release tooling fixes: dev-dependency
+  resolution now qualifies ambiguous package specs from the resolved lock,
+  fails on unused patches, and updates nested workspace locks; index
+  generation covers the full systemd unit suffix set and treats files
+  without a `.sha256` sidecar correctly. breadram is registered as a bakery
+  product.
+- **`bread-theme` 0.7.12 -> 0.8.2.** Shares the bread-ecosystem workspace
+  version with bakery, so this is the same lockstep bump. The shared
+  library fixes the widget observer leak that froze the bar's launcher
+  (BAR-58) and keeps panic probes out of abort builds.
+- **`bread` 0.9.0 -> 0.10.1.** PEM/UPower power events map correctly again
+  and peripheral batteries no longer appear as the system battery; the
+  daemon stays quiet for absent optional adapters and repeated IPC
+  failures, carries the IPC repeat count, and two parallel-load IPC test
+  flakes are fixed. breadbug gained deterministic page snapshots, its
+  launcher, and packaging, which is what Super+Shift+B uses.
+- **`breadbar` 0.4.0 -> 0.4.1.** Launcher fixes: the grid survives a
+  resize, the stage mode is re-applied, the stage dismisses on focus loss,
+  and the bus subscription starts once instead of leaking an observer.
+  Callback panics are logged instead of killing the bar, notification
+  preferences persist, Bluetooth state is live, and the Spotlight pill
+  shows battery state plus breadram pressure.
+- **`breadbox` 0.4.0 -> 0.4.1.** Launcher freeze fix from the shared
+  bread-theme bump, plus persistent input and main-loop diagnostics.
+- **`breadcrumbs` 2.2.0 -> 2.2.1.** A large NetworkManager correctness
+  batch: DNS is validated before mutation and only written to methods that
+  accept it, created IPv4/IPv6 sections get a usable method, hidden=false
+  reaches saved profiles, portal detection handles non-204 answers, and
+  profile commands no longer race. Exit-node listing and matching were
+  normalized, routine watches no longer raise desktop popups, and the
+  bootstrap claim only fires for the bootstrap SSID.
+- **`breadpad` 0.6.0 -> 0.6.1.** breadman answers `-h/--help` and
+  `--version` before Tauri, repeat choices and time examples are valid,
+  and the theme watcher follows bread-theme's palette cache instead of the
+  retired pywal path.
+- **`breadpaper` 0.2.0 -> 0.2.1.** Wallpaper tiles keep their content
+  height and the library folder aligns correctly.
+- **`breadclip` 0.3.0 -> 0.4.0.** Crash and freeze reports now go to
+  breadbug (the pilot for the shared bug-report path), the CLI answers
+  `--version`, panic reporting stays private, and an invalid GTK4 thumbnail
+  size rule was replaced.
+- **`breadshot` 0.1.3 -> 0.1.4.** Documentation and comment cleanup; no
+  behavior change since 0.1.3.
+- **`bos-settings` 0.9.0 -> 0.10.0.** The largest BOS-facing batch: Wi-Fi
+  keeps the connected network connected, package update counts agree
+  across the badge, Home and Updates, printers report an empty list
+  instead of a dead scheduler, snapshots explain why they are unavailable
+  on a live session, Users lists the logged-in account and filters by real
+  login shells, firewall renders without a password prompt, Bluetooth
+  refreshes after starting, About reports failed and restart-looping
+  services, power rewrites the broken idle lock command without touching
+  commands that merely extend it, and shortcut labels are readable.
+- **`breadhelp` 0.2.7 -> 0.3.0.** First stable release with
+  `breadhelp-tour`, the GTK4 first-run tour overlay. Help content matches
+  the shipped bug reporter and current keybinds, the tour spotlight
+  follows the bar pill hotzone, the Learn tab resolves guides from the
+  bakery install root with an embedded fallback, and the help window is
+  skipped on silent every-login autostart.
+- **`breadmon` 0.1.5 removed.** Deprecated and no longer baked into the
+  image. breadpad still provides breadman.
+
+### BOS changes (ISO / installer / packaging / CI)
+
+- breadmon is gone from the image. The deprecated binary and its stale
+  launcher entry were removed; breadpad's breadman is unaffected.
+- A fresh install ships a clean breadcrumbs default that no longer pins
+  `connect_wait`, so the first Wi-Fi connection uses NetworkManager's own
+  timing rather than a value copied from the build machine.
+- breadhelp opens at its designed 1040x680 floating size instead of the
+  old window rule.
+- The bake installs `breadhelp-tour` alongside breadhelp 0.3.0 and refuses
+  to build when the tour binary is missing, because first-run onboarding
+  silently never appears without it (BOS-105).
+- The lockfile pins were refreshed to the 0.6.3 stable set above, so a
+  bake from this commit fetches exactly these versions and verifies each
+  against the signed index.
 - Interrupting `build-local.sh` mid-bake no longer risks the host. The script
   used to leave mkarchiso's chroot bind mounts behind on SIGINT/SIGTERM, and a
   follow-up removal of the work dir walked into the mounted host devtmpfs and
@@ -190,9 +297,6 @@ tag (with date) at tag time.
   index by default. Set `BAKE_FROM_HOME=1` to use the builder's installed
   bakery versions for development. The build uses a temporary package
   keyring, leaving the host pacman keyring unchanged.
-- Updated the bakery, bread-theme, and breadpaper lockfile pins to their
-  signed stable-index versions so all three can be verified by SHA-256.
-
 ## [0.6.2] - 2026-09-19
 
 ### What's different and why
