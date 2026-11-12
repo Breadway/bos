@@ -10,14 +10,22 @@ releases until an offline signer verifies and signs them.
 | Purpose | Public fingerprint | Public key | Intended private-key location after activation |
 | --- | --- | --- | --- |
 | Installed `[breadway]` repository | `56203B86A110695AE7F310934AF3323D678EB5E2` | `iso/airootfs/etc/pacman.d/breadway-repo.asc` | Dedicated offline repository signer, never an Actions runner |
-| Future ISO `SHA256SUMS` | Not provisioned yet, activation blocked | Replace `KEYS.asc` with a distinct expiring ISO-only identity in a reviewed change | Separate offline ISO signer, never an Actions runner |
-| Historical ISO releases | `56203B86A110695AE7F310934AF3323D678EB5E2` | Existing `KEYS.asc`, retain historical public copy when replaced | Verification only; stop using the repository key for new ISOs |
+| ISO `SHA256SUMS` (0.6.3 onward) | `D8DC95F54E98E10F1CE1B6216BC0A8175D877835` (expires 2027-11-12) | `KEYS.asc` | Separate offline ISO signer, never an Actions runner |
+| Historical ISO releases (before 0.6.3) | `56203B86A110695AE7F310934AF3323D678EB5E2` | `KEYS-legacy-56203B86.asc` | Verification only; stop using the repository key for new ISOs |
 
 The existing repository primary key expires on 2028-07-03 UTC. The installed
 image trusts only `breadway-repo.asc` for `[breadway]`; it does not import
 `KEYS.asc`. This change does not rotate keys or alter installed trust.
 The offline ISO signer refuses the legacy shared identity, so an unprovisioned
 installation cannot silently continue sharing a key.
+
+Activation status (2026-11-12): the ISO-only identity
+`D8DC95F54E98E10F1CE1B6216BC0A8175D877835` was provisioned with a one year
+expiry, its public half replaced `KEYS.asc`, and the legacy public key was kept
+as `KEYS-legacy-56203B86.asc` for verifying older releases. Repository key
+isolation (checklist step 2) and removal of the old shared secret are still
+open; until they land, the release workstation still holds the shared legacy
+secret even though the ISO identity is separate.
 
 ## Activation checklist, required before the next release or repo update
 
