@@ -20,7 +20,7 @@ tag (with date) at tag time.
 
 ## [Unreleased]
 
-## [0.6.3] - 2026-11-11
+## [0.6.3] - 2026-11-12
 
 ### What's different and why
 

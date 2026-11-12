@@ -29,7 +29,7 @@ jobs:
       # archlinux:latest. Do not invent one.
       image: archlinux:latest
       # --privileged: mkarchiso needs CAP_SYS_ADMIN for loop mounts + mknod
-      # --network=host: gives localhost:3002 access to Forgejo (avoids the
+      # --network=host: gives localhost:7218 access to Forgejo (avoids the
       #   public git.breadway.dev → Aegis → Tailscale round-trip for pacman)
       options: --privileged --network=host
 
@@ -111,7 +111,7 @@ jobs:
           # candidate that an offline operator may already have approved.
           RELEASE_HTTP=$(curl -sS -o /tmp/existing-release.json -w '%{http_code}' \
             -H "Authorization: token ${FORGEJO_TOKEN}" \
-            "http://localhost:3002/api/v1/repos/${GITHUB_REPOSITORY}/releases/tags/${TAG}")
+            "http://localhost:7218/api/v1/repos/${GITHUB_REPOSITORY}/releases/tags/${TAG}")
           case "$RELEASE_HTTP" in
             404) RELEASE_ID="" ;;
             200) echo 'Release/candidate already exists; refusing all mutations' >&2; exit 1 ;;
@@ -121,7 +121,7 @@ jobs:
             RELEASE=$(curl -fsS -X POST \
               -H "Authorization: token ${FORGEJO_TOKEN}" \
               -H "Content-Type: application/json" \
-              "http://localhost:3002/api/v1/repos/${GITHUB_REPOSITORY}/releases" \
+              "http://localhost:7218/api/v1/repos/${GITHUB_REPOSITORY}/releases" \
               -d "{
                 \"tag_name\": \"${TAG}\",
                 \"name\": \"BOS ${TAG}\",
@@ -135,7 +135,7 @@ jobs:
 
           require_draft() {
             curl -fsS -H "Authorization: token ${FORGEJO_TOKEN}" \
-              "http://localhost:3002/api/v1/repos/${GITHUB_REPOSITORY}/releases/${RELEASE_ID}" \
+              "http://localhost:7218/api/v1/repos/${GITHUB_REPOSITORY}/releases/${RELEASE_ID}" \
               | python3 -c 'import json,sys; sys.exit(0 if json.load(sys.stdin).get("draft") is True else "Candidate is no longer draft, refusing mutation")'
           }
 
@@ -147,7 +147,7 @@ jobs:
             curl -fsS -X POST \
               -H "Authorization: token ${FORGEJO_TOKEN}" \
               -F "attachment=@${file};filename=${name}" \
-              "http://localhost:3002/api/v1/repos/${GITHUB_REPOSITORY}/releases/${RELEASE_ID}/assets"
+              "http://localhost:7218/api/v1/repos/${GITHUB_REPOSITORY}/releases/${RELEASE_ID}/assets"
             echo "Uploaded: ${name}"
           }
 
