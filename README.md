@@ -187,14 +187,15 @@ archive against GitHub's release-asset digest before building it.
 
 ### Verifying a release
 
-Published historical ISOs include `SHA256SUMS` and `SHA256SUMS.asc` signed by
-`56203B86A110695AE7F310934AF3323D678EB5E2`, the legacy public key currently at
-[`KEYS.asc`](KEYS.asc). The repository public key is separately installed at
-`/etc/pacman.d/breadway-repo.asc`.
+ISOs from 0.6.3 on include `SHA256SUMS` and `SHA256SUMS.asc` signed by
+`D8DC95F54E98E10F1CE1B6216BC0A8175D877835`, the ISO-only key at
+[`KEYS.asc`](KEYS.asc) (expires 2027-11-12). Releases before 0.6.3 were signed
+by the legacy shared key `56203B86A110695AE7F310934AF3323D678EB5E2`, preserved
+at [`KEYS-legacy-56203B86.asc`](KEYS-legacy-56203B86.asc). The repository public
+key is separately installed at `/etc/pacman.d/breadway-repo.asc`.
 
-New ISO builds prepare unsigned **draft candidates**. Signing moves to a
-separate offline ISO identity, whose public fingerprint must be provisioned and
-reviewed before the next release can be published. Signing scripts refuse to
+ISO builds prepare unsigned **draft candidates**; publication requires a
+signature from the separate offline ISO identity. Signing scripts refuse to
 reuse the repository identity. See [signing activation and rotation](docs/signed-repo.md).
 
 For a published release, import its matching public key, then verify both the
